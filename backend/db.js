@@ -18,11 +18,9 @@ function generateClassCode() {
 }
 
 async function initDb(db) {
-  // Drop tables if they exist to ensure schema is up to date
-  await db.execute('DROP TABLE IF EXISTS designs, class_members, classes, users');
-
+  // USERS (no se borra nunca)
   await db.execute(`
-    CREATE TABLE users (
+    CREATE TABLE IF NOT EXISTS users (
       id INT AUTO_INCREMENT PRIMARY KEY,
       firstName VARCHAR(255) NOT NULL,
       lastName VARCHAR(255) NOT NULL,
@@ -33,8 +31,9 @@ async function initDb(db) {
     ) ENGINE=InnoDB
   `);
 
+  // CLASSES
   await db.execute(`
-    CREATE TABLE classes (
+    CREATE TABLE IF NOT EXISTS classes (
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       description TEXT,
@@ -45,8 +44,9 @@ async function initDb(db) {
     ) ENGINE=InnoDB
   `);
 
+  // CLASS MEMBERS
   await db.execute(`
-    CREATE TABLE class_members (
+    CREATE TABLE IF NOT EXISTS class_members (
       id INT AUTO_INCREMENT PRIMARY KEY,
       classId INT NOT NULL,
       userId INT NOT NULL,
@@ -57,8 +57,9 @@ async function initDb(db) {
     ) ENGINE=InnoDB
   `);
 
+  // DESIGNS
   await db.execute(`
-    CREATE TABLE designs (
+    CREATE TABLE IF NOT EXISTS designs (
       id INT AUTO_INCREMENT PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       ownerId INT NOT NULL,
