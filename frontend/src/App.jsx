@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import ClassesPage from './pages/ClassesPage.jsx';
+import ClassDetailPage from './pages/ClassDetailPage.jsx';
 import DesignsPage from './pages/DesignsPage.jsx';
 import EditorPage from './pages/EditorPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
@@ -52,8 +53,10 @@ export default function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
             <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
+            <Route path="/classes/:id" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
             <Route path="/designs" element={<DesignsPage />} />
             <Route path="/editor" element={<EditorPage />} />
+            <Route path="/editor/:id" element={<EditorPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
