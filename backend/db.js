@@ -1,73 +1,77 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const mysql = require('mysql2/promise');
 const crypto = require('crypto');
 
-function openDb() {
-  const file = path.join(__dirname, 'data', 'database.sqlite');
-  const db = new Database(file);
-  db.pragma('foreign_keys = ON');
-  return db;
+async function openDb() {
+  const connection = await mysql.createConnection({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'tecdiagram',
+    port: process.env.DB_PORT || 3306,
+    multipleStatements: true
+  });
+  return connection;
 }
 
 function generateClassCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
-function initDb(db) {
-  db.exec(`
+async function initDb(db) {
+  // USERS (no se borra nunca)
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      firstName TEXT NOT NULL,
-      lastName TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      passwordHash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'student',
-      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      firstName VARCHAR(255) NOT NULL,
+      lastName VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      passwordHash VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL DEFAULT 'student',
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB
+  `);
 
+  // CLASSES
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS classes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
       description TEXT,
-      code TEXT NOT NULL UNIQUE,
-      ownerId INTEGER NOT NULL,
-      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      code VARCHAR(255) NOT NULL UNIQUE,
+      ownerId INT NOT NULL,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(ownerId) REFERENCES users(id) ON DELETE CASCADE
-    );
+    ) ENGINE=InnoDB
+  `);
 
+  // CLASS MEMBERS
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS class_members (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      classId INTEGER NOT NULL,
-      userId INTEGER NOT NULL,
-      joinedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      classId INT NOT NULL,
+      userId INT NOT NULL,
+      joinedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(classId, userId),
       FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE,
       FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
-    );
+    ) ENGINE=InnoDB
+  `);
 
+  // DESIGNS
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS designs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      ownerId INTEGER NOT NULL,
-      classId INTEGER,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      ownerId INT NOT NULL,
+      classId INT,
       content TEXT NOT NULL,
       isCopy BOOLEAN DEFAULT FALSE,
-      originalId INTEGER,
-      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      originalId INT,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(ownerId) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE SET NULL,
       FOREIGN KEY(originalId) REFERENCES designs(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content TEXT NOT NULL,
-      authorId INTEGER NOT NULL,
-      classId INTEGER NOT NULL,
-      createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(authorId) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE
-    );
+    ) ENGINE=InnoDB
   `);
 }
 
