@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
@@ -32,26 +33,65 @@ export default function AccountPage() {
   };
 
   return (
-    <section className="page-container form-card">
-      <h1>Mi cuenta</h1>
-      <form onSubmit={handleSave}>
-        <label>
-          Nombre
-          <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-        </label>
-        <label>
-          Apellido
-          <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-        </label>
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <p>Rol: <strong>{user?.role === 'teacher' ? 'Profesor' : 'Estudiante'}</strong></p>
-        {message ? <p className="success-text">{message}</p> : null}
-        {error ? <p className="error-text">{error}</p> : null}
-        <button className="primary-button" type="submit">Guardar cambios</button>
-      </form>
+    <section className="page-container profile-layout">
+      <aside className="panel-card profile-sidebar">
+        <div className="avatar-circle" aria-hidden>👤</div>
+        <h2>{firstName} {lastName}</h2>
+        <p>{email}</p>
+        <span className="badge">{user?.role === 'teacher' ? 'Profesor' : 'Estudiante'}</span>
+        <div className="profile-actions">
+          <Link className="secondary-button" to="/designs">Mis diseños</Link>
+          <Link className="secondary-button" to="/classes">Mis clases</Link>
+        </div>
+      </aside>
+
+      <article className="form-card profile-form">
+        <h1>Perfil</h1>
+        <p className="small-text">Actualiza tus datos personales para mantener tu cuenta al dia.</p>
+        <section className="profile-block-grid">
+          <div className="profile-block">
+            <div className="profile-block-head">
+              <h3>Mis diseños</h3>
+              <Link to="/designs">Ver todos</Link>
+            </div>
+            <div className="mini-cards">
+              <div className="mini-card">Vista panel</div>
+              <div className="mini-card">Prom y IA</div>
+              <div className="mini-card">Diagrama web</div>
+            </div>
+          </div>
+          <div className="profile-block">
+            <div className="profile-block-head">
+              <h3>Mis clases</h3>
+              <Link to="/classes">Ver todos</Link>
+            </div>
+            <div className="mini-cards">
+              <div className="mini-card">Normal class</div>
+              <div className="mini-card">Clase 2</div>
+              <div className="mini-card">Clase 3</div>
+            </div>
+          </div>
+        </section>
+        <form onSubmit={handleSave}>
+          <div className="form-row">
+            <label>
+              Nombre
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+            </label>
+            <label>
+              Apellido
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+            </label>
+          </div>
+          <label>
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          {message ? <p className="success-text">{message}</p> : null}
+          {error ? <p className="error-text">{error}</p> : null}
+          <button className="primary-button" type="submit">Guardar cambios</button>
+        </form>
+      </article>
     </section>
   );
 }
