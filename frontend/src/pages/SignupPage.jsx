@@ -32,42 +32,65 @@ export default function SignupPage() {
   };
 
   return (
-    <section className="page-container form-card">
-      <h1>Crear cuenta</h1>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Nombre
-          <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-        </label>
-        <label>
-          Apellido
-          <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-        </label>
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <label>
-          Contraseña
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </label>
-        <label>
-          Confirmar contraseña
-          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-        </label>
-        <label>
-          Rol
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="student">Estudiante</option>
-            <option value="teacher">Profesor</option>
-          </select>
-        </label>
-        {error ? <p className="error-text">{error}</p> : null}
-        <button className="primary-button" type="submit">Crear cuenta</button>
-      </form>
-      <p>
-        ¿Ya tienes cuenta? <Link to="/login">Ingresar</Link>
-      </p>
+    <section className="page-container auth-layout">
+      <article className="auth-info">
+        <p className="section-eyebrow">Register</p>
+        <h1>Crear cuenta nueva</h1>
+        <p>
+          Completa tus datos para activar tu perfil y empezar a crear diagramas con guardado en la nube.
+        </p>
+        <ul>
+          <li>Correo de verificacion al registrarte</li>
+          <li>Perfil editable desde tu cuenta</li>
+          <li>Rol de estudiante o profesor</li>
+        </ul>
+      </article>
+
+      <article className="form-card auth-card">
+        <div className="auth-tabs">
+          <Link to="/login">Ingresar</Link>
+          <span className="active">Registrarse</span>
+        </div>
+        <h2>Crear cuenta</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <label>
+              Nombre
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+            </label>
+            <label>
+              Apellido
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+            </label>
+          </div>
+          <label>
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </label>
+          <div className="form-row">
+            <label>
+              Contraseña
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </label>
+            <label>
+              Confirmar contraseña
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+            </label>
+          </div>
+          <label>
+            Rol
+            <select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="student">Estudiante</option>
+              <option value="teacher">Profesor</option>
+            </select>
+          </label>
+          {error ? <p className="error-text">{error}</p> : null}
+          <button className="primary-button full-width" type="submit">Crear cuenta</button>
+        </form>
+        <p className="small-text">
+          ¿Ya tienes cuenta? <Link to="/login">Ingresar</Link>
+        </p>
+      </article>
     </section>
   );
 }
