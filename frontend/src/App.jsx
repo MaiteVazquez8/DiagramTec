@@ -19,24 +19,39 @@ function Header() {
   const { user, logout } = useAuth();
   return (
     <header className="app-header">
-      <div className="brand">TecDiagram</div>
-      <nav>
-        <NavLink to="/">Inicio</NavLink>
-        <NavLink to="/designs">Diseños</NavLink>
-        {user ? <NavLink to="/classes">Clases</NavLink> : null}
-        {user ? <NavLink to="/account">Mi cuenta</NavLink> : null}
-      </nav>
-      <div className="header-actions">
-        {user ? (
-          <>
-            <span className="user-chip">{user.firstName} {user.lastName}</span>
-            <button className="small-button" onClick={logout}>Cerrar sesión</button>
-          </>
-        ) : (
-          <NavLink className="small-button" to="/login">Ingresar</NavLink>
-        )}
+      <div className="header-shell">
+        <div className="brand">TecDiagram</div>
+        <nav className="header-nav">
+          <NavLink to="/">Inicio</NavLink>
+          <NavLink to="/designs">Diseños</NavLink>
+          {user ? <NavLink to="/classes">Clases</NavLink> : null}
+          {user ? <NavLink to="/account">Perfil</NavLink> : null}
+        </nav>
+        <div className="header-actions">
+          {!user ? (
+            <NavLink className="small-button login-pill" to="/login">Ingresar</NavLink>
+          ) : (
+            <>
+              <span className="user-chip">{user.firstName} {user.lastName}</span>
+              <button className="small-button" onClick={logout}>Cerrar sesión</button>
+            </>
+          )}
+        </div>
       </div>
     </header>
+  );
+}
+
+function MobileNav() {
+  const { user } = useAuth();
+  return (
+    <nav className="mobile-nav">
+      <NavLink to="/">Inicio</NavLink>
+      <NavLink to="/designs">Diseños</NavLink>
+      {user ? <NavLink to="/classes">Clases</NavLink> : null}
+      {user ? <NavLink to="/account">Perfil</NavLink> : null}
+      {!user ? <NavLink to="/login">Ingresar</NavLink> : null}
+    </nav>
   );
 }
 
@@ -45,6 +60,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Header />
+        <MobileNav />
         <main>
           <Routes>
             <Route path="/" element={<HomePage />} />
