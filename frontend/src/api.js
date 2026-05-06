@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:4000';
+const hostname = window.location.hostname;
+const API_URL = `http://${hostname}:4000`;
 const api = axios.create({ baseURL: API_URL });
 
 export function setAuthToken(token) {

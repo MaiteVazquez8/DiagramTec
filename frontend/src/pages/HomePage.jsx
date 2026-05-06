@@ -1,58 +1,51 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 
-const DiagramIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-    <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-  </svg>
-);
-
-const UsersIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.70"/>
-  </svg>
-);
-
-const ShapesIcon = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/>
-  </svg>
-);
-
 export default function HomePage() {
   const { user } = useAuth();
   return (
-    <section className="page-container" id="home-page">
-      <div className="hero-card">
+    <section className="page-container landing-page">
+      <article className="hero-card home-hero">
+        <p className="section-eyebrow">TecDiagram</p>
         <h1>Bienvenido a TecDiagram</h1>
-        <p>Una plataforma para crear diagramas de flujo de datos, guardar proyectos, trabajar con clases y usuarios invitados.</p>
+        <p>
+          La plataforma moderna para crear diagramas de flujo profesionales, guardar tus proyectos
+          y colaborar con tu equipo.
+        </p>
         <div className="hero-actions">
-          <Link className="primary-button" to="/editor">Crear un diseño nuevo</Link>
+          <Link className="primary-button" to="/editor">+ Crear diagrama nuevo</Link>
           {!user ? <Link className="secondary-button" to="/login">Ingresar / Registrarse</Link> : null}
         </div>
+      </article>
+
+      <div className="cards-grid feature-grid">
+        <article className="info-card">
+          <p className="feature-icon" aria-hidden>👤</p>
+          <h2>Como invitado</h2>
+          <p>Explora la plataforma, crea un flujo rápido y prueba la experiencia antes de registrarte.</p>
+          <span className="badge">Sin limitaciones para probar</span>
+        </article>
+        <article className="info-card">
+          <p className="feature-icon" aria-hidden>🔐</p>
+          <h2>Con cuenta propia</h2>
+          <p>Guarda tus diseños, organiza tus clases y accede a tu historial desde tu perfil.</p>
+          <span className="badge">Acceso premium</span>
+        </article>
+        <article className="info-card">
+          <p className="feature-icon" aria-hidden>💡</p>
+          <h2>Diseños profesionales</h2>
+          <p>Construye diagramas con componentes avanzados, conexiones automaticas y exportacion a imagen.</p>
+          <span className="badge">Herramientas Pro</span>
+        </article>
       </div>
 
-      <div className="info-grid">
-        <article>
-          <h2>Invitado</h2>
-          <p>Puedes navegar por la página de inicio, ver cómo funciona el sistema, y empezar a crear un nuevo proyecto.</p>
-        </article>
-        <article>
-          <h2>Cuenta</h2>
-          <p>Si no estás logueado, mi cuenta y clases te mandarán al login. Después de entrar, tendrás acceso a tu perfil, clases y diseños.</p>
-        </article>
-        <article>
-          <h2>Diseños</h2>
-          <p>Accede a tus diseños guardados o crea uno nuevo con la herramienta de arrastre y exportación a imagen.</p>
-        </article>
-      </div>
-
-      <div className="action-links">
-        <Link className="card-link" to="/account">Mi cuenta</Link>
-        <Link className="card-link" to="/classes">Clases</Link>
-        <Link className="card-link" to="/designs">Diseños</Link>
+      <div className="quick-actions">
+        <h3>Listo para empezar?</h3>
+        <div className="action-links">
+          <Link className="card-link" to="/editor">Nuevo diagrama</Link>
+          <Link className="card-link" to="/designs">Mis diseños</Link>
+          <Link className="card-link" to="/classes">Mis clases</Link>
+        </div>
       </div>
     </section>
   );

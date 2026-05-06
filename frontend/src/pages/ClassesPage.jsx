@@ -3,37 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-/* ── SVG Icons ─────────────────────────────── */
-const PlusIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 5v14"/><path d="M5 12h14"/>
-  </svg>
-);
-
-const BookIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/>
-  </svg>
-);
-
-const ArrowIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m9 18 6-6-6-6"/>
-  </svg>
-);
-
-const EmptyClassIcon = () => (
-  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-  </svg>
-);
+import { 
+  PlusIcon, BookIcon, ArrowIcon, EmptyClassIcon, TrashIcon 
+} from '../components/EditorUI.jsx';
 
 export default function ClassesPage() {
   const { user } = useAuth();
@@ -46,6 +18,7 @@ export default function ClassesPage() {
   const [error, setError] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [classToDelete, setClassToDelete] = useState(null);
 
   const loadClasses = async () => {
     try {
@@ -59,6 +32,13 @@ export default function ClassesPage() {
   useEffect(() => {
     loadClasses();
   }, []);
+
+  useEffect(() => {
+    if (message || error) {
+      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [message, error]);
 
   const handleCreate = async (event) => {
     event.preventDefault();
@@ -91,15 +71,21 @@ export default function ClassesPage() {
     }
   };
 
-  const handleDeleteClass = async (e, classId) => {
+  const handleDeleteClass = (e, classItem) => {
     e.stopPropagation();
-    if (!window.confirm('¿Estás seguro de que quieres eliminar esta clase? Se perderán todos los datos asociados.')) return;
+    setClassToDelete(classItem);
+  };
+
+  const confirmDelete = async () => {
+    if (!classToDelete) return;
     try {
-      await api.delete(`/classes/${classId}`);
+      await api.delete(`/classes/${classToDelete.id}`);
       setMessage('Clase eliminada con éxito');
+      setClassToDelete(null);
       loadClasses();
     } catch (err) {
       setError('No se pudo eliminar la clase');
+      setClassToDelete(null);
     }
   };
 
@@ -131,9 +117,23 @@ export default function ClassesPage() {
         </div>
       </div>
 
-      {/* ── Messages ── */}
-      {message && <p className="success-text">{message}</p>}
-      {error && <p className="error-text">{error}</p>}
+      {/* ── Toast Notifications ── */}
+      <div className="toast-container">
+        {message && (
+          <div className="toast success-toast">
+            <div className="toast-icon">✓</div>
+            <div className="toast-content">{message}</div>
+            <button className="toast-close" onClick={() => setMessage('')}>✕</button>
+          </div>
+        )}
+        {error && (
+          <div className="toast error-toast">
+            <div className="toast-icon">!</div>
+            <div className="toast-content">{error}</div>
+            <button className="toast-close" onClick={() => setError('')}>✕</button>
+          </div>
+        )}
+      </div>
 
       {/* ── Create class form (teacher only) ── */}
       {showCreateForm && user?.role === 'teacher' && (
@@ -202,18 +202,23 @@ export default function ClassesPage() {
               </div>
               <div className="class-card-info">
                 <div className="class-card-name">{classItem.title}</div>
-                <div className="class-card-teacher">{classItem.ownerName}</div>
+                <div className="class-card-teacher">Prof. {classItem.ownerName}</div>
+                {classItem.description && (
+                  <div style={{ fontSize: '0.78rem', color: 'rgba(27,23,23,0.4)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {classItem.description}
+                  </div>
+                )}
                 {classItem.code && user?.role === 'teacher' && classItem.ownerId === user.id && (
-                  <span className="badge" style={{ marginTop: '0.4rem' }}>
+                  <span className="badge" style={{ marginTop: '0.6rem', display: 'inline-block', background: '#f8d7da', color: '#842029', border: 'none', borderRadius: '999px', padding: '0.2rem 0.7rem', fontSize: '0.75rem', fontWeight: 700 }}>
                     Código: {classItem.code}
                   </span>
                 )}
               </div>
               <div className="class-card-actions">
-                {user?.role === 'teacher' && classItem.ownerId === user.id && (
+                {user?.role === 'teacher' && classItem.ownerId == user.id && (
                   <button 
-                    className="icon-button danger" 
-                    onClick={(e) => handleDeleteClass(e, classItem.id)}
+                    className="icon-button-ghost" 
+                    onClick={(e) => handleDeleteClass(e, classItem)}
                     title="Eliminar clase"
                   >
                     <TrashIcon />
@@ -227,6 +232,40 @@ export default function ClassesPage() {
           ))
         )}
       </div>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {classToDelete && (
+        <div className="modal-overlay" onClick={() => setClassToDelete(null)}>
+          <div className="modal modal-danger" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: '#fee2e2', color: '#dc2626', width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TrashIcon />
+                </div>
+                <h2 style={{ fontSize: '1.25rem', color: 'var(--dark)' }}>¿Eliminar clase?</h2>
+              </div>
+              <button className="modal-close" onClick={() => setClassToDelete(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: 'var(--dark-soft)', lineHeight: '1.5', margin: '0' }}>
+                Esta acción es irreversible. Se perderán todos los diseños y la conversación de <strong>{classToDelete.title}</strong>.
+              </p>
+            </div>
+            <div className="modal-footer" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="secondary-button" onClick={() => setClassToDelete(null)} style={{ border: 'none' }}>
+                Cancelar
+              </button>
+              <button 
+                className="primary-button" 
+                onClick={confirmDelete}
+                style={{ background: '#dc2626', borderColor: '#dc2626' }}
+              >
+                Eliminar definitivamente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Join Class Modal ── */}
       {showJoinModal && (

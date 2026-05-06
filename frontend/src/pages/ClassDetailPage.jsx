@@ -3,63 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-/* ── SVG Icons ─────────────────────────────── */
-const ArrowLeft = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m15 18-6-6 6-6"/>
-  </svg>
-);
-
-const ImageIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/>
-    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-  </svg>
-);
-
-const SmallImageIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/>
-    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-  </svg>
-);
-
-const CommentIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>
-  </svg>
-);
-
-const UploadIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/>
-    <line x1="12" y1="3" x2="12" y2="15"/>
-  </svg>
-);
-
-const ClockIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-  </svg>
-);
-
-const SendIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-  </svg>
-);
-
-const ChevronUp = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m18 15-6-6-6 6"/>
-  </svg>
-);
-
-const ChevronDown = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m6 9 6 6 6-6"/>
-  </svg>
-);
+import {
+  ArrowLeft, ImageIcon, SmallImageIcon, CommentIcon, UploadIcon, ClockIcon,
+  SendIcon, ChevronUp, ChevronDown, TrashIcon, BookIcon, PlusIcon, ArrowIcon
+} from '../components/EditorUI.jsx';
+import Icon from '../components/Icon.jsx';
+import ClassPost from '../components/ClassPost';
 
 export default function ClassDetailPage() {
   const { id } = useParams();
@@ -74,14 +23,21 @@ export default function ClassDetailPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [commentText, setCommentText] = useState('');
+  const [modalComment, setModalComment] = useState('');
   const [collapsedPosts, setCollapsedPosts] = useState(new Set());
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, title: '', message: '' });
+
+  const closeConfirm = () => setConfirmModal({ ...confirmModal, show: false });
+
+  const triggerConfirm = (type, id, title, message) => {
+    setConfirmModal({ show: true, type, id, title, message });
+  };
 
   const loadClassData = async () => {
     try {
-      // Load all classes to find this one and its joined status
-      const classesRes = await api.get('/classes');
-      const found = classesRes.data.classes.find((c) => c.id === Number(id));
-      if (found) setClassInfo(found);
+      const res = await api.get(`/classes/${id}`);
+      setClassInfo(res.data.class);
 
       // Load class designs and comments
       const designsRes = await api.get(`/classes/${id}/designs`);
@@ -106,6 +62,13 @@ export default function ClassDetailPage() {
     if (user) loadUserDesigns();
   }, [id, user]);
 
+  useEffect(() => {
+    if (message || error) {
+      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [message, error]);
+
   const handleShareDesign = async () => {
     if (!selectedDesignId) return;
     try {
@@ -120,26 +83,36 @@ export default function ClassDetailPage() {
       await api.post('/designs', {
         title: design.title,
         content: typeof content === 'string' ? JSON.parse(content) : content,
+        image: designRes.data.design.image, // Use image from design details
         classId: Number(id),
       });
+
+      // If there's a comment in the modal, post it too
+      if (modalComment.trim()) {
+        await api.post(`/classes/${id}/comments`, { content: modalComment });
+      }
 
       setMessage('Diseño compartido en la clase');
       setShowUploadModal(false);
       setSelectedDesignId(null);
-      setComment('');
+      setModalComment('');
       loadClassData();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo compartir el diseño');
     }
   };
 
-  const handleLeaveClass = async () => {
-    if (!window.confirm('¿Estás seguro de que quieres abandonar esta clase?')) return;
+  const handleLeaveClass = () => {
+    setShowLeaveModal(true);
+  };
+
+  const confirmLeave = async () => {
     try {
       await api.post(`/classes/leave`, { classId: id });
       navigate('/classes');
     } catch (err) {
       setError('No se pudo abandonar la clase');
+      setShowLeaveModal(false);
     }
   };
 
@@ -184,6 +157,32 @@ export default function ClassDetailPage() {
     });
   };
 
+  const handleDeletePost = (designId) => {
+    triggerConfirm('post', designId, '¿Eliminar publicación?', 'Esta acción eliminará el diseño compartido de forma permanente.');
+  };
+
+  const handleDeleteComment = (commentId) => {
+    triggerConfirm('comment', commentId, '¿Eliminar comentario?', '¿Estás seguro de que deseas eliminar este mensaje?');
+  };
+
+  const confirmAction = async () => {
+    const { type, id } = confirmModal;
+    try {
+      if (type === 'post') {
+        await api.delete(`/designs/${id}`);
+        setMessage('Publicación eliminada');
+      } else if (type === 'comment') {
+        await api.delete(`/comments/${id}`);
+        setMessage('Comentario eliminado');
+      }
+      loadClassData();
+    } catch (err) {
+      setError(`No se pudo eliminar ${type === 'post' ? 'la publicación' : 'el comentario'}`);
+    } finally {
+      closeConfirm();
+    }
+  };
+
   const getInitials = (name) => {
     if (!name) return '?';
     return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
@@ -210,7 +209,6 @@ export default function ClassDetailPage() {
           >
             <ArrowLeft /> Volver
           </button>
-          {classInfo.code && <span className="badge" style={{ marginRight: '0.5rem', fontSize: '1rem', padding: '0.3rem 0.8rem' }}>#{classInfo.code}</span>}
           Clase
         </h1>
         <div className="class-header-actions">
@@ -236,17 +234,33 @@ export default function ClassDetailPage() {
           {classInfo.title.charAt(0).toUpperCase()}
         </div>
         <div className="class-detail-text">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.2rem' }}>
-            {classInfo.code && <span className="badge" style={{ marginTop: 0, fontSize: '0.8rem' }}>{classInfo.code}</span>}
-            <h2 style={{ marginBottom: 0 }}>{classInfo.title}</h2>
-          </div>
-          <p>{classInfo.ownerName}</p>
+          <h2 style={{ marginBottom: '0.2rem' }}>{classInfo.title}</h2>
+          <p style={{ marginBottom: '0.4rem', color: 'rgba(27,23,23,0.6)' }}>{classInfo.ownerName}</p>
+          {(user?.role === 'teacher' || user?.id == classInfo.ownerId) && (
+            <span className="badge" style={{ marginTop: '0.5rem', fontSize: '1rem', background: '#f8d7da', color: '#842029', border: 'none', borderRadius: '999px', padding: '0.4rem 1.25rem', width: 'fit-content', display: 'inline-flex', alignItems: 'center', fontWeight: 'bold' }}>
+              Código: {classInfo.code}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* ── Messages ── */}
-      {message && <p className="success-text">{message}</p>}
-      {error && <p className="error-text">{error}</p>}
+      {/* ── Toast Notifications ── */}
+      <div className="toast-container">
+        {message && (
+          <div className="toast success-toast">
+            <div className="toast-icon">✓</div>
+            <div className="toast-content">{message}</div>
+            <button className="toast-close" onClick={() => setMessage('')}><Icon name="close" size={14} /></button>
+          </div>
+        )}
+        {error && (
+          <div className="toast error-toast">
+            <div className="toast-icon">!</div>
+            <div className="toast-content">{error}</div>
+            <button className="toast-close" onClick={() => setError('')}><Icon name="close" size={14} /></button>
+          </div>
+        )}
+      </div>
 
       {/* ── Publications Section ── */}
       <h3 className="class-section-title">Publicaciones de la clase</h3>
@@ -259,80 +273,26 @@ export default function ClassDetailPage() {
             </p>
           </div>
         ) : (
-          designs.map((design) => {
-            const isCollapsed = collapsedPosts.has(design.id);
-            return (
-              <article key={design.id} className="post-card" id={`post-${design.id}`}>
-                {/* Post header */}
-                <div className="post-header" style={{ paddingBottom: isCollapsed ? '1.15rem' : '0' }}>
-                  <div className="post-avatar">
-                    {getInitials(design.ownerName)}
-                  </div>
-                  <div className="post-author">
-                    <div className="post-author-name">{design.ownerName}</div>
-                    <div className="post-date">
-                      {new Date(design.createdAt).toLocaleDateString('es-AR', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </div>
-                  </div>
-                  <button className="post-toggle" onClick={() => togglePost(design.id)}>
-                    {isCollapsed ? <ChevronDown /> : <ChevronUp />}
-                  </button>
-                </div>
-
-                {!isCollapsed && (
-                  <>
-                    {/* Post body */}
-                    <div className="post-body">
-                      <p><strong>{design.title}</strong></p>
-                    </div>
-
-                    {/* Post image placeholder */}
-                    <div className="post-image">
-                      <div className="post-image-placeholder">
-                        <ImageIcon />
-                      </div>
-                    </div>
-
-                    {/* Post actions */}
-                    <div className="post-actions">
-                      <button
-                        className="post-action-btn"
-                        onClick={async () => {
-                          try {
-                            await handleCopyDesign(design.id);
-                            alert('Diseño copiado con éxito a tus diseños personales');
-                          } catch (err) {
-                            alert('Error al copiar: ' + (err.response?.data?.error || err.message));
-                          }
-                        }}
-                        id={`copy-design-${design.id}`}
-                      >
-                        <CommentIcon /> Copiar Diseño
-                      </button>
-                      <button
-                        className="post-action-btn"
-                        onClick={() => {
-                          console.log('Navigating to editor for design:', design.id);
-                          navigate(`/editor/${design.id}`);
-                        }}
-                        style={{ background: 'var(--dark)', color: 'var(--cream)', borderColor: 'var(--dark)' }}
-                      >
-                        <SmallImageIcon /> Ver Diseño
-                      </button>
-                      <div className="post-action-date">
-                        <ClockIcon />
-                        {new Date(design.createdAt).toLocaleDateString('es-AR')}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </article>
-            );
-          })
+          designs.map((design) => (
+            <ClassPost
+              key={design.id}
+              design={design}
+              isCollapsed={collapsedPosts.has(design.id)}
+              togglePost={togglePost}
+              handleCopy={async (id) => {
+                try {
+                  await handleCopyDesign(id);
+                  setMessage('Diseño copiado con éxito a tus diseños personales');
+                } catch (err) {
+                  setError('Error al copiar: ' + (err.response?.data?.error || err.message));
+                }
+              }}
+              handleDelete={handleDeletePost}
+              currentUser={user}
+              navigate={navigate}
+              getInitials={getInitials}
+            />
+          ))
         )}
       </div>
 
@@ -341,17 +301,36 @@ export default function ClassDetailPage() {
         <div className="comments-section" style={{ marginTop: '2rem', marginBottom: '2rem' }}>
           <h4 style={{ marginBottom: '1rem', color: 'var(--dark)' }}>Conversación</h4>
           <div className="comments-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {comments.map((c) => (
-              <div key={c.id} className="comment-bubble-wrapper" style={{ display: 'flex', gap: '0.75rem' }}>
-                <div className="comment-avatar-tiny" style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--dark-soft)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
-                  {getInitials(c.authorName)}
+            {comments.map((c) => {
+              const isOwner = c.userId === user?.id;
+              const isAdmin = user?.role === 'superadmin';
+              const isTeacher = user?.role === 'teacher';
+              const targetIsStudent = c.authorRole === 'student';
+              const canDelete = isAdmin || isOwner || (isTeacher && targetIsStudent);
+
+              return (
+                <div key={c.id} className="comment-bubble-wrapper" style={{ display: 'flex', gap: '0.75rem', group: 'true' }}>
+                  <div className="comment-avatar-tiny" style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--dark-soft)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                    {getInitials(c.authorName)}
+                  </div>
+                  <div className="comment-bubble" style={{ background: '#f8f9fa', padding: '0.75rem 1rem', borderRadius: '18px', borderTopLeftRadius: '4px', maxWidth: '80%', position: 'relative' }}>
+                    <div className="comment-author" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--red)', marginBottom: '0.2rem', display: 'flex', justifyContent: 'space-between' }}>
+                      {c.authorName}
+                      {canDelete && (
+                        <button 
+                          onClick={() => handleDeleteComment(c.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.2)', padding: '0 4px', fontSize: '10px' }}
+                          title="Eliminar comentario"
+                        >
+                          <Icon name="close" size={10} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="comment-text" style={{ fontSize: '0.9rem', color: 'var(--dark)' }}>{c.content}</div>
+                  </div>
                 </div>
-                <div className="comment-bubble" style={{ background: '#f8f9fa', padding: '0.75rem 1rem', borderRadius: '18px', borderTopLeftRadius: '4px', maxWidth: '80%' }}>
-                  <div className="comment-author" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--red)', marginBottom: '0.2rem' }}>{c.authorName}</div>
-                  <div className="comment-text" style={{ fontSize: '0.9rem', color: 'var(--dark)' }}>{c.content}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -371,17 +350,17 @@ export default function ClassDetailPage() {
           style={{ flex: 1, border: 'none', outline: 'none', padding: '0.5rem' }}
         />
         <div className="comment-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button 
-            className="secondary-button" 
-            onClick={handlePostComment} 
+          <button
+            className="primary-button"
+            onClick={handlePostComment}
             title="Enviar mensaje"
-            style={{ padding: '0.5rem', borderRadius: '50%', width: '40px', height: '40px' }}
+            style={{ padding: '0.6rem 1.2rem', whiteSpace: 'nowrap' }}
           >
-            <SendIcon />
+            <SendIcon /> Enviar
           </button>
           {user?.role === 'teacher' && (
             <button
-              className="primary-button"
+              className="secondary-button"
               onClick={() => {
                 setShowUploadModal(true);
                 loadUserDesigns();
@@ -437,7 +416,11 @@ export default function ClassDetailPage() {
                       id={`upload-item-${d.id}`}
                     >
                       <div className="upload-design-thumb">
-                        <SmallImageIcon />
+                        {d.image ? (
+                          <img src={d.image} alt={d.title} className="design-thumb-img" />
+                        ) : (
+                          <SmallImageIcon />
+                        )}
                       </div>
                       <div className="upload-design-name">{d.title}</div>
                     </div>
@@ -454,8 +437,8 @@ export default function ClassDetailPage() {
               <input
                 type="text"
                 placeholder="Agregar comentario..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
+                value={modalComment}
+                onChange={(e) => setModalComment(e.target.value)}
                 id="upload-comment-input"
               />
               <button
@@ -464,6 +447,69 @@ export default function ClassDetailPage() {
                 id="btn-send-upload"
               >
                 Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Leave Class Modal ── */}
+      {showLeaveModal && (
+        <div className="modal-overlay" onClick={() => setShowLeaveModal(false)}>
+          <div className="modal modal-danger" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: '#fee2e2', color: '#dc2626', width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <TrashIcon />
+                </div>
+                <h2 style={{ fontSize: '1.25rem', color: 'var(--dark)' }}>¿Abandonar clase?</h2>
+              </div>
+              <button className="modal-close" onClick={() => setShowLeaveModal(false)}><Icon name="close" size={18} /></button>
+            </div>
+            <div className="modal-body">
+              <p style={{ color: 'var(--dark-soft)', lineHeight: '1.5', margin: '0' }}>
+                Ya no podrás ver los diseños compartidos ni participar en la conversación de <strong>{classInfo?.title}</strong>.
+              </p>
+            </div>
+            <div className="modal-footer" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="secondary-button" onClick={() => setShowLeaveModal(false)} style={{ border: 'none' }}>
+                Cancelar
+              </button>
+              <button
+                className="primary-button"
+                onClick={confirmLeave}
+                style={{ background: '#dc2626', borderColor: '#dc2626' }}
+              >
+                Abandonar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Confirm Modal (Premium Design) ── */}
+      {confirmModal.show && (
+        <div className="modal-overlay" onClick={closeConfirm} style={{ zIndex: 1000 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '380px' }}>
+            <div className="modal-header" style={{ border: 'none', paddingBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ background: '#fee2e2', color: '#dc2626', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name="trash" size={20} />
+                </div>
+                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>{confirmModal.title}</h2>
+              </div>
+            </div>
+            <div className="modal-body" style={{ paddingTop: '0.5rem' }}>
+              <p style={{ margin: 0, color: 'var(--dark-soft)', fontSize: '0.95rem' }}>{confirmModal.message}</p>
+            </div>
+            <div className="modal-footer" style={{ border: 'none', paddingTop: '0' }}>
+              <button className="secondary-button" onClick={closeConfirm} style={{ border: 'none', background: 'transparent' }}>
+                Cancelar
+              </button>
+              <button 
+                className="primary-button" 
+                onClick={confirmAction}
+                style={{ background: '#dc2626', borderColor: '#dc2626', color: '#fff', padding: '0.6rem 1.5rem' }}
+              >
+                Eliminar
               </button>
             </div>
           </div>
