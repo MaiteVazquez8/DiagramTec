@@ -3,11 +3,13 @@ import api, { setAuthToken } from './api.js';
 
 const AuthContext = createContext();
 
+// proveedor del contexto de autenticacion para toda la app
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('tecdiagram_token') || '');
 
+  // efecto para validar el token y obtener los datos del usuario
   useEffect(() => {
     if (!token) {
       setAuthToken(null);
@@ -27,11 +29,13 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, [token]);
 
+  // funcion para iniciar sesion y guardar el token
   const login = (newToken) => {
     setToken(newToken);
     localStorage.setItem('tecdiagram_token', newToken);
   };
 
+  // funcion para cerrar sesion y limpiar datos locales
   const logout = () => {
     setToken('');
     setUser(null);
@@ -46,6 +50,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// hook para acceder facilmente al contexto de autenticacion
 export function useAuth() {
   return useContext(AuthContext);
 }
