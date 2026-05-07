@@ -1,8 +1,4 @@
-node_modules/
-backend/node_modules/
-
 vendor/
 backend/php/vendor/
 
 .env
-backend/.env
