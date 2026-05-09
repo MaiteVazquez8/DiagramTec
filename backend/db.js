@@ -65,6 +65,9 @@ async function initDb(db) {
       ownerId INT NOT NULL,
       classId INT,
       content TEXT NOT NULL,
+      image LONGTEXT,
+      pdf_data LONGTEXT,
+      description TEXT,
       isCopy BOOLEAN DEFAULT FALSE,
       originalId INT,
       createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -73,6 +76,18 @@ async function initDb(db) {
       FOREIGN KEY(originalId) REFERENCES designs(id) ON DELETE SET NULL
     ) ENGINE=InnoDB
   `);
+  // COMMENTS
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      classId INT NOT NULL,
+      userId INT NOT NULL,
+      content TEXT NOT NULL,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(classId) REFERENCES classes(id) ON DELETE CASCADE,
+      FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
 }
 
-module.exports = { openDb, initDb, generateClassCode };
+module.exports = { openDb, initDb, generateClassCode };

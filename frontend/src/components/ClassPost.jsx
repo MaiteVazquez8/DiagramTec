@@ -52,7 +52,12 @@ export default function ClassPost({
         <>
           {/* cuerpo de la publicacion donde va el titulo */}
           <div className="post-body">
-            <p><strong>{design.title}</strong></p>
+            <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}><strong>{design.title}</strong></p>
+            {design.description && (
+              <p className="post-description" style={{ color: 'var(--dark-soft)', lineHeight: '1.4', marginBottom: '1rem' }}>
+                {design.description}
+              </p>
+            )}
           </div>
 
           {/* imagen o vista previa del diagrama guardado */}
@@ -62,6 +67,23 @@ export default function ClassPost({
             ) : (
               <div className="post-image-placeholder">
                 <Icon name="image" size={48} strokeWidth={1.2} />
+              </div>
+            )}
+            
+            {design.pdf_data && (
+              <div className="post-pdf-link" style={{ marginTop: '0.75rem', textAlign: 'right' }}>
+                <button 
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = design.pdf_data;
+                    link.download = `${design.title}.pdf`;
+                    link.click();
+                  }}
+                  className="small-button"
+                  style={{ background: 'var(--red)', color: '#fff', border: 'none', fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+                >
+                  <Icon name="download" size={14} /> Descargar PDF
+                </button>
               </div>
             )}
           </div>
