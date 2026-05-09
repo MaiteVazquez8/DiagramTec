@@ -69,36 +69,34 @@ export default function ClassDetailPage() {
     }
   }, [message, error]);
 
-  const handleShareDesign = async () => {
-    if (!selectedDesignId) return;
+  const handleSelectDesign = (designId) => {
+    setSelectedDesignId(designId);
+    setShowUploadModal(false);
+    setMessage('Diseño adjuntado a tu mensaje');
+  };
+
+  const handlePostComment = async () => {
+    if (!commentText.trim() && !selectedDesignId) return;
+    
     try {
-      const design = userDesigns.find((d) => d.id === selectedDesignId);
-      if (!design) return;
-
-      // Get design content
-      const designRes = await api.get(`/designs/${selectedDesignId}`);
-      const content = designRes.data.design.content;
-
-      // Save as class design
-      await api.post('/designs', {
-        title: design.title,
-        content: typeof content === 'string' ? JSON.parse(content) : content,
-        image: designRes.data.design.image, // Use image from design details
-        classId: Number(id),
-      });
-
-      // If there's a comment in the modal, post it too
-      if (modalComment.trim()) {
-        await api.post(`/classes/${id}/comments`, { content: modalComment });
+      if (selectedDesignId) {
+        // Compartir diseño con descripción (comentario)
+        await api.put(`/designs/${selectedDesignId}`, {
+          classId: Number(id),
+          description: commentText.trim() || null
+        });
+        setMessage('Diseño compartido en la clase');
+        setSelectedDesignId(null);
+      } else {
+        // Solo comentario regular
+        await api.post(`/classes/${id}/comments`, { content: commentText });
+        setMessage('Mensaje publicado');
       }
-
-      setMessage('Diseño compartido en la clase');
-      setShowUploadModal(false);
-      setSelectedDesignId(null);
-      setModalComment('');
+      
+      setCommentText('');
       loadClassData();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo compartir el diseño');
+      setError('No se pudo realizar la publicación');
     }
   };
 
@@ -122,17 +120,6 @@ export default function ClassDetailPage() {
       loadClassData();
     } catch (err) {
       setError('No se pudo unir a la clase');
-    }
-  };
-
-  const handlePostComment = async () => {
-    if (!commentText.trim()) return;
-    try {
-      await api.post(`/classes/${id}/comments`, { content: commentText });
-      loadClassData(); // Refresh to see the new comment
-      setCommentText('');
-    } catch (err) {
-      setError('No se pudo publicar el comentario');
     }
   };
 
@@ -169,8 +156,9 @@ export default function ClassDetailPage() {
     const { type, id } = confirmModal;
     try {
       if (type === 'post') {
-        await api.delete(`/designs/${id}`);
-        setMessage('Publicación eliminada');
+        // En lugar de borrar el diseño, le quitamos el ID de la clase
+        await api.put(`/designs/${id}`, { classId: null });
+        setMessage('Publicación eliminada de la clase');
       } else if (type === 'comment') {
         await api.delete(`/comments/${id}`);
         setMessage('Comentario eliminado');
@@ -336,41 +324,51 @@ export default function ClassDetailPage() {
       )}
 
       {/* ── Share / Upload design bar ── */}
-      <div className="comment-input-row" style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--cream-dim)', padding: '0.5rem 1rem' }}>
+      <div className="comment-input-row" style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--cream-dim)', padding: '0.5rem 1rem', boxShadow: selectedDesignId ? '0 0 0 2px var(--red)' : 'none' }}>
         <div className="comment-avatar">
           {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
         </div>
-        <input
-          type="text"
-          placeholder="Escribe un mensaje o duda..."
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
-          id="class-comment-input"
-          style={{ flex: 1, border: 'none', outline: 'none', padding: '0.5rem' }}
-        />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          {selectedDesignId && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--red)', fontWeight: 700, paddingLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Icon name="image" size={12} /> Diseño adjunto: {userDesigns.find(d => d.id === selectedDesignId)?.title}
+              <button onClick={() => setSelectedDesignId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dark-soft)' }}><Icon name="close" size={12} /></button>
+            </div>
+          )}
+          <input
+            type="text"
+            placeholder={selectedDesignId ? "Añade una descripción a tu diseño..." : "Escribe un mensaje o duda..."}
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+            id="class-comment-input"
+            style={{ flex: 1, border: 'none', outline: 'none', padding: '0.5rem' }}
+          />
+        </div>
         <div className="comment-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <button
-            className="primary-button"
-            onClick={handlePostComment}
-            title="Enviar mensaje"
-            style={{ padding: '0.6rem 1.2rem', whiteSpace: 'nowrap' }}
-          >
-            <SendIcon /> Enviar
-          </button>
           {user?.role === 'teacher' && (
             <button
-              className="secondary-button"
+              className="icon-button"
               onClick={() => {
                 setShowUploadModal(true);
                 loadUserDesigns();
               }}
-              style={{ whiteSpace: 'nowrap' }}
+              title="Adjuntar diseño"
               id="btn-open-upload"
+              style={{ padding: '0.5rem', borderRadius: '50%', background: selectedDesignId ? 'var(--red)' : 'transparent', color: selectedDesignId ? '#fff' : 'var(--dark-soft)' }}
             >
-              <UploadIcon /> Subir Diseño
+              <UploadIcon />
             </button>
           )}
+          <button
+            className="primary-button"
+            onClick={handlePostComment}
+            title="Enviar"
+            style={{ padding: '0.6rem 1.2rem', whiteSpace: 'nowrap' }}
+            id="btn-send-post"
+          >
+            <SendIcon /> Enviar
+          </button>
         </div>
       </div>
 
@@ -384,25 +382,18 @@ export default function ClassDetailPage() {
           <div
             className="modal upload-modal"
             onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '600px' }}
           >
             <div className="modal-header">
-              <h2>Subir Diseño</h2>
-              <button
-                className="primary-button"
-                onClick={handleShareDesign}
-                disabled={!selectedDesignId}
-                style={{ opacity: selectedDesignId ? 1 : 0.5 }}
-                id="btn-share-design"
-              >
-                <UploadIcon /> Subir Diseño
-              </button>
+              <h2>Seleccionar Diseño</h2>
+              <button className="modal-close" onClick={() => setShowUploadModal(false)}><Icon name="close" size={18} /></button>
             </div>
 
             <div className="modal-body">
-              <p style={{ fontWeight: 600, marginBottom: '0.65rem', color: 'var(--dark)' }}>
-                Mis Diseños
+              <p style={{ fontWeight: 600, marginBottom: '1rem', color: 'var(--dark)' }}>
+                Tus Diseños Personales
               </p>
-              <div className="upload-designs-grid">
+              <div className="upload-designs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
                 {userDesigns.length === 0 ? (
                   <p className="small-text" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '2rem 0' }}>
                     No tienes diseños para compartir.
@@ -412,42 +403,22 @@ export default function ClassDetailPage() {
                     <div
                       key={d.id}
                       className={`upload-design-item ${selectedDesignId === d.id ? 'selected' : ''}`}
-                      onClick={() => setSelectedDesignId(d.id)}
+                      onClick={() => handleSelectDesign(d.id)}
                       id={`upload-item-${d.id}`}
+                      style={{ cursor: 'pointer', border: selectedDesignId === d.id ? '2px solid var(--red)' : '1.5px solid var(--cream-dim)', borderRadius: 'var(--radius-md)', overflow: 'hidden', transition: 'all 0.2s', background: '#fff' }}
                     >
-                      <div className="upload-design-thumb">
+                      <div className="upload-design-thumb" style={{ aspectRatio: '4/3', background: 'var(--cream-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
                         {d.image ? (
-                          <img src={d.image} alt={d.title} className="design-thumb-img" />
+                          <img src={d.image} alt={d.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                         ) : (
-                          <SmallImageIcon />
+                          <Icon name="image" size={24} color="var(--dark-soft)" />
                         )}
                       </div>
-                      <div className="upload-design-name">{d.title}</div>
+                      <div className="upload-design-name" style={{ padding: '0.65rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center', color: 'var(--dark)' }}>{d.title}</div>
                     </div>
                   ))
                 )}
               </div>
-            </div>
-
-            {/* Comment row at bottom */}
-            <div className="comment-input-row">
-              <div className="comment-avatar">
-                {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
-              </div>
-              <input
-                type="text"
-                placeholder="Agregar comentario..."
-                value={modalComment}
-                onChange={(e) => setModalComment(e.target.value)}
-                id="upload-comment-input"
-              />
-              <button
-                className="comment-send-btn"
-                onClick={handleShareDesign}
-                id="btn-send-upload"
-              >
-                Enviar
-              </button>
             </div>
           </div>
         </div>
