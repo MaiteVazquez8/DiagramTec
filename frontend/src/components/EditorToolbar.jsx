@@ -5,9 +5,9 @@ export default function EditorToolbar({
   saveTitle, setSaveTitle,
   classes, saveClassId, setSaveClassId,
   message, error,
-  handleSave, handleClear, handleExport,
+  handleSave, handleClear, handleExport, handleExportPDF,
   zoom, zoomIn, zoomOut, zoomReset,
-  sidebarOpen
+  sidebarOpen, isSaving
 }) {
   // componente de la barra de herramientas del editor
   return (
@@ -36,23 +36,17 @@ export default function EditorToolbar({
       </div>
       {/* area derecha para acciones y controles */}
       <div className="toolbar-right-fs">
-        {classes.length > 0 && (
-          <select
-            className="toolbar-select"
-            value={saveClassId}
-            onChange={(e) => setSaveClassId(e.target.value)}
-            id="editor-class-select"
-            style={{ marginRight: '0.25rem' }}
-          >
-            <option value="">Guardar en mi perfil</option>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-          </select>
-        )}
         {/* grupo de botones para guardar borrar y exportar */}
         <div className="toolbar-actions-group">
-          <button className="btn btn-primary" onClick={handleSave} id="btn-save"><Icon name="save" size={16} /> Guardar</button>
-          <button className="btn btn-secondary" onClick={handleClear} id="btn-clear"><Icon name="trash" size={16} /> Limpiar</button>
-          <button className="btn btn-secondary" onClick={handleExport} id="btn-export"><Icon name="download" size={16} /> Exportar</button>
+          <button className="btn btn-primary" onClick={handleSave} disabled={isSaving} id="btn-save">
+            <Icon name="save" size={16} /> {isSaving ? 'Guardando...' : 'Guardar'}
+          </button>
+          <button className="btn btn-secondary" onClick={handleClear} id="btn-clear" disabled={isSaving}>
+            <Icon name="trash" size={16} /> Limpiar
+          </button>
+          <button className="btn btn-secondary" onClick={handleExportPDF} id="btn-export-pdf" disabled={isSaving}>
+            <Icon name="download" size={16} /> PDF
+          </button>
         </div>
       </div>
     </div>

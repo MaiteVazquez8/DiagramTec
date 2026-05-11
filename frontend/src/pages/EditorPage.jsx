@@ -69,6 +69,7 @@ export default function EditorPage() {
   const [isPanning, setIsPanning] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isSaving, setIsSaving] = useState(false);
 
   // guarda el estado actual en el historial para deshacer o rehacer
   const saveToHistory = (newShapes, newConnections) => {
@@ -152,7 +153,7 @@ export default function EditorPage() {
     if (user) {
       api.get('/classes/available').then((response) => setClasses(response.data.classes)).catch(() => setClasses([]));
     }
-    if (id) {
+    if (user && id) {
       api.get(`/designs/${id}`).then((response) => {
         const design = response.data.design;
         setSaveTitle(design.title);
@@ -447,71 +448,64 @@ export default function EditorPage() {
     centerView();
   };
 
-  // guarda el diagrama actual generando una miniatura y un PDF
+  // guarda el diagrama actual generando una miniatura liviana
   const handleSave = async () => {
+    if (isSaving) return;
     setMessage('');
     setError('');
     if (!user) { setError('Debes ingresar para guardar diseños'); return; }
     
+    setIsSaving(true);
     try {
-      // Generar miniatura (preview)
+      // Generar miniatura (preview) liviana
       let imageData = null;
-      let pdfData = null;
 
       if (canvasRef.current) {
-        // 1. Generar imagen para previsualización (pequeña)
-        const previewCanvas = await html2canvas(canvasRef.current, { 
-          backgroundColor: '#ffffff', 
-          scale: 0.4,
-          logging: false,
-          useCORS: true,
-          onclone: (clonedDoc) => {
-            const el = clonedDoc.querySelector('.canvas-zoom-layer');
-            if (el) {
-              el.style.transform = 'none';
-              el.style.width = '1200px';
-              el.style.height = '800px';
-            }
-          }
-        });
-        imageData = previewCanvas.toDataURL('image/jpeg', 0.5);
+        // Encontrar los limites de las figuras para capturar solo lo necesario
+        const hasShapes = shapes.length > 0;
+        const minX = hasShapes ? Math.min(...shapes.map(s => s.x)) : 0;
+        const minY = hasShapes ? Math.min(...shapes.map(s => s.y)) : 0;
+        const maxX = hasShapes ? Math.max(...shapes.map(s => s.x + s.width)) : 1000;
+        const maxY = hasShapes ? Math.max(...shapes.map(s => s.y + s.height)) : 800;
+        
+        const padding = 60;
+        const captureWidth = Math.max(800, maxX - minX + padding * 2);
+        const captureHeight = Math.max(600, maxY - minY + padding * 2);
 
-        // 2. Generar PDF (Alta calidad)
-        const pdfCanvas = await html2canvas(canvasRef.current, { 
-          backgroundColor: '#ffffff', 
-          scale: 2.0, // Alta resolución para el PDF
+        const previewCanvas = await html2canvas(canvasRef.current, { 
+          backgroundColor: '#fcf8ef', 
+          x: minX - padding,
+          y: minY - padding,
+          width: captureWidth,
+          height: captureHeight,
+          scale: 0.8, // Aumentamos la escala para que no se vea pixeleado
           logging: false,
           useCORS: true,
           onclone: (clonedDoc) => {
             const el = clonedDoc.querySelector('.canvas-zoom-layer');
-            if (el) {
-              el.style.transform = 'none';
-              el.style.width = '2000px';
-              el.style.height = '1500px';
-            }
+            if (el) el.style.transform = 'none';
           }
         });
         
-        const highResImg = pdfCanvas.toDataURL('image/png');
+        // La imagen de previsualización (JPG con calidad media-baja pero buena resolución)
+        imageData = previewCanvas.toDataURL('image/jpeg', 0.6);
+
+        // El PDF de alta calidad
         const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: 'a4'
+          orientation: captureWidth > captureHeight ? 'landscape' : 'portrait',
+          unit: 'px',
+          format: [captureWidth, captureHeight]
         });
-        
-        const imgProps = pdf.getImageProperties(highResImg);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
-        pdf.addImage(highResImg, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdfData = pdf.output('datauristring');
+        const pdfImg = previewCanvas.toDataURL('image/png', 1.0);
+        pdf.addImage(pdfImg, 'PNG', 0, 0, captureWidth, captureHeight);
+        var pdfDataString = pdf.output('datauristring');
       }
 
       const data = { 
         title: saveTitle, 
         content: { shapes, connections }, 
         image: imageData,
-        pdf_data: pdfData,
+        pdf_data: pdfDataString,
         classId: saveClassId || null 
       };
 
@@ -521,9 +515,70 @@ export default function EditorPage() {
         const res = await api.post('/designs', data);
         navigate(`/editor/${res.data.design.id}`, { replace: true });
       }
-      setMessage('Diseño guardado correctamente');
+      setMessage('Diseño guardado (con PDF generado)');
     } catch (err) {
+      console.error('Error al guardar:', err);
       setError(err.response?.data?.error || 'No se pudo guardar el diseño');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!canvasRef.current) return;
+    setMessage('Generando PDF...');
+    
+    try {
+      const hasShapes = shapes.length > 0;
+      const minX = hasShapes ? Math.min(...shapes.map(s => s.x)) : 0;
+      const minY = hasShapes ? Math.min(...shapes.map(s => s.y)) : 0;
+      const maxX = hasShapes ? Math.max(...shapes.map(s => s.x + s.width)) : 2000;
+      const maxY = hasShapes ? Math.max(...shapes.map(s => s.y + s.height)) : 2000;
+      
+      const padding = 100;
+      const captureWidth = maxX - minX + padding * 2;
+      const captureHeight = maxY - minY + padding * 2;
+
+      const pdfCanvas = await html2canvas(canvasRef.current, { 
+        backgroundColor: '#ffffff', 
+        x: minX - padding,
+        y: minY - padding,
+        width: captureWidth,
+        height: captureHeight,
+        scale: 2.0, 
+        logging: false,
+        useCORS: true,
+        onclone: (clonedDoc) => {
+          const el = clonedDoc.querySelector('.canvas-zoom-layer');
+          if (el) {
+            el.style.transform = 'none';
+          }
+        }
+      });
+      
+      const highResImg = pdfCanvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: captureWidth > captureHeight ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgProps = pdf.getImageProperties(highResImg);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(highResImg, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${saveTitle || 'diagrama'}.pdf`);
+      
+      if (id) {
+        const pdfData = pdf.output('datauristring');
+        await api.put(`/designs/${id}`, { pdf_data: pdfData });
+      }
+      
+      setMessage('PDF descargado');
+    } catch (err) {
+      console.error('Error PDF:', err);
+      setError('Error al generar el PDF');
     }
   };
 
@@ -581,11 +636,13 @@ export default function EditorPage() {
           handleSave={handleSave}
           handleClear={handleClear}
           handleExport={handleExport}
+          handleExportPDF={handleExportPDF}
           zoom={zoom}
           zoomIn={zoomIn}
           zoomOut={zoomOut}
           zoomReset={zoomReset}
           sidebarOpen={sidebarOpen}
+          isSaving={isSaving}
         />
 
         <div className={`editor-canvas-fs ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''}`} ref={canvasWrapperRef} onDrop={handleDrop} onDragOver={(event) => event.preventDefault()} onClick={() => { setSelectedId(null); setConnectSource(null); }} onMouseDown={handleCanvasMouseDown}>

@@ -219,8 +219,17 @@ export default function DesignsPage() {
                 >
                   <Icon name="trash" /> Eliminar
                 </button>
-                <button className="context-action" id="ctx-export">
-                  <Icon name="export" /> Exportar
+                <button
+                  className="context-action"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.download = `${contextDesign.title || 'diagrama'}.pdf`;
+                    link.href = contextDesign.pdf_data || contextDesign.image;
+                    link.click();
+                  }}
+                  id="ctx-export"
+                >
+                  <Icon name="export" /> Exportar PDF
                 </button>
                 <button
                   className="context-action"
