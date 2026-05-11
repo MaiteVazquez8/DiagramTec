@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-const hostname = window.location.hostname;
-const API_URL = `http://${hostname}:4000`;
-const api = axios.create({ baseURL: API_URL });
+// Todas las peticiones se redirigen al backend Node.js via proxy de Vite (/api → puerto 4002)
+const api = axios.create({ baseURL: '/api' });
 
 export function setAuthToken(token) {
   if (token) {
