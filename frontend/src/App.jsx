@@ -8,10 +8,6 @@ import ClassesPage from './pages/ClassesPage.jsx';
 import DesignsPage from './pages/DesignsPage.jsx';
 import EditorPage from './pages/EditorPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
-
-<<<<<<< Updated upstream
-=======
-import Icon from './components/Icon.jsx';
 import Footer from './components/Footer.jsx';
 
 // ruta protegida solo para usuarios superadministradores
@@ -23,7 +19,6 @@ function AdminRoute({ children }) {
 }
 
 // ruta protegida para cualquier usuario autenticado
->>>>>>> Stashed changes
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="page-container">Cargando...</div>;

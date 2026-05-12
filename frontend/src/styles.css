@@ -1183,6 +1183,27 @@ textarea {
   text-decoration: underline;
 }
 
+.footer-section li a.icon-link {
+  padding: 0.5rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  background: rgba(238, 235, 221, 0.08);
+}
+
+.footer-section li a.icon-link:hover {
+  background: rgba(238, 235, 221, 0.2);
+  transform: scale(1.1);
+  text-decoration: none;
+}
+
+.footer-section li a.icon-link svg {
+  width: 20px;
+  height: 20px;
+}
+
 .footer-bottom {
   max-width: 1200px;
   margin: 0 auto;
