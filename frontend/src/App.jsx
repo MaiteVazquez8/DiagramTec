@@ -9,6 +9,21 @@ import DesignsPage from './pages/DesignsPage.jsx';
 import EditorPage from './pages/EditorPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
+<<<<<<< Updated upstream
+=======
+import Icon from './components/Icon.jsx';
+import Footer from './components/Footer.jsx';
+
+// ruta protegida solo para usuarios superadministradores
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="page-container">Cargando...</div>;
+  if (!user || user.role !== 'superadmin') return <Navigate to="/" replace />;
+  return children;
+}
+
+// ruta protegida para cualquier usuario autenticado
+>>>>>>> Stashed changes
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="page-container">Cargando...</div>;
@@ -73,6 +88,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
+        <Footer />
       </BrowserRouter>
     </AuthProvider>
   );
