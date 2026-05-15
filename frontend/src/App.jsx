@@ -11,6 +11,7 @@ import DesignsPage from './pages/DesignsPage.jsx';
 import EditorPage from './pages/EditorPage.jsx';
 import SuperAdminPage from './pages/SuperAdminPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
+import Footer from './components/Footer.jsx';
 
 import Icon from './components/Icon.jsx';
 
@@ -110,6 +111,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
+        <Footer />
       </BrowserRouter>
     </AuthProvider>
   );
