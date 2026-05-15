@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -68,14 +69,18 @@ export default function SignupPage() {
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <div className="form-row">
-            <label>
-              Contraseña
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </label>
-            <label>
-              Confirmar contraseña
-              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-            </label>
+            <PasswordInput
+              label="Contraseña"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Tu contraseña"
+            />
+            <PasswordInput
+              label="Confirmar contraseña"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirma tu contraseña"
+            />
           </div>
           <label>
             Rol
