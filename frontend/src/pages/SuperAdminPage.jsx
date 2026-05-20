@@ -82,13 +82,12 @@ export default function SuperAdminPage() {
   const teachers = users.filter(u => u.role === 'teacher' || u.role === 'superadmin');
 
   return (
-    <div className="superadmin-container">
-      {/* HEADER PREMIUM */}
+    <div className="superadmin-container figma-sector admin-sector">
       <header className="admin-top-bar">
         <nav className="admin-nav-links">
-          <a href="#alumnos" onClick={(e) => { e.preventDefault(); scrollToSection('alumnos'); }}>gest de Alumnos</a>
-          <a href="#profesores" onClick={(e) => { e.preventDefault(); scrollToSection('profesores'); }}>gest de Profesores</a>
-          <a href="#clases" onClick={(e) => { e.preventDefault(); scrollToSection('clases'); }}>gest de clases</a>
+          <a href="#alumnos" onClick={(e) => { e.preventDefault(); scrollToSection('alumnos'); }}>Gestión de alumnos</a>
+          <a href="#profesores" onClick={(e) => { e.preventDefault(); scrollToSection('profesores'); }}>Gestión de profesores</a>
+          <a href="#clases" onClick={(e) => { e.preventDefault(); scrollToSection('clases'); }}>Gestión de clases</a>
         </nav>
       </header>
 
@@ -100,7 +99,7 @@ export default function SuperAdminPage() {
           {/* GESTIÓN DE ALUMNOS ROW */}
           <section id="alumnos">
             <div className="admin-section-header">
-              <h2 className="admin-section-title">gestión de Alumnos</h2>
+              <h2 className="admin-section-title">Gestión de alumnos</h2>
               <a href="#tabla-usuarios" className="ver-todo" onClick={(e) => { e.preventDefault(); scrollToSection('tabla-usuarios'); }}>Ver todo &gt;</a>
             </div>
             <div className="admin-cards-row">
@@ -110,7 +109,7 @@ export default function SuperAdminPage() {
                     {u.firstName?.[0]}
                   </div>
                   <p>{u.firstName} {u.lastName?.[0]}.</p>
-                  <button className="info-btn-rect" onClick={() => setEditingUser(u)}>INFO</button>
+                  <button type="button" className="info-btn-rect" onClick={() => setEditingUser(u)}>+ INFO</button>
                 </div>
               ))}
             </div>
@@ -119,7 +118,7 @@ export default function SuperAdminPage() {
           {/* GESTIÓN DE PROFESORES ROW */}
           <section id="profesores">
             <div className="admin-section-header">
-              <h2 className="admin-section-title">gestión de Profesores</h2>
+              <h2 className="admin-section-title">Gestión de profesores</h2>
               <a href="#tabla-usuarios" className="ver-todo" onClick={(e) => { e.preventDefault(); scrollToSection('tabla-usuarios'); }}>Ver todo &gt;</a>
             </div>
             <div className="admin-cards-row">
@@ -130,7 +129,7 @@ export default function SuperAdminPage() {
                   </div>
                   <p>{u.firstName} {u.lastName?.[0]}.</p>
                   {u.role !== 'superadmin' && (
-                    <button className="info-btn-rect" onClick={() => setEditingUser(u)}>INFO</button>
+                    <button type="button" className="info-btn-rect" onClick={() => setEditingUser(u)}>+ INFO</button>
                   )}
                 </div>
               ))}
@@ -140,7 +139,7 @@ export default function SuperAdminPage() {
           {/* GESTIÓN DE CLASES ROW */}
           <section id="clases">
             <div className="admin-section-header">
-              <h2 className="admin-section-title">gestión de clases</h2>
+              <h2 className="admin-section-title">Gestión de clases</h2>
               <a href="#tabla-clases" className="ver-todo" onClick={(e) => { e.preventDefault(); scrollToSection('tabla-clases'); }}>Ver todo &gt;</a>
             </div>
             <div className="admin-cards-row">
@@ -155,7 +154,7 @@ export default function SuperAdminPage() {
 
           {/* TABLA CLASES */}
           <section className="admin-table-block" id="tabla-clases">
-            <h2>gestión de clases (Q)</h2>
+            <h2>Gestión de clases</h2>
             <div className="sketch-table-wrapper">
               <table className="sketch-table">
                 <thead>
@@ -188,7 +187,7 @@ export default function SuperAdminPage() {
 
           {/* TABLA USUARIOS */}
           <section className="admin-table-block" id="tabla-usuarios">
-            <h2>gestión de Alumnos / Profesores (Q)</h2>
+            <h2>Gestión de alumnos y profesores</h2>
             <div className="sketch-table-wrapper">
               <table className="sketch-table">
                 <thead>
