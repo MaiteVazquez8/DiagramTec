@@ -1,0 +1,80 @@
+import html2canvas from 'html2canvas';
+import { getDiagramBounds, captureRegionFromBounds } from '../math/bounds.js';
+import { EXPORT_DEFAULTS } from '../constants/canvas.js';
+
+/**
+ * Quita transform de zoom en el clon de html2canvas.
+ * @param {Document} clonedDoc
+ */
+export function resetZoomLayerInClone(clonedDoc) {
+  const el = clonedDoc.querySelector('.canvas-zoom-layer');
+  if (el) el.style.transform = 'none';
+}
+
+/**
+ * @param {HTMLElement} canvasElement
+ * @param {import('../models/shape.js').Shape[]} shapes
+ * @param {import('html2canvas').Options & { padding?: number }} [options]
+ */
+export async function captureDiagramPreview(canvasElement, shapes, options = {}) {
+  const bounds = getDiagramBounds(shapes, {
+    padding: options.padding ?? EXPORT_DEFAULTS.padding,
+  });
+  const region = captureRegionFromBounds(bounds, { padding: options.padding });
+
+  return html2canvas(canvasElement, {
+    backgroundColor: options.backgroundColor ?? EXPORT_DEFAULTS.previewBackground,
+    scale: options.scale ?? EXPORT_DEFAULTS.previewScale,
+    logging: false,
+    useCORS: true,
+    x: region.x,
+    y: region.y,
+    width: region.width,
+    height: region.height,
+    onclone: resetZoomLayerInClone,
+    ...options,
+  });
+}
+
+/**
+ * @param {HTMLElement} canvasElement
+ * @param {import('../models/shape.js').Shape[]} shapes
+ * @param {import('html2canvas').Options & { padding?: number }} [options]
+ */
+export async function captureDiagramHighRes(canvasElement, shapes, options = {}) {
+  const padding = options.padding ?? EXPORT_DEFAULTS.pdfPadding;
+  const bounds = getDiagramBounds(shapes, {
+    padding,
+    fallbackWidth: 2000,
+    fallbackHeight: 2000,
+  });
+  const region = captureRegionFromBounds(bounds, { padding });
+
+  return html2canvas(canvasElement, {
+    backgroundColor: options.backgroundColor ?? EXPORT_DEFAULTS.pdfBackground,
+    scale: options.scale ?? EXPORT_DEFAULTS.pdfScale,
+    logging: false,
+    useCORS: true,
+    x: region.x,
+    y: region.y,
+    width: region.width,
+    height: region.height,
+    onclone: resetZoomLayerInClone,
+    ...options,
+  });
+}
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @param {number} [quality]
+ */
+export function canvasToJpegDataUrl(canvas, quality = EXPORT_DEFAULTS.jpegQuality) {
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ */
+export function canvasToPngDataUrl(canvas) {
+  return canvas.toDataURL('image/png', 1);
+}
