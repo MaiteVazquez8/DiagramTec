@@ -15,9 +15,16 @@ export default function LoginPage() {
     event.preventDefault();
     setError('');
     try {
-      const response = await api.post('/auth/login', { email, password });
-      login(response.data.token);
-      navigate('/');
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('password', password);
+      const response = await api.post('login.php', formData);
+      if (response.data && response.data.token) {
+        login(response.data.token);
+        navigate('/');
+      } else {
+        setError(response.data?.error || 'No se pudo iniciar sesión');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo iniciar sesión');
     }
