@@ -130,7 +130,6 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-<<<<<<< Updated upstream
         <Header />
         <main>
           {/* definicion de todas las rutas de navegacion */}
@@ -148,9 +147,6 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
-=======
-        <AppShell />
->>>>>>> Stashed changes
       </BrowserRouter>
     </AuthProvider>
   );
