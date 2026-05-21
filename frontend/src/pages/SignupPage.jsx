@@ -24,9 +24,20 @@ export default function SignupPage() {
     }
 
     try {
-      const response = await api.post('/auth/register', { firstName, lastName, email, password, role });
-      login(response.data.token);
-      navigate('/');
+      // Llamada a registro.php en PHP
+      const formData = new FormData();
+      formData.append('firstName', firstName);
+      formData.append('lastName', lastName);
+      formData.append('email', email);
+      formData.append('password', password);
+      formData.append('role', role);
+      const response = await api.post('registro.php', formData);
+      if (response.data && response.data.token) {
+        login(response.data.token);
+        navigate('/');
+      } else {
+        setError(response.data?.error || 'No se pudo crear la cuenta');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo crear la cuenta');
     }

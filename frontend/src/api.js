@@ -1,7 +1,8 @@
+
 import axios from 'axios';
 
-// Todas las peticiones se redirigen al backend Node.js via proxy de Vite (/api → puerto 4002)
-const api = axios.create({ baseURL: '/api' });
+// Ahora las peticiones de login, registro, etc. se redirigen a los scripts PHP
+const api = axios.create({ baseURL: 'http://localhost/DiagramTec/php/' });
 
 export function setAuthToken(token) {
   if (token) {
