@@ -1,10 +1,10 @@
 import Icon from './Icon';
-import { palette } from './EditorUI';
+import { palette } from '../design';
 
 export default function EditorSidebar({ sidebarOpen, setSidebarOpen, handleDragStart, handleTouchEnd, renderPreview, handlePaletteClick, connectMode }) {
   // barra lateral que contiene las figuras del diagrama
   return (
-    <aside className={`editor-sidebar-fs ${sidebarOpen ? 'open' : 'collapsed'}`}>
+    <aside className={`editor-sidebar-fs figma-editor-sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
       {/* boton para abrir o cerrar el panel lateral */}
       <button 
         className="sidebar-toggle-btn" 

@@ -178,56 +178,53 @@ export default function ClassDetailPage() {
 
   if (!classInfo) {
     return (
-      <section className="page-container">
-        <p>{error || 'Cargando...'}</p>
+      <section className="figma-sector class-detail-sector">
+        <div className="figma-sector-inner">
+          <p className="class-detail-loading">{error || 'Cargando...'}</p>
+        </div>
       </section>
     );
   }
 
+  const canSeeCode = user?.role === 'teacher' || user?.id === classInfo.ownerId;
+
   return (
-    <section className="page-container" id="class-detail-page">
-      {/* ── Header ── */}
+    <section className="figma-sector class-detail-sector" id="class-detail-page">
+      <div className="figma-sector-inner">
       <div className="class-detail-header">
-        <h1>
-          <button
-            className="small-button"
-            onClick={() => navigate('/classes')}
-            style={{ marginRight: '0.75rem' }}
-            id="btn-back-classes"
-          >
-            <ArrowLeft /> Volver
-          </button>
-          Clase
-        </h1>
+        <button
+          type="button"
+          className="class-detail-back"
+          onClick={() => navigate('/classes')}
+          id="btn-back-classes"
+        >
+          <ArrowLeft /> Volver
+        </button>
+        <h1 className="class-detail-page-title">Clase</h1>
         <div className="class-header-actions">
-          {classInfo && (
-            classInfo.joined ? (
-              <button className="danger-button" onClick={handleLeaveClass} id="btn-leave-class">
-                Abandonar clase
+          {classInfo.joined ? (
+            <button type="button" className="class-detail-leave-btn" onClick={handleLeaveClass} id="btn-leave-class">
+              Abandonar clase
+            </button>
+          ) : (
+            user?.id !== classInfo.ownerId && (
+              <button type="button" className="primary-button" onClick={handleJoinClass} id="btn-join-class">
+                + Unirse a clase
               </button>
-            ) : (
-              user?.id !== classInfo.ownerId && (
-                <button className="primary-button" onClick={handleJoinClass} id="btn-join-class">
-                  Unirse a clase
-                </button>
-              )
             )
           )}
         </div>
       </div>
 
-      {/* ── Class Info Card ── */}
-      <div className="class-detail-info">
+      <div className="class-detail-info-card">
         <div className="class-detail-avatar">
           {classInfo.title.charAt(0).toUpperCase()}
         </div>
         <div className="class-detail-text">
-          <h2 style={{ marginBottom: '0.2rem' }}>{classInfo.title}</h2>
-          <p style={{ marginBottom: '0.4rem', color: 'rgba(27,23,23,0.6)' }}>{classInfo.ownerName}</p>
-          {(user?.role === 'teacher' || user?.id == classInfo.ownerId) && (
-            <span className="badge" style={{ marginTop: '0.5rem', fontSize: '1rem', background: '#f8d7da', color: '#842029', border: 'none', borderRadius: '999px', padding: '0.4rem 1.25rem', width: 'fit-content', display: 'inline-flex', alignItems: 'center', fontWeight: 'bold' }}>
-              Código: {classInfo.code}
-            </span>
+          <h2>{classInfo.title}</h2>
+          <p>{classInfo.ownerName}</p>
+          {canSeeCode && classInfo.code && (
+            <span className="class-detail-code-badge">Código: {classInfo.code}</span>
           )}
         </div>
       </div>
@@ -255,10 +252,8 @@ export default function ClassDetailPage() {
 
       <div className="posts-feed">
         {designs.length === 0 ? (
-          <div className="classes-empty" style={{ marginBottom: '1rem' }}>
-            <p style={{ color: 'rgba(27,23,23,0.5)', margin: 0 }}>
-              No hay publicaciones en esta clase aún.
-            </p>
+          <div className="class-posts-empty figma-dot-pattern">
+            <p>No hay publicaciones en esta clase aún.</p>
           </div>
         ) : (
           designs.map((design) => (
@@ -324,47 +319,50 @@ export default function ClassDetailPage() {
       )}
 
       {/* ── Share / Upload design bar ── */}
-      <div className="comment-input-row" style={{ background: '#fff', borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--cream-dim)', padding: '0.5rem 1rem', boxShadow: selectedDesignId ? '0 0 0 2px var(--red)' : 'none' }}>
-        <div className="comment-avatar">
+      <div className={`class-composer ${selectedDesignId ? 'has-attachment' : ''}`}>
+        <div className="class-composer-avatar">
           {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div className="class-composer-field">
           {selectedDesignId && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--red)', fontWeight: 700, paddingLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Icon name="image" size={12} /> Diseño adjunto: {userDesigns.find(d => d.id === selectedDesignId)?.title}
-              <button onClick={() => setSelectedDesignId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dark-soft)' }}><Icon name="close" size={12} /></button>
+            <div className="class-composer-attachment">
+              <Icon name="image" size={12} />
+              <span>Diseño adjunto: {userDesigns.find((d) => d.id === selectedDesignId)?.title}</span>
+              <button type="button" onClick={() => setSelectedDesignId(null)} aria-label="Quitar diseño">
+                <Icon name="close" size={12} />
+              </button>
             </div>
           )}
           <input
             type="text"
-            placeholder={selectedDesignId ? "Añade una descripción a tu diseño..." : "Escribe un mensaje o duda..."}
+            className="class-composer-input"
+            placeholder={selectedDesignId ? 'Añade una descripción a tu diseño...' : 'Escribe un mensaje o duda...'}
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
             id="class-comment-input"
-            style={{ flex: 1, border: 'none', outline: 'none', padding: '0.5rem' }}
           />
         </div>
-        <div className="comment-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="class-composer-actions">
           {user?.role === 'teacher' && (
             <button
-              className="icon-button"
+              type="button"
+              className={`class-composer-upload ${selectedDesignId ? 'active' : ''}`}
               onClick={() => {
                 setShowUploadModal(true);
                 loadUserDesigns();
               }}
               title="Adjuntar diseño"
               id="btn-open-upload"
-              style={{ padding: '0.5rem', borderRadius: '50%', background: selectedDesignId ? 'var(--red)' : 'transparent', color: selectedDesignId ? '#fff' : 'var(--dark-soft)' }}
             >
               <UploadIcon />
             </button>
           )}
           <button
-            className="primary-button"
+            type="button"
+            className="class-composer-send primary-button"
             onClick={handlePostComment}
             title="Enviar"
-            style={{ padding: '0.6rem 1.2rem', whiteSpace: 'nowrap' }}
             id="btn-send-post"
           >
             <SendIcon /> Enviar
@@ -486,6 +484,7 @@ export default function ClassDetailPage() {
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

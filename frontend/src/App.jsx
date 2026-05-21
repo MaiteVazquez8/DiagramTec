@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import HomePage from './pages/HomePage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -38,54 +38,91 @@ function Header() {
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
 
+  const roleLabel = user?.role === 'superadmin'
+    ? 'Administrador'
+    : user?.role === 'teacher'
+      ? 'Profesor'
+      : 'Alumno';
+
   return (
-    <header className="app-header">
-      {/* logo y nombre que redirigen al inicio */}
+    <header className="app-header figma-header">
       <div className="header-left">
-        <Link to="/" className="brand" onClick={closeMenu}>
-          <img src="/logo.png" alt="Logo" style={{ height: '32px', marginRight: '10px' }} />
-          DiagramTec
+        <Link to="/" className="brand figma-brand" onClick={closeMenu}>
+          <span className="brand-word">diagram</span>
+          <span className="brand-badge">Tec</span>
         </Link>
       </div>
 
-      <button className="mobile-menu-btn" onClick={toggleMenu} aria-label="Menú móvil">
+      <button className="mobile-menu-btn figma-menu-btn" onClick={toggleMenu} aria-label="Menú móvil">
         <Icon name={menuOpen ? 'close' : 'menu'} size={24} strokeWidth={2.5} />
       </button>
 
-      <div className={`nav-container ${menuOpen ? 'open' : ''}`}>
-        <nav>
-          <NavLink to="/" onClick={closeMenu}>Inicio</NavLink>
+      <div className={`nav-container figma-nav-container ${menuOpen ? 'open' : ''}`}>
+        <nav className="figma-nav">
           <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
+          <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
           {user ? <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink> : null}
-          {user?.role === 'superadmin' ? <NavLink to="/superadmin" onClick={closeMenu}>Panel Admin</NavLink> : null}
+          {user?.role === 'superadmin' ? (
+            <NavLink to="/superadmin" onClick={closeMenu}>Panel Admin</NavLink>
+          ) : null}
           {user ? <NavLink to="/account" onClick={closeMenu}>Mi cuenta</NavLink> : null}
         </nav>
 
-        <div className="header-actions">
+        <div className="header-actions figma-header-actions">
           {user ? (
             <div className="user-nav-group">
-              <Link to="/account" className="user-chip" title="Ver mi cuenta" onClick={closeMenu}>
-                <span className="user-avatar">{user.firstName[0]}</span>
+              <Link to="/account" className="user-chip figma-user-chip" title="Ver mi cuenta" onClick={closeMenu}>
+                <span className="user-avatar figma-user-avatar">{user.firstName[0]}</span>
                 <div className="user-info-text">
                   <span className="user-name">{user.firstName} {user.lastName}</span>
-                  <span className="user-role-badge">
-                    {user.role === 'superadmin' ? 'Administrador' : user.role === 'teacher' ? 'Profesor' : 'Alumno'}
-                  </span>
+                  <span className="user-role-badge">{roleLabel}</span>
                 </div>
               </Link>
-              <button className="logout-btn-premium" onClick={() => { logout(); closeMenu(); }} title="Cerrar sesión">
+              <button
+                type="button"
+                className="logout-btn-premium figma-logout-btn"
+                onClick={() => { logout(); closeMenu(); }}
+                title="Cerrar sesión"
+              >
                 <Icon name="logout" size={18} strokeWidth={2.5} />
                 <span>Salir</span>
               </button>
             </div>
           ) : (
-            <NavLink className="primary-button login-btn-header" to="/login" onClick={closeMenu}>
-              Ingresar
+            <NavLink className="figma-header-login" to="/login" onClick={closeMenu}>
+              + Iniciar sesión
             </NavLink>
           )}
         </div>
       </div>
     </header>
+  );
+}
+
+function AppShell() {
+  const location = useLocation();
+  const isEditor = location.pathname.startsWith('/editor');
+
+  return (
+    <>
+      <Header />
+      <main className={isEditor ? 'main-editor' : ''}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+          <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
+          <Route path="/classes/:id" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
+          <Route path="/designs" element={<DesignsPage />} />
+          <Route path="/editor" element={<EditorPage />} />
+          <Route path="/editor/:id" element={<EditorPage />} />
+          <Route path="/superadmin" element={<AdminRoute><SuperAdminPage /></AdminRoute>} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </main>
+      {!isEditor && <Footer />}
+    </>
   );
 }
 
