@@ -3719,8 +3719,7 @@ textarea {
   align-items: center;
   text-align: center;
   gap: 0.45rem;
-  position: sticky;
-  top: 92px;
+  position: relative;
 }
 
 .avatar-circle {
@@ -4024,8 +4023,6 @@ textarea {
     justify-content: center;
   }
 }
-<<<<<<< Updated upstream
-=======
 
 /* ═══════════════════════════════════════════════════════════════════
    FOOTER STYLES
@@ -4137,6 +4134,7 @@ textarea {
     font-size: 0.9rem;
   }
 }
+
 
 /* ===================================================================
    FIGMA SECTORS — Diseños, Clases, Panel Admin
@@ -5460,4 +5458,4 @@ main:has(.figma-sector) {
     justify-content: flex-end;
   }
 }
->>>>>>> Stashed changes
+

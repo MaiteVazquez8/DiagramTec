@@ -1,4 +1,4 @@
-# TecDiagram
+# DiagramTec
 
 Proyecto de ejemplo con frontend en React y backend en Node.js para crear diagramas de flujo de datos (DFD).
 

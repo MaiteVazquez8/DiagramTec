@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -48,10 +49,12 @@ export default function LoginPage() {
             Email
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
-          <label>
-            Contraseña
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </label>
+          <PasswordInput
+            label="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Tu contraseña"
+          />
           {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Ingresar</button>
         </form>
