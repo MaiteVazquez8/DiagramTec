@@ -28,16 +28,5 @@ export const ArrowIcon = () => <Icon name="chevronRight" size={20} />;
 export const BookIcon = () => <Icon name="book" size={22} />;
 export const EmptyClassIcon = () => <Icon name="emptyClass" size={56} strokeWidth={1} />;
 
-// datos de la paleta de componentes para el editor
-/* ── Palette Data ── */
-export const palette = [
-  { type: 'start', label: 'Inicio' },
-  { type: 'end', label: 'Final' },
-  { type: 'connect', label: 'Conexión' },
-  { type: 'input', label: 'Entrada / Input' },
-  { type: 'print', label: 'Salida / Print' },
-  { type: 'process', label: 'Proceso / Asignación' },
-  { type: 'for', label: 'Ciclo FOR' },
-  { type: 'while', label: 'Ciclo WHILE' },
-  { type: 'if', label: 'Ciclo IF' },
-];
+/* Paleta: definida en la librería design (re-export para compatibilidad) */
+export { palette, SHAPE_TYPES, PALETTE_DRAG_TYPE_KEY } from '../design/constants/palette.js';

@@ -12,7 +12,7 @@ export default function DesignsPage() {
   const [designs, setDesigns] = useState([]);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [contextDesign, setContextDesign] = useState(null); // for the modal
+  const [contextDesign, setContextDesign] = useState(null);
 
   const loadDesigns = async () => {
     try {
@@ -65,210 +65,221 @@ export default function DesignsPage() {
   };
 
   return (
-    <section className="page-container" id="designs-page">
-      {/* ── Header ── */}
-      <div className="designs-page-header">
-        <h1>Mis Diseños</h1>
-        <div className="designs-header-actions">
-          <div className="search-box">
-            <Icon name="search" />
-            <input
-              type="text"
-              placeholder="Buscar diseño..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              id="search-designs"
-            />
-          </div>
-          <Link className="primary-button" to="/editor" id="btn-create-design">
-            <Icon name="plus" /> Crear Diseño
-          </Link>
-        </div>
-      </div>
-
-      {/* ── Guest message ── */}
-      {!user && (
-        <div className="designs-empty">
-          <Icon name="empty" size={64} strokeWidth={1} />
-          <h3>Modo invitado</h3>
-          <p>Para guardar y ver tus diseños, inicia sesión o crea una cuenta.</p>
-          <Link className="primary-button" to="/login">Ingresar</Link>
-        </div>
-      )}
-
-      {error && <p className="error-text">{error}</p>}
-
-      {/* ── Design Cards Grid ── */}
-      {user && (
-        <div className="designs-grid">
-          {filteredDesigns.length === 0 ? (
-            <div className="designs-empty">
-              <Icon name="empty" size={64} strokeWidth={1} />
-              <h3>No hay diseños guardados</h3>
-              <p>Crea un nuevo proyecto para que aparezca en tu lista.</p>
-              <Link className="primary-button" to="/editor">
-                <Icon name="plus" /> Crear mi primer diseño
+    <section className="figma-sector" id="designs-page">
+      <div className="figma-sector-inner">
+        <header className="figma-sector-hero">
+          <h1>Mis diseños</h1>
+          <p>
+            Crea, organiza y edita tus diagramas de flujo. Cada proyecto se guarda en una tarjeta
+            para que puedas retomarlo cuando quieras.
+          </p>
+          {user && (
+            <div className="figma-sector-toolbar">
+              <div className="search-box">
+                <Icon name="search" />
+                <input
+                  type="text"
+                  placeholder="Buscar diseño..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  id="search-designs"
+                />
+              </div>
+              <Link className="primary-button" to="/editor" id="btn-create-design">
+                <Icon name="plus" /> Crear diseño
               </Link>
             </div>
-          ) : (
-            filteredDesigns.map((design) => {
-              const tag = getDesignTag(design);
-              return (
-                <article
-                  key={design.id}
-                  className="design-card"
-                  id={`design-card-${design.id}`}
-                >
-                  {/* Thumbnail */}
-                  <div
-                    className="design-card-thumb"
-                    onClick={() => navigate(`/editor/${design.id}`)}
-                  >
-                    {design.image ? (
-                      <img src={design.image} alt={design.title} className="design-thumb-img" />
-                    ) : (
-                      <Icon name="image" size={48} strokeWidth={1.2} />
-                    )}
-                    {!!design.isClassDesign && (
-                      <span className="design-card-badge">Clase</span>
-                    )}
-                    <button
-                      className="design-card-menu-btn"
-                      title="Opciones"
-
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setContextDesign(design);
-                      }}
-                      id={`design-menu-${design.id}`}
-                    >
-                      <Icon name="dots" />
-                    </button>
-                  </div>
-
-                  {/* Info */}
-                  <div
-                    className="design-card-info"
-                    onClick={() => navigate(`/editor/${design.id}`)}
-                  >
-                    <div className="design-card-title">{design.title}</div>
-                    <div className="design-card-meta">
-                      <span className={`design-card-tag ${tag.cls}`}>{tag.label}</span>
-                      <span>
-                        {new Date(design.createdAt).toLocaleDateString('es-AR', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              );
-            })
           )}
-        </div>
-      )}
+        </header>
 
-      {/* ── Context / Options Modal ── */}
-      {contextDesign && (
-        <div
-          className="design-context-overlay"
-          onClick={() => setContextDesign(null)}
-          id="design-context-overlay"
-        >
+        {!user && (
+          <div className="figma-empty-panel figma-dot-pattern">
+            <Icon name="empty" size={64} strokeWidth={1} />
+            <h3>Modo invitado</h3>
+            <p>Para guardar y ver tus diseños, inicia sesión o crea una cuenta.</p>
+            <Link className="primary-button" to="/login">+ Iniciar sesión</Link>
+          </div>
+        )}
+
+        {error && <p className="error-text">{error}</p>}
+
+        {user && (
+          <div className="figma-cards-grid">
+            {filteredDesigns.length === 0 ? (
+              <div className="figma-empty-panel figma-dot-pattern">
+                <Icon name="empty" size={64} strokeWidth={1} />
+                <h3>No hay diseños guardados</h3>
+                <p>Crea un nuevo proyecto para que aparezca en tu lista.</p>
+                <Link className="primary-button" to="/editor">
+                  <Icon name="plus" /> Crear diseño
+                </Link>
+              </div>
+            ) : (
+              filteredDesigns.map((design) => {
+                const tag = getDesignTag(design);
+                return (
+                  <article
+                    key={design.id}
+                    className="figma-card design-card"
+                    id={`design-card-${design.id}`}
+                  >
+                    <div
+                      className="figma-card-media figma-dot-pattern"
+                      onClick={() => navigate(`/editor/${design.id}`)}
+                    >
+                      {design.image ? (
+                        <img src={design.image} alt={design.title} className="design-thumb-img" />
+                      ) : (
+                        <span className="figma-card-placeholder">Tarjeta - Img</span>
+                      )}
+                      {!!design.isClassDesign && (
+                        <span className="figma-card-badge">Clase</span>
+                      )}
+                      <button
+                        className="figma-card-menu-btn"
+                        title="Opciones"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setContextDesign(design);
+                        }}
+                        id={`design-menu-${design.id}`}
+                      >
+                        <Icon name="dots" />
+                      </button>
+                    </div>
+
+                    <div
+                      className="figma-card-body"
+                      onClick={() => navigate(`/editor/${design.id}`)}
+                    >
+                      <h3 className="figma-card-title">{design.title}</h3>
+                      <div className="figma-card-meta">
+                        <span className={`design-card-tag ${tag.cls}`}>{tag.label}</span>
+                        <span>
+                          {new Date(design.createdAt).toLocaleDateString('es-AR', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="figma-card-action"
+                      onClick={() => navigate(`/editor/${design.id}`)}
+                    >
+                      + Abrir diseño
+                    </button>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {contextDesign && (
           <div
-            className="design-context-modal"
-            onClick={(e) => e.stopPropagation()}
+            className="design-context-overlay"
+            onClick={() => setContextDesign(null)}
+            id="design-context-overlay"
           >
-            {/* Header */}
-            <div className="design-context-header">
-              <h3>
-                <span className="avatar-icon">
-                  {getInitials(contextDesign.ownerName)}
-                </span>
-                Usuario
-              </h3>
-              <button
-                className="design-context-close"
-                onClick={() => setContextDesign(null)}
-                id="close-context-modal"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="design-context-body">
-              {/* Actions */}
-              <div className="design-context-actions">
+            <div
+              className="design-context-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="design-context-header">
+                <h3>
+                  <span className="avatar-icon">
+                    {getInitials(contextDesign.ownerName)}
+                  </span>
+                  Usuario
+                </h3>
                 <button
-                  className="context-action"
-                  onClick={() => {
-                    setContextDesign(null);
-                    navigate(`/editor/${contextDesign.id}`);
-                  }}
-                  id="ctx-edit"
+                  className="design-context-close"
+                  type="button"
+                  onClick={() => setContextDesign(null)}
+                  id="close-context-modal"
                 >
-                  <Icon name="edit" /> Editar
-                </button>
-                <button
-                  className="context-action danger"
-                  onClick={() => handleDelete(contextDesign.id)}
-                  id="ctx-delete"
-                >
-                  <Icon name="trash" /> Eliminar
-                </button>
-                <button
-                  className="context-action"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.download = `${contextDesign.title || 'diagrama'}.pdf`;
-                    link.href = contextDesign.pdf_data || contextDesign.image;
-                    link.click();
-                  }}
-                  id="ctx-export"
-                >
-                  <Icon name="export" /> Exportar PDF
-                </button>
-                <button
-                  className="context-action"
-                  onClick={() => handleCopy(contextDesign.id)}
-                  id="ctx-copy"
-                >
-                  <Icon name="copy" /> Copiar
+                  ✕
                 </button>
               </div>
 
-              {/* Preview */}
-              <div className="design-context-preview">
-                <div className="design-context-thumb">
-                  {contextDesign.image ? (
-                    <img src={contextDesign.image} alt={contextDesign.title} className="design-thumb-img-large" />
-                  ) : (
-                    <Icon name="image" size={48} strokeWidth={1.2} />
-                  )}
+              <div className="design-context-body">
+                <div className="design-context-actions">
+                  <button
+                    type="button"
+                    className="context-action"
+                    onClick={() => {
+                      setContextDesign(null);
+                      navigate(`/editor/${contextDesign.id}`);
+                    }}
+                    id="ctx-edit"
+                  >
+                    <Icon name="edit" /> Editar
+                  </button>
+                  <button
+                    type="button"
+                    className="context-action danger"
+                    onClick={() => handleDelete(contextDesign.id)}
+                    id="ctx-delete"
+                  >
+                    <Icon name="trash" /> Eliminar
+                  </button>
+                  <button
+                    type="button"
+                    className="context-action"
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.download = `${contextDesign.title || 'diagrama'}.pdf`;
+                      link.href = contextDesign.pdf_data || contextDesign.image;
+                      link.click();
+                    }}
+                    id="ctx-export"
+                  >
+                    <Icon name="export" /> Exportar PDF
+                  </button>
+                  <button
+                    type="button"
+                    className="context-action"
+                    onClick={() => handleCopy(contextDesign.id)}
+                    id="ctx-copy"
+                  >
+                    <Icon name="copy" /> Copiar
+                  </button>
                 </div>
-                <div className="design-context-details">
-                  <strong>{contextDesign.title}</strong>
-                  <br />
-                  {contextDesign.isClassDesign
-                    ? 'Compartido'
-                    : contextDesign.isCopy
-                      ? 'Copia'
-                      : 'Privado'}
-                  <br />
-                  {new Date(contextDesign.createdAt).toLocaleDateString('es-AR', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+
+                <div className="design-context-preview">
+                  <div className="design-context-thumb figma-dot-pattern">
+                    {contextDesign.image ? (
+                      <img src={contextDesign.image} alt={contextDesign.title} className="design-thumb-img-large" />
+                    ) : (
+                      <span className="figma-card-placeholder">Tarjeta - Img</span>
+                    )}
+                  </div>
+                  <div className="design-context-details">
+                    <strong>{contextDesign.title}</strong>
+                    <br />
+                    {contextDesign.isClassDesign
+                      ? 'Compartido'
+                      : contextDesign.isCopy
+                        ? 'Copia'
+                        : 'Privado'}
+                    <br />
+                    {new Date(contextDesign.createdAt).toLocaleDateString('es-AR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
   );
 }
