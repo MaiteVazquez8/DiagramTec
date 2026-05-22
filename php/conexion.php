@@ -1,13 +1,12 @@
 <?php
-
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 $host = "localhost";
 $user = "root";
 $db_password = "";
-$database = "diagramtec";
-$port = 3307;
+$database = "tecdiagram";
+$port = 3306;
 
 $mysql = new mysqli(
     $host,
