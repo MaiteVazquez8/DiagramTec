@@ -43,7 +43,14 @@ export function downloadDiagramPdf(canvas, shapes, filename = 'diagrama') {
   const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
   pdf.addImage(highResImg, 'PNG', 0, 0, pdfWidth, pdfHeight);
-  pdf.save(`${filename}.pdf`);
 
-  return pdf.output('datauristring');
+  let dataUri = '';
+  try {
+    dataUri = pdf.output('datauristring');
+  } catch (err) {
+    console.warn('PDF descargado; no se pudo generar copia para guardar en servidor:', err);
+  }
+
+  pdf.save(`${filename}.pdf`);
+  return dataUri;
 }

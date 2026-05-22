@@ -64,7 +64,17 @@ export const IfShape = ({ shape, fsContext }) => (
         <polygon points="50,0 100,100 0,100" fill="white" stroke="black" />
       </svg>
       <div className="if-text-overlay">
-        <div className="editable-text if-condition" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>Condición</div>
+        <div
+          className="editable-text if-condition"
+          style={fsContext}
+          contentEditable
+          suppressContentEditableWarning
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {shape.title}
+        </div>
       </div>
     </div>
     <div className="if-body">

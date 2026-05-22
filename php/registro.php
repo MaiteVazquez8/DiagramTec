@@ -1,10 +1,69 @@
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-include('conexion.php');
+require_once __DIR__ . '/lib/cors.php';
 
-$message = "";
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+    include __DIR__ . '/conexion.php';
+    include __DIR__ . '/jwt.php';
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $firstName = trim($body['firstName'] ?? '');
+    $lastName = trim($body['lastName'] ?? '');
+    $email = strtolower(trim($body['email'] ?? ''));
+    $password = $body['password'] ?? '';
+    $role = in_array($body['role'] ?? '', ['student', 'teacher'], true) ? $body['role'] : 'student';
+
+    if ($firstName === '' || $lastName === '' || $email === '' || $password === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Faltan datos obligatorios'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare('SELECT id FROM users WHERE email = ?');
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    if ($stmt->get_result()->num_rows > 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'El correo ya está registrado'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $stmt = $mysql->prepare(
+        'INSERT INTO users (firstName, lastName, email, passwordHash, role) VALUES (?, ?, ?, ?, ?)'
+    );
+    $stmt->bind_param('sssss', $firstName, $lastName, $email, $hash, $role);
+    if (!$stmt->execute()) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al crear usuario'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $id = (int) $stmt->insert_id;
+    $user = [
+        'id' => $id,
+        'firstName' => $firstName,
+        'lastName' => $lastName,
+        'email' => $email,
+        'role' => $role,
+    ];
+    echo json_encode([
+        'token' => generarJWT($user),
+        'user' => $user,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+include __DIR__ . '/conexion.php';
+
+$message = '';
 
 if (isset($_POST['CrearUsuario'])) {
 
@@ -50,26 +109,14 @@ if (isset($_POST['CrearUsuario'])) {
 
             $hash = password_hash($password, PASSWORD_BCRYPT);
 
-            $role = "student";
+            $role = 'student';
 
-            // TOKEN DE RECUPERACIÓN
-            $token = rand(100000, 999999);
+            $stmt = $mysql->prepare('
+                INSERT INTO users (firstName, lastName, email, passwordHash, role)
+                VALUES (?, ?, ?, ?, ?)
+            ');
 
-            $stmt = $mysql->prepare("
-                INSERT INTO users
-                (firstName,lastName,email,passwordHash,role,token)
-                VALUES (?,?,?,?,?,?)
-            ");
-
-            $stmt->bind_param(
-                "ssssss",
-                $firstName,
-                $lastName,
-                $email,
-                $hash,
-                $role,
-                $token
-            );
+            $stmt->bind_param('sssss', $firstName, $lastName, $email, $hash, $role);
 
             if ($stmt->execute()) {
 

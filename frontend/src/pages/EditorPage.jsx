@@ -142,6 +142,16 @@ export default function EditorPage() {
   }, [centerView, sidebarOpen]);
 
   useEffect(() => {
+    if (!user && id) {
+      setError('Inicia sesión para abrir diseños guardados');
+      navigate('/editor', { replace: true });
+      return;
+    }
+    if (!user && !id) {
+      const empty = emptyDiagramState();
+      setHistoryStack(initHistoryWithState(empty));
+      return;
+    }
     if (user) {
       api.get('/classes/available').then((r) => setClasses(r.data.classes)).catch(() => setClasses([]));
     }
@@ -157,7 +167,7 @@ export default function EditorPage() {
         setTimeout(centerView, 500);
       }).catch(() => setError('No se pudo cargar el diseño'));
     }
-  }, [user, id, centerView]);
+  }, [user, id, centerView, navigate]);
 
   useEffect(() => {
     if (message || error) {
@@ -304,6 +314,9 @@ export default function EditorPage() {
 
   const handleTouchStartShape = (event, shape) => {
     if (connectMode || event.target.closest('.resize-handle') || event.target.closest('.shape-floating-toolbar')) return;
+    if (event.target.closest('.editable-text')) return;
+    event.stopPropagation();
+    if (event.cancelable) event.preventDefault();
     setSelectedId(shape.id);
     const touch = event.touches[0];
     const startX = touch.clientX;
@@ -321,13 +334,15 @@ export default function EditorPage() {
         )
       );
     };
-    const onTouchEnd = () => {
+    const cleanup = () => {
       commitHistory(shapes, connections);
       window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchend', cleanup);
+      window.removeEventListener('touchcancel', cleanup);
     };
     window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchend', cleanup);
+    window.addEventListener('touchcancel', cleanup);
   };
 
   const handleResizeMouseDown = (event, shape) => {
@@ -411,7 +426,7 @@ export default function EditorPage() {
     setMessage('');
     setError('');
     if (!user) {
-      setError('Debes ingresar para guardar diseños');
+      setError('Inicia sesión para guardar tus diseños en la nube');
       return;
     }
 
@@ -452,14 +467,24 @@ export default function EditorPage() {
 
   const handleExportPDF = async () => {
     if (!canvasRef.current) return;
+    setError('');
     setMessage('Generando PDF...');
     try {
       const pdfCanvas = await captureDiagramHighRes(canvasRef.current, shapes);
       const pdfData = downloadDiagramPdf(pdfCanvas, shapes, saveTitle || 'diagrama');
-      if (id) await api.put(`/designs/${id}`, { pdf_data: pdfData });
       setMessage('PDF descargado');
+
+      if (id && pdfData) {
+        try {
+          await api.put(`/designs/${id}`, { pdf_data: pdfData });
+        } catch (syncErr) {
+          console.warn('PDF descargado; falló guardar copia en servidor:', syncErr);
+          setMessage('PDF descargado (no se guardó la copia en la nube)');
+        }
+      }
     } catch (err) {
       console.error('Error PDF:', err);
+      setMessage('');
       setError('Error al generar el PDF');
     }
   };
@@ -475,22 +500,56 @@ export default function EditorPage() {
     });
   };
 
+  const isCanvasBackgroundTarget = (target) =>
+    target.classList.contains('editor-canvas-fs')
+    || target.classList.contains('canvas-zoom-layer')
+    || target.classList.contains('canvas-bg')
+    || target.classList.contains('canvas-hint');
+
   const handleCanvasMouseDown = (e) => {
-    if (e.target.classList.contains('editor-canvas-fs') || e.target.classList.contains('canvas-zoom-layer')) {
-      setIsPanning(true);
-      const startX = e.clientX - pan.x;
-      const startY = e.clientY - pan.y;
-      const onMouseMove = (moveEvent) => {
-        setPan({ x: moveEvent.clientX - startX, y: moveEvent.clientY - startY });
-      };
-      const onMouseUp = () => {
-        setIsPanning(false);
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-      };
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-    }
+    if (!isCanvasBackgroundTarget(e.target)) return;
+    setSelectedId(null);
+    setConnectSource(null);
+    setIsPanning(true);
+    const startX = e.clientX - pan.x;
+    const startY = e.clientY - pan.y;
+    const onMouseMove = (moveEvent) => {
+      setPan({ x: moveEvent.clientX - startX, y: moveEvent.clientY - startY });
+    };
+    const onMouseUp = () => {
+      setIsPanning(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleCanvasTouchStart = (e) => {
+    if (connectMode || e.touches.length !== 1) return;
+    if (!isCanvasBackgroundTarget(e.target)) return;
+    if (e.cancelable) e.preventDefault();
+    setSelectedId(null);
+    setConnectSource(null);
+    setIsPanning(true);
+    const touch = e.touches[0];
+    const startX = touch.clientX - pan.x;
+    const startY = touch.clientY - pan.y;
+    const onTouchMove = (moveEvent) => {
+      if (moveEvent.touches.length !== 1) return;
+      if (moveEvent.cancelable) moveEvent.preventDefault();
+      const moveTouch = moveEvent.touches[0];
+      setPan({ x: moveTouch.clientX - startX, y: moveTouch.clientY - startY });
+    };
+    const cleanup = () => {
+      setIsPanning(false);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', cleanup);
+      window.removeEventListener('touchcancel', cleanup);
+    };
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', cleanup);
+    window.addEventListener('touchcancel', cleanup);
   };
 
   return (
@@ -529,6 +588,7 @@ export default function EditorPage() {
           zoomReset={zoomReset}
           sidebarOpen={sidebarOpen}
           isSaving={isSaving}
+          isGuest={!user}
         />
 
         <div
@@ -538,6 +598,7 @@ export default function EditorPage() {
           onDragOver={(event) => event.preventDefault()}
           onClick={() => { setSelectedId(null); setConnectSource(null); }}
           onMouseDown={handleCanvasMouseDown}
+          onTouchStart={handleCanvasTouchStart}
         >
           <div
             ref={canvasRef}
@@ -584,7 +645,12 @@ export default function EditorPage() {
                 <RenderShape shape={shape} />
                 {selectedId === shape.id && (
                   <>
-                    <div className="shape-floating-toolbar" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="shape-floating-toolbar"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button type="button" className="toolbar-tool-btn" onClick={() => handleDuplicateShape(shape.id)} title="Duplicar"><Icon name="copy" /></button>
                       <button type="button" className="toolbar-tool-btn" onClick={() => handleBringToFront(shape.id)} title="Traer al frente"><Icon name="layers" /></button>
                       <button type="button" className="toolbar-tool-btn" onClick={() => handleDeleteShape(shape.id)} title="Eliminar"><Icon name="trash" /></button>
