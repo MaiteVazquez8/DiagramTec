@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Icon from './Icon';
 
 export default function EditorToolbar({
@@ -6,7 +7,8 @@ export default function EditorToolbar({
   message, error,
   handleSave, handleClear, handleExport, handleExportPDF,
   zoom, zoomIn, zoomOut, zoomReset,
-  sidebarOpen, isSaving
+  sidebarOpen, isSaving,
+  isGuest = false,
 }) {
   // componente de la barra de herramientas del editor
   return (
@@ -38,9 +40,21 @@ export default function EditorToolbar({
 
       <div className="toolbar-right-fs">
         <div className="toolbar-actions-group figma-toolbar-actions">
-          <button type="button" className="btn btn-primary figma-btn-save" onClick={handleSave} disabled={isSaving} id="btn-save">
-            <Icon name="save" size={16} /> {isSaving ? 'Guardando...' : 'Guardar'}
-          </button>
+          {isGuest ? (
+            <Link
+              className="btn btn-primary figma-btn-save"
+              to="/login"
+              state={{ from: '/editor' }}
+              id="btn-save"
+              title="Inicia sesión para guardar tu diseño"
+            >
+              <Icon name="save" size={16} /> Iniciar sesión
+            </Link>
+          ) : (
+            <button type="button" className="btn btn-primary figma-btn-save" onClick={handleSave} disabled={isSaving} id="btn-save">
+              <Icon name="save" size={16} /> {isSaving ? 'Guardando...' : 'Guardar'}
+            </button>
+          )}
           <button type="button" className="btn btn-secondary figma-btn-outline" onClick={handleClear} id="btn-clear" disabled={isSaving}>
             <Icon name="trash" size={16} /> Limpiar
           </button>

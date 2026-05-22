@@ -1,33 +1,68 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
 import Icon from '../components/Icon.jsx';
 
+function normalizeDesign(raw) {
+  return {
+    ...raw,
+    isClassDesign: Boolean(raw.classId),
+    title: raw.title || 'Sin título',
+  };
+}
 
 export default function DesignsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [designs, setDesigns] = useState([]);
   const [error, setError] = useState('');
+  const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
   const [search, setSearch] = useState('');
   const [contextDesign, setContextDesign] = useState(null);
 
-  const loadDesigns = async () => {
+  const loadDesigns = useCallback(async () => {
+    setIsLoadingDesigns(true);
+    setError('');
     try {
       const response = await api.get('/designs');
-      setDesigns(response.data.designs);
+      const list = Array.isArray(response.data?.designs) ? response.data.designs : [];
+      setDesigns(list.map(normalizeDesign));
     } catch (err) {
-      setError('No se pudieron cargar los diseños');
+      setDesigns([]);
+      const status = err.response?.status;
+      if (status === 401) {
+        setError('Tu sesión expiró. Vuelve a iniciar sesión.');
+      } else {
+        setError('No se pudieron cargar los diseños. Comprueba que el servidor esté activo.');
+      }
+    } finally {
+      setIsLoadingDesigns(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user) {
       loadDesigns();
     }
-  }, [user]);
+    if (!authLoading && !user) {
+      setDesigns([]);
+      setError('');
+      setIsLoadingDesigns(false);
+    }
+  }, [user, authLoading, location.key, loadDesigns]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && user) {
+        loadDesigns();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user, loadDesigns]);
 
   const filteredDesigns = designs.filter((d) =>
     d.title.toLowerCase().includes(search.toLowerCase())
@@ -70,11 +105,12 @@ export default function DesignsPage() {
         <header className="figma-sector-hero">
           <h1>Mis diseños</h1>
           <p>
-            Crea, organiza y edita tus diagramas de flujo. Cada proyecto se guarda en una tarjeta
-            para que puedas retomarlo cuando quieras.
+            {user
+              ? 'Crea, organiza y edita tus diagramas de flujo. Cada proyecto se guarda en una tarjeta para que puedas retomarlo cuando quieras.'
+              : 'Puedes crear diagramas sin registrarte. Tus diseños no se guardan hasta que inicies sesión.'}
           </p>
-          {user && (
-            <div className="figma-sector-toolbar">
+          <div className="figma-sector-toolbar">
+            {user ? (
               <div className="search-box">
                 <Icon name="search" />
                 <input
@@ -85,53 +121,108 @@ export default function DesignsPage() {
                   id="search-designs"
                 />
               </div>
-              <Link className="primary-button" to="/editor" id="btn-create-design">
-                <Icon name="plus" /> Crear diseño
+            ) : null}
+            <Link className="primary-button" to="/editor" id="btn-create-design">
+              <Icon name="plus" size={18} strokeWidth={2.5} />
+              Crear diseño
+            </Link>
+            {!user ? (
+              <Link className="secondary-button" to="/login" id="btn-guest-login">
+                Iniciar sesión
               </Link>
-            </div>
-          )}
+            ) : null}
+          </div>
         </header>
 
-        {!user && (
-          <div className="figma-empty-panel figma-dot-pattern">
-            <Icon name="empty" size={64} strokeWidth={1} />
-            <h3>Modo invitado</h3>
-            <p>Para guardar y ver tus diseños, inicia sesión o crea una cuenta.</p>
-            <Link className="primary-button" to="/login">+ Iniciar sesión</Link>
+        {authLoading && (
+          <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
+            <p className="figma-loading-text">Cargando tu sesión…</p>
           </div>
         )}
 
-        {error && <p className="error-text">{error}</p>}
+        {!authLoading && !user && (
+          <div className="figma-empty-panel figma-dot-pattern">
+            <Icon name="image" size={64} strokeWidth={1} />
+            <h3>Modo invitado</h3>
+            <p>
+              Crea y edita diagramas libremente. Para guardarlos en tu cuenta y ver tu biblioteca,
+              inicia sesión o regístrate.
+            </p>
+            <div className="hero-actions">
+              <Link className="primary-button" to="/editor" id="btn-guest-create">
+                <Icon name="plus" size={18} strokeWidth={2.5} />
+                Crear diseño
+              </Link>
+              <Link className="secondary-button" to="/login">Iniciar sesión</Link>
+              <Link className="secondary-button" to="/signup">Crear cuenta</Link>
+            </div>
+          </div>
+        )}
 
-        {user && (
+        {error && (
+          <div className="figma-designs-error">
+            <p className="error-text">{error}</p>
+            {user ? (
+              <button type="button" className="secondary-button" onClick={loadDesigns}>
+                Reintentar
+              </button>
+            ) : null}
+          </div>
+        )}
+
+        {!authLoading && user && (
           <div className="figma-cards-grid">
-            {filteredDesigns.length === 0 ? (
+            {isLoadingDesigns ? (
+              <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
+                <p className="figma-loading-text">Cargando tus diseños…</p>
+              </div>
+            ) : filteredDesigns.length === 0 ? (
               <div className="figma-empty-panel figma-dot-pattern">
                 <Icon name="empty" size={64} strokeWidth={1} />
                 <h3>No hay diseños guardados</h3>
-                <p>Crea un nuevo proyecto para que aparezca en tu lista.</p>
-                <Link className="primary-button" to="/editor">
-                  <Icon name="plus" /> Crear diseño
+                <p>
+                  {search.trim()
+                    ? 'No hay resultados para tu búsqueda. Prueba con otro nombre.'
+                    : 'Crea un diagrama en el editor y pulsa Guardar para que aparezca aquí.'}
+                </p>
+                <Link className="primary-button" to="/editor" id="btn-empty-create-design">
+                  <Icon name="plus" size={18} strokeWidth={2.5} />
+                  Crear diseño
                 </Link>
               </div>
             ) : (
-              filteredDesigns.map((design) => {
+              filteredDesigns.map((design, index) => {
                 const tag = getDesignTag(design);
+                const formattedDate = new Date(design.createdAt).toLocaleDateString('es-AR', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                });
+
                 return (
                   <article
                     key={design.id}
-                    className="figma-card design-card"
+                    className="figma-card"
                     id={`design-card-${design.id}`}
+                    style={{ animationDelay: `${Math.min(index, 8) * 0.05}s` }}
                   >
                     <div
-                      className="figma-card-media figma-dot-pattern"
+                      className="figma-card-media"
                       onClick={() => navigate(`/editor/${design.id}`)}
                     >
-                      {design.image ? (
-                        <img src={design.image} alt={design.title} className="design-thumb-img" />
-                      ) : (
-                        <span className="figma-card-placeholder">Tarjeta - Img</span>
-                      )}
+                      <div className="figma-card-preview">
+                        {design.image ? (
+                          <img src={design.image} alt={design.title} className="design-thumb-img" />
+                        ) : (
+                          <div className="figma-card-placeholder">
+                            <Icon name="image" size={32} strokeWidth={1.25} />
+                            <span>Sin vista previa</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="figma-card-media-overlay" aria-hidden>
+                        <span>Abrir diseño</span>
+                      </div>
                       {!!design.isClassDesign && (
                         <span className="figma-card-badge">Clase</span>
                       )}
@@ -145,7 +236,7 @@ export default function DesignsPage() {
                         }}
                         id={`design-menu-${design.id}`}
                       >
-                        <Icon name="dots" />
+                        <Icon name="dots" size={16} />
                       </button>
                     </div>
 
@@ -153,26 +244,29 @@ export default function DesignsPage() {
                       className="figma-card-body"
                       onClick={() => navigate(`/editor/${design.id}`)}
                     >
-                      <h3 className="figma-card-title">{design.title}</h3>
+                      <h3 className="figma-card-title" title={design.title}>
+                        {design.title}
+                      </h3>
                       <div className="figma-card-meta">
                         <span className={`design-card-tag ${tag.cls}`}>{tag.label}</span>
-                        <span>
-                          {new Date(design.createdAt).toLocaleDateString('es-AR', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </span>
+                        <span className="figma-card-meta-dot" aria-hidden />
+                        <time className="figma-card-date" dateTime={design.createdAt}>
+                          <Icon name="clock" size={13} strokeWidth={1.75} />
+                          {formattedDate}
+                        </time>
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      className="figma-card-action"
-                      onClick={() => navigate(`/editor/${design.id}`)}
-                    >
-                      + Abrir diseño
-                    </button>
+                    <div className="figma-card-footer">
+                      <button
+                        type="button"
+                        className="figma-card-action"
+                        onClick={() => navigate(`/editor/${design.id}`)}
+                      >
+                        <Icon name="edit" size={16} />
+                        Abrir diseño
+                      </button>
+                    </div>
                   </article>
                 );
               })

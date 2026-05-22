@@ -61,6 +61,23 @@ export function computeCenterPan(
 }
 
 /**
+ * Ajusta el pan al cambiar zoom para que el mismo punto del lienzo quede bajo el foco en pantalla.
+ * focalX/focalY son relativos al viewport del contenedor del canvas.
+ * @param {{ x: number, y: number }} pan
+ * @param {number} zoom
+ * @param {number} nextZoom
+ * @param {number} focalX
+ * @param {number} focalY
+ */
+export function computePanForZoomChange(pan, zoom, nextZoom, focalX, focalY) {
+  if (zoom === 0) return pan;
+  return {
+    x: focalX - ((focalX - pan.x) / zoom) * nextZoom,
+    y: focalY - ((focalY - pan.y) / zoom) * nextZoom,
+  };
+}
+
+/**
  * Delta de movimiento en espacio del lienzo.
  * @param {number} deltaClient
  * @param {number} zoom
