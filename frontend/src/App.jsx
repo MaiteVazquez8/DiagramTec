@@ -47,9 +47,8 @@ function Header() {
   return (
     <header className="app-header figma-header">
       <div className="header-left">
-        <Link to="/" className="brand figma-brand" onClick={closeMenu}>
-          <span className="brand-word">diagram</span>
-          <span className="brand-badge">Tec</span>
+        <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
+          <img src="/Diagram2.png" alt="" className="brand-logo" />
         </Link>
       </div>
 
@@ -89,9 +88,14 @@ function Header() {
               </button>
             </div>
           ) : (
-            <NavLink className="figma-header-login" to="/login" onClick={closeMenu}>
-              + Iniciar sesión
-            </NavLink>
+            <>
+              <NavLink className="secondary-button" to="/editor" onClick={closeMenu} style={{ padding: '0.5rem 1rem', fontSize: '0.88rem' }}>
+                + Crear diseño
+              </NavLink>
+              <NavLink className="figma-header-login" to="/login" onClick={closeMenu}>
+                Iniciar sesión
+              </NavLink>
+            </>
           )}
         </div>
       </div>

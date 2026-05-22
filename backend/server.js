@@ -3,6 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { spawn } = require('child_process');
+
+const fs = require('fs');
+
+
 const path = require('path');
 
 const { openDb } = require('./db');
@@ -36,6 +40,65 @@ async function startServer() {
   });
 }
 
+
+function findPhpInLaragonRoot(laragonRoot) {
+  const phpBinDir = path.join(laragonRoot, 'bin', 'php');
+  if (!fs.existsSync(phpBinDir)) return null;
+
+  const versions = fs.readdirSync(phpBinDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .reverse();
+
+  for (const version of versions) {
+    const exe = path.join(phpBinDir, version, 'php.exe');
+    if (fs.existsSync(exe)) return exe;
+  }
+
+  return null;
+}
+
+function resolvePhpExecutable() {
+  let dir = __dirname;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const exe = findPhpInLaragonRoot(dir);
+    if (exe) return exe;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  return 'php';
+}
+
+function startPhpServer() {
+  try {
+    const phpExecutable = resolvePhpExecutable();
+    const phpRoot = path.join(__dirname, '..', 'php');
+    const php = spawn(phpExecutable, ['-S', 'localhost:8000', '-t', phpRoot], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    php.on('error', (err) => {
+      console.error('Failed to start PHP server:', err.message);
+    });
+
+    php.stdout.on('data', (data) => console.log(`[php] ${data.toString().trim()}`));
+    php.stderr.on('data', (data) => console.error(`[php][err] ${data.toString().trim()}`));
+    php.on('close', (code) => console.log(`PHP server exited with code ${code}`));
+
+    process.on('exit', () => php.kill());
+    process.on('SIGINT', () => {
+      php.kill();
+      process.exit();
+    });
+
+    console.log('PHP built-in server started at http://localhost:8000');
+  } catch (err) {
+    console.error('Failed to start PHP server:', err);
+  }
+
 function startPhpServer() {
   try {
     const phpRoot = path.join(__dirname, '..', 'php');
@@ -57,6 +120,7 @@ function startPhpServer() {
   } catch (err) {
     console.error('Failed to start PHP server:', err);
   }
+
 }
 
 startPhpServer();

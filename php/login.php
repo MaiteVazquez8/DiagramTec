@@ -1,12 +1,57 @@
 <?php
 
+require_once __DIR__ . '/lib/cors.php';
+
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+    include __DIR__ . '/conexion.php';
+    include __DIR__ . '/jwt.php';
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $email = strtolower(trim($body['email'] ?? ''));
+    $userPassword = $body['password'] ?? '';
+
+    if ($email === '' || $userPassword === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Email y contraseña requeridos'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare('SELECT * FROM users WHERE email = ?');
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    if (!$user || !password_verify($userPassword, $user['passwordHash'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Credenciales inválidas'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $token = generarJWT($user);
+    echo json_encode([
+        'token' => $token,
+        'user' => [
+            'id' => (int) $user['id'],
+            'firstName' => $user['firstName'],
+            'lastName' => $user['lastName'],
+            'email' => $user['email'],
+            'role' => $user['role'],
+        ],
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 session_start();
 
-include('conexion.php');
-include('jwt.php');
-include('mail.php');
+include __DIR__ . '/conexion.php';
+include __DIR__ . '/jwt.php';
+include __DIR__ . '/mail.php';
 
-$message = "";
+$message = '';
 
 if (isset($_POST['login'])) {
 
