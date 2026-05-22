@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+  const redirectTo = location.state?.from || '/designs';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,18 +17,20 @@ export default function LoginPage() {
     event.preventDefault();
     setError('');
     try {
-      const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', password);
-      const response = await api.post('login.php', formData);
-      if (response.data && response.data.token) {
+      const response = await api.post('/auth/login', { email, password });
+      if (response.data?.token) {
         login(response.data.token);
-        navigate('/');
+        navigate(redirectTo);
       } else {
         setError(response.data?.error || 'No se pudo iniciar sesión');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo iniciar sesión');
+      const msg = err.response?.data?.error;
+      setError(
+        msg === 'INVALID_CREDENTIALS' || err.response?.status === 401
+          ? 'Credenciales inválidas'
+          : msg || 'No se pudo iniciar sesión',
+      );
     }
   };
 
