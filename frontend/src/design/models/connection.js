@@ -1,4 +1,5 @@
 /**
+ * Conexiones entre formas (clic origen → clic destino) y líneas SVG.
  * @typedef {Object} Connection
  * @property {string|number} id
  * @property {string|number} from
@@ -26,6 +27,15 @@ export function createConnection(fromId, toId, id) {
  */
 export function removeConnectionsForShape(connections, shapeId) {
   return connections.filter((c) => c.from !== shapeId && c.to !== shapeId);
+}
+
+/**
+ * @param {Connection[]} connections
+ * @param {string|number} connectionId
+ * @returns {Connection[]}
+ */
+export function removeConnection(connections, connectionId) {
+  return connections.filter((c) => c.id !== connectionId);
 }
 
 /**

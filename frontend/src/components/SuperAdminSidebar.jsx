@@ -1,3 +1,4 @@
+/** Sidebar del panel admin: avatar del admin y accesos rápidos. */
 import Icon from './Icon.jsx';
 import { useAuth } from '../AuthContext';
 

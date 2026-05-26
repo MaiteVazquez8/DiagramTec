@@ -1,3 +1,4 @@
+/** Página 404 para rutas no definidas. */
 import { Link } from 'react-router-dom';
 
 export default function NotFoundPage() {

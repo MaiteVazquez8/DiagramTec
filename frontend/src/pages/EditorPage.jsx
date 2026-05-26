@@ -1,3 +1,7 @@
+/**
+ * Editor de diagramas de flujo (rutas /editor y /editor/:id).
+ * Gestiona formas, conexiones, zoom/pan, historial, guardado y exportación PDF/PNG.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
@@ -7,6 +11,7 @@ import html2canvas from 'html2canvas';
 import Icon from '../components/Icon.jsx';
 import EditorSidebar from '../components/EditorSidebar';
 import EditorToolbar from '../components/EditorToolbar';
+import EditorSubToolbar from '../components/EditorSubToolbar';
 import RenderShape from '../components/RenderShape';
 
 import {
@@ -17,9 +22,8 @@ import {
   PALETTE_DRAG_TYPE_KEY,
   createShape,
   duplicateShape,
-  shapesToMap,
-  setShapeFontSize,
   bringShapeToFront,
+  shapesToMap,
   parseDiagramContent,
   serializeDiagram,
   emptyDiagramState,
@@ -33,15 +37,17 @@ import {
   deleteShapeFromDiagram,
   addShapeToDiagram,
   handleConnectClick,
+  removeConnection,
   getConnectionLineFromMap,
   screenToCanvas,
   computeCenterPan,
+  computePanForZoomChange,
   clientDeltaToCanvas,
   stepZoomIn,
   stepZoomOut,
   captureDiagramPreview,
   captureDiagramHighRes,
-  canvasToJpegDataUrl,
+  canvasToPngDataUrl,
   buildInlinePdfDataUrl,
   downloadDiagramPdf,
   getDiagramBounds,
@@ -59,6 +65,7 @@ export default function EditorPage() {
   const [connectMode, setConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const [saveTitle, setSaveTitle] = useState('Mi diagrama');
   const [saveClassId, setSaveClassId] = useState('');
   const [classes, setClasses] = useState([]);
@@ -73,6 +80,9 @@ export default function EditorPage() {
 
   const canvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const [clipboardShape, setClipboardShape] = useState(null);
 
   const diagramState = useMemo(
     () => ({ shapes, connections }),
@@ -117,18 +127,43 @@ export default function EditorPage() {
       setTimeout(centerView, 50);
       return;
     }
-    setPan(computeCenterPan(clientWidth, clientHeight, zoom));
-  }, [zoom]);
+    setPan(computeCenterPan(clientWidth, clientHeight, zoomRef.current));
+  }, []);
 
-  const zoomIn = () => setZoom(stepZoomIn);
-  const zoomOut = () => setZoom(stepZoomOut);
+  const applyZoom = useCallback((getNextZoom, focalX, focalY) => {
+    setZoom((currentZoom) => {
+      const nextZoom = getNextZoom(currentZoom);
+      setPan((currentPan) =>
+        computePanForZoomChange(currentPan, currentZoom, nextZoom, focalX, focalY)
+      );
+      return nextZoom;
+    });
+  }, []);
+
+  const getZoomFocalPoint = () => {
+    if (!canvasWrapperRef.current) return { x: 0, y: 0 };
+    const { clientWidth, clientHeight } = canvasWrapperRef.current;
+    return { x: clientWidth / 2, y: clientHeight / 2 };
+  };
+
+  const zoomIn = () => {
+    const { x, y } = getZoomFocalPoint();
+    applyZoom(stepZoomIn, x, y);
+  };
+
+  const zoomOut = () => {
+    const { x, y } = getZoomFocalPoint();
+    applyZoom(stepZoomOut, x, y);
+  };
 
   const zoomReset = () => {
-    setZoom(1);
-    if (canvasWrapperRef.current) {
-      const { clientWidth, clientHeight } = canvasWrapperRef.current;
-      setPan(computeCenterPan(clientWidth, clientHeight, 1));
+    if (!canvasWrapperRef.current) {
+      setZoom(1);
+      return;
     }
+    const { clientWidth, clientHeight } = canvasWrapperRef.current;
+    setZoom(1);
+    setPan(computeCenterPan(clientWidth, clientHeight, 1));
   };
 
   useEffect(() => {
@@ -182,8 +217,22 @@ export default function EditorPage() {
     const handleWheel = (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        setZoom((z) => (e.deltaY < 0 ? stepZoomIn(z) : stepZoomOut(z)));
+        const rect = wrapper.getBoundingClientRect();
+        const focalX = e.clientX - rect.left;
+        const focalY = e.clientY - rect.top;
+        const step = e.deltaY < 0 ? stepZoomIn : stepZoomOut;
+        setZoom((z) => {
+          const next = step(z);
+          setPan((p) => computePanForZoomChange(p, z, next, focalX, focalY));
+          return next;
+        });
+        return;
       }
+      e.preventDefault();
+      setPan((p) => ({
+        x: p.x - e.deltaX,
+        y: p.y - e.deltaY,
+      }));
     };
     wrapper.addEventListener('wheel', handleWheel, { passive: false });
     return () => wrapper.removeEventListener('wheel', handleWheel);
@@ -196,13 +245,17 @@ export default function EditorPage() {
         if (e.key === 'z') { e.preventDefault(); undo(); }
         if (e.key === 'y') { e.preventDefault(); redo(); }
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        handleDeleteShape(selectedId);
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedConnectionId) {
+          handleDeleteConnection(selectedConnectionId);
+        } else if (selectedId) {
+          handleDeleteShape(selectedId);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, historyStack, shapes, connections]);
+  }, [selectedId, selectedConnectionId, historyStack, shapes, connections]);
 
   const handleDeleteShape = (shapeId) => {
     const next = deleteShapeFromDiagram(diagramState, shapeId);
@@ -220,18 +273,53 @@ export default function EditorPage() {
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
     setSelectedId(newShape.id);
+    setNextId((v) => Math.max(v, newShape.id + 1));
+  };
+
+  const handleCopySelected = () => {
+    if (!selectedId) return;
+    const original = shapesById.get(selectedId);
+    if (original) setClipboardShape({ ...original });
+  };
+
+  const handlePasteClipboard = () => {
+    if (!clipboardShape) return;
+    const newShape = duplicateShape(clipboardShape, { x: 24, y: 24 }, nextId);
+    const nextShapes = [...shapes, newShape];
+    setShapes(nextShapes);
+    commitHistory(nextShapes, connections);
+    setSelectedId(newShape.id);
+    setNextId((v) => Math.max(v, newShape.id + 1));
+  };
+
+  const handleDeleteConnection = (connectionId) => {
+    const nextConnections = removeConnection(connections, connectionId);
+    setConnections(nextConnections);
+    commitHistory(shapes, nextConnections);
+    if (selectedConnectionId === connectionId) setSelectedConnectionId(null);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedConnectionId) {
+      handleDeleteConnection(selectedConnectionId);
+    } else if (selectedId) {
+      handleDeleteShape(selectedId);
+    }
+  };
+
+  const selectConnection = (event, connectionId) => {
+    if (connectMode) return;
+    event.stopPropagation();
+    setSelectedConnectionId(connectionId);
+    setSelectedId(null);
+    setConnectSource(null);
   };
 
   const handleBringToFront = (shapeId) => {
     const nextShapes = bringShapeToFront(shapes, shapeId);
+    if (nextShapes === shapes) return;
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
-  };
-
-  const handleFontSizeChange = (event, shapeId) => {
-    event.stopPropagation();
-    const newSize = parseInt(event.target.value, 10);
-    setShapes(setShapeFontSize(shapes, shapeId, newSize));
   };
 
   const placeShapeAt = (type, clientX, clientY) => {
@@ -288,6 +376,7 @@ export default function EditorPage() {
     if (connectMode || event.target.closest('.resize-handle')) return;
     event.stopPropagation();
     setSelectedId(shape.id);
+    setSelectedConnectionId(null);
     const startX = event.clientX;
     const startY = event.clientY;
     const initial = { ...shape };
@@ -313,11 +402,12 @@ export default function EditorPage() {
   };
 
   const handleTouchStartShape = (event, shape) => {
-    if (connectMode || event.target.closest('.resize-handle') || event.target.closest('.shape-floating-toolbar')) return;
+    if (connectMode || event.target.closest('.resize-handle')) return;
     if (event.target.closest('.editable-text')) return;
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
     setSelectedId(shape.id);
+    setSelectedConnectionId(null);
     const touch = event.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
@@ -438,7 +528,7 @@ export default function EditorPage() {
       if (canvasRef.current) {
         const bounds = getDiagramBounds(shapes);
         const previewCanvas = await captureDiagramPreview(canvasRef.current, shapes);
-        imageData = canvasToJpegDataUrl(previewCanvas);
+        imageData = canvasToPngDataUrl(previewCanvas);
         pdfDataString = buildInlinePdfDataUrl(previewCanvas, bounds.width, bounds.height);
       }
 
@@ -456,7 +546,7 @@ export default function EditorPage() {
         const res = await api.post('/designs', data);
         navigate(`/editor/${res.data.design.id}`, { replace: true });
       }
-      setMessage('Diseño guardado (con PDF generado)');
+      setMessage('Diseño guardado');
     } catch (err) {
       console.error('Error al guardar:', err);
       setError(err.response?.data?.error || 'No se pudo guardar el diseño');
@@ -506,9 +596,17 @@ export default function EditorPage() {
     || target.classList.contains('canvas-bg')
     || target.classList.contains('canvas-hint');
 
+  const shouldClearCanvasSelection = (target) => {
+    if (!(target instanceof Element)) return false;
+    if (target.closest('.shape-element')) return false;
+    if (target.closest('.connection-group')) return false;
+    return true;
+  };
+
   const handleCanvasMouseDown = (e) => {
     if (!isCanvasBackgroundTarget(e.target)) return;
     setSelectedId(null);
+    setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
     const startX = e.clientX - pan.x;
@@ -530,6 +628,7 @@ export default function EditorPage() {
     if (!isCanvasBackgroundTarget(e.target)) return;
     if (e.cancelable) e.preventDefault();
     setSelectedId(null);
+    setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
     const touch = e.touches[0];
@@ -564,39 +663,65 @@ export default function EditorPage() {
         connectMode={connectMode}
       />
 
-      <div className="editor-main-fs">
+      <div className="editor-main-fs figma-editor-main">
         <div className="editor-toast-container">
           {message && <div className="floating-toast success">{message}</div>}
           {error && <div className="floating-toast error">{error}</div>}
         </div>
 
-        <EditorToolbar
-          saveTitle={saveTitle}
-          setSaveTitle={setSaveTitle}
-          classes={classes}
-          saveClassId={saveClassId}
-          setSaveClassId={setSaveClassId}
-          message={message}
-          error={error}
-          handleSave={handleSave}
-          handleClear={handleClear}
-          handleExport={handleExport}
-          handleExportPDF={handleExportPDF}
-          zoom={zoom}
-          zoomIn={zoomIn}
-          zoomOut={zoomOut}
-          zoomReset={zoomReset}
-          sidebarOpen={sidebarOpen}
-          isSaving={isSaving}
-          isGuest={!user}
-        />
+        <div className="figma-editor-panel">
+          <div className="figma-editor-panel-head">
+            <EditorToolbar
+              saveTitle={saveTitle}
+              setSaveTitle={setSaveTitle}
+              classes={classes}
+              saveClassId={saveClassId}
+              setSaveClassId={setSaveClassId}
+              message={message}
+              error={error}
+              handleSave={handleSave}
+              handleClear={handleClear}
+              handleExport={handleExport}
+              handleExportPDF={handleExportPDF}
+              isSaving={isSaving}
+              isGuest={!user}
+            />
+          </div>
 
+          <EditorSubToolbar
+            zoom={zoom}
+            zoomIn={zoomIn}
+            zoomOut={zoomOut}
+            zoomReset={zoomReset}
+            handleClear={handleClear}
+            undo={undo}
+            redo={redo}
+            canUndo={canUndo(historyStack)}
+            canRedo={canRedo(historyStack)}
+            isSaving={isSaving}
+            onBringToFront={() => {
+              if (!selectedId) return;
+              handleBringToFront(selectedId);
+            }}
+            onPaste={handlePasteClipboard}
+            onDelete={handleDeleteSelected}
+            canBringToFront={!!selectedId}
+            canPaste={!!clipboardShape}
+            canDelete={!!selectedId || !!selectedConnectionId}
+          />
+
+          <div className="figma-editor-canvas-area">
         <div
-          className={`editor-canvas-fs ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''}`}
+          className={`editor-canvas-fs figma-canvas-panel ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''}`}
           ref={canvasWrapperRef}
           onDrop={handleDrop}
           onDragOver={(event) => event.preventDefault()}
-          onClick={() => { setSelectedId(null); setConnectSource(null); }}
+          onClick={(event) => {
+            if (!shouldClearCanvasSelection(event.target)) return;
+            setSelectedId(null);
+            setSelectedConnectionId(null);
+            setConnectSource(null);
+          }}
           onMouseDown={handleCanvasMouseDown}
           onTouchStart={handleCanvasTouchStart}
         >
@@ -611,19 +736,34 @@ export default function EditorPage() {
               position: 'relative',
             }}
           >
-            <svg id="connections-layer">
+            <svg id="connections-layer" aria-hidden="true">
               {connections.map((connection) => {
                 const line = getConnectionLineFromMap(connection, shapesById);
                 if (!line) return null;
+                const isSelected = selectedConnectionId === connection.id;
                 return (
-                  <line
+                  <g
                     key={connection.id}
-                    x1={line.x1}
-                    y1={line.y1}
-                    x2={line.x2}
-                    y2={line.y2}
-                    className="connection-line"
-                  />
+                    className={`connection-group${isSelected ? ' selected' : ''}`}
+                    onClick={(event) => selectConnection(event, connection.id)}
+                    onMouseDown={(event) => selectConnection(event, connection.id)}
+                    onTouchStart={(event) => selectConnection(event, connection.id)}
+                  >
+                    <line
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      className="connection-line-hit"
+                    />
+                    <line
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      className="connection-line"
+                    />
+                  </g>
                 );
               })}
             </svg>
@@ -644,40 +784,18 @@ export default function EditorPage() {
               >
                 <RenderShape shape={shape} />
                 {selectedId === shape.id && (
-                  <>
-                    <div
-                      className="shape-floating-toolbar"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button type="button" className="toolbar-tool-btn" onClick={() => handleDuplicateShape(shape.id)} title="Duplicar"><Icon name="copy" /></button>
-                      <button type="button" className="toolbar-tool-btn" onClick={() => handleBringToFront(shape.id)} title="Traer al frente"><Icon name="layers" /></button>
-                      <button type="button" className="toolbar-tool-btn" onClick={() => handleDeleteShape(shape.id)} title="Eliminar"><Icon name="trash" /></button>
-                      <div className="toolbar-divider" />
-                      <button type="button" className="toolbar-tool-btn" onClick={undo} disabled={!canUndo(historyStack)} title="Deshacer (Ctrl+Z)"><Icon name="undo" /></button>
-                      <button type="button" className="toolbar-tool-btn" onClick={redo} disabled={!canRedo(historyStack)} title="Rehacer (Ctrl+Y)"><Icon name="redo" /></button>
-                      <div className="toolbar-divider" />
-                      <select className="font-size-select" value={shape.fontSize || 16} onChange={(e) => handleFontSizeChange(e, shape.id)} title="Tamaño de texto">
-                        <option value="12">12px</option>
-                        <option value="14">14px</option>
-                        <option value="16">16px</option>
-                        <option value="20">20px</option>
-                        <option value="24">24px</option>
-                        <option value="32">32px</option>
-                      </select>
-                    </div>
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(e) => handleResizeMouseDown(e, shape)}
-                      onTouchStart={(e) => handleResizeTouchStart(e, shape)}
-                      title="Redimensionar"
-                    />
-                  </>
+                  <div
+                    className="resize-handle"
+                    onMouseDown={(e) => handleResizeMouseDown(e, shape)}
+                    onTouchStart={(e) => handleResizeTouchStart(e, shape)}
+                    title="Redimensionar"
+                  />
                 )}
               </div>
             ))}
           </div>
+        </div>
+        </div>
         </div>
       </div>
     </div>
