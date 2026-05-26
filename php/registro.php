@@ -83,11 +83,17 @@ if (isset($_POST['CrearUsuario'])) {
 
         $message = "Todos los campos son obligatorios";
 
-    } elseif ($password !== $password2) {
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
-        $message = "Las contraseñas no coinciden";
+        $message = "Ingrese un correo válido";
 
     } else {
+        $domain = substr(strrchr($email, '@'), 1);
+        if ($domain === false || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
+            $message = "Ingrese un correo con un dominio válido";
+        } elseif ($password !== $password2) {
+            $message = "Las contraseñas no coinciden";
+        } else {
 
         $stmt = $mysql->prepare("
             SELECT id
@@ -119,8 +125,22 @@ if (isset($_POST['CrearUsuario'])) {
             $stmt->bind_param('sssss', $firstName, $lastName, $email, $hash, $role);
 
             if ($stmt->execute()) {
+                $insertId = $stmt->insert_id;
 
-                $message = "Usuario creado correctamente";
+                $mailEnviado = enviarMail(
+                    $email,
+                    'Confirmación de registro',
+                    "<h2>Bienvenido a DiagramTec</h2><p>Gracias por registrarte con este correo.</p>"
+                );
+
+                if ($mailEnviado) {
+                    $message = "Usuario creado correctamente";
+                } else {
+                    $delete = $mysql->prepare('DELETE FROM users WHERE id = ?');
+                    $delete->bind_param('i', $insertId);
+                    $delete->execute();
+                    $message = "No se pudo enviar el correo. Usa un correo real.";
+                }
 
             } else {
 
@@ -129,6 +149,7 @@ if (isset($_POST['CrearUsuario'])) {
             }
         }
     }
+}
 }
 ?>
 
