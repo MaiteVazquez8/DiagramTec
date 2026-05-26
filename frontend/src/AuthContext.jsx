@@ -1,9 +1,12 @@
+/**
+ * Contexto global de sesión: user, token, login, logout, loading.
+ * Token en localStorage (clave: tecdiagram_token).
+ */
 import { createContext, useContext, useEffect, useState } from 'react';
 import api, { setAuthToken } from './api.js';
 
 const AuthContext = createContext();
 
-// proveedor del contexto de autenticacion para toda la app
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -1,6 +1,8 @@
+/**
+ * Wrappers de iconos legacy (Iconify) usados en páginas antiguas y editor.
+ * Preferir <Icon name="..." /> directamente en código nuevo.
+ */
 import Icon from './Icon.jsx';
-
-// iconos svg para la interfaz
 /* ── SVG Icons ── */
 export const SearchIcon = () => <Icon name="search" />;
 export const PlusIcon = () => <Icon name="plus" />;

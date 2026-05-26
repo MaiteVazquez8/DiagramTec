@@ -1,3 +1,4 @@
+/** Rectángulo envolvente del diagrama para recortar capturas html2canvas. */
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
 
 /**
