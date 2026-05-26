@@ -12,6 +12,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      '/php-auth': {
+        target: process.env.VITE_PHP_TARGET || 'http://localhost',
+        changeOrigin: true,
+        rewrite: (path) =>
+          path.replace(/^\/php-auth/, process.env.VITE_PHP_PATH || '/nuevonuevo/DiagramTec/php'),
+      },
     },
   },
 });

@@ -1,8 +1,9 @@
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-include('conexion.php');
+require_once __DIR__ . '/lib/cors.php';
 
 if (
     ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
@@ -22,19 +23,6 @@ if (
     if ($firstName === '' || $lastName === '' || $email === '' || $password === '') {
         http_response_code(400);
         echo json_encode(['error' => 'Faltan datos obligatorios'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Ingresa un correo válido'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    $domain = substr(strrchr($email, '@'), 1);
-    if ($domain === false || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Ingresa un correo con un dominio válido'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -66,23 +54,6 @@ if (
         'email' => $email,
         'role' => $role,
     ];
-
-    include __DIR__ . '/mail.php';
-    $mailEnviado = enviarMail(
-        $user['email'],
-        'Confirmación de registro',
-        "<h2>Bienvenido a DiagramTec</h2><p>Gracias por registrarte con este correo.</p>"
-    );
-
-    if (!$mailEnviado) {
-        $delete = $mysql->prepare('DELETE FROM users WHERE id = ?');
-        $delete->bind_param('i', $id);
-        $delete->execute();
-        http_response_code(400);
-        echo json_encode(['error' => 'No se pudo enviar el correo. Usa un correo real.'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
     echo json_encode([
         'token' => generarJWT($user),
         'user' => $user,
@@ -91,7 +62,6 @@ if (
 }
 
 include __DIR__ . '/conexion.php';
-include __DIR__ . '/mail.php';
 
 $message = '';
 
@@ -145,26 +115,14 @@ if (isset($_POST['CrearUsuario'])) {
 
             $hash = password_hash($password, PASSWORD_BCRYPT);
 
-            $role = "student";
+            $role = 'student';
 
-            // TOKEN DE RECUPERACIÓN
-            $token = rand(100000, 999999);
+            $stmt = $mysql->prepare('
+                INSERT INTO users (firstName, lastName, email, passwordHash, role)
+                VALUES (?, ?, ?, ?, ?)
+            ');
 
-            $stmt = $mysql->prepare("
-                INSERT INTO users
-                (firstName,lastName,email,passwordHash,role,token)
-                VALUES (?,?,?,?,?,?)
-            ");
-
-            $stmt->bind_param(
-                "ssssss",
-                $firstName,
-                $lastName,
-                $email,
-                $hash,
-                $role,
-                $token
-            );
+            $stmt->bind_param('sssss', $firstName, $lastName, $email, $hash, $role);
 
             if ($stmt->execute()) {
                 $insertId = $stmt->insert_id;

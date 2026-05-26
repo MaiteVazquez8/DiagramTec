@@ -21,7 +21,7 @@ const DEFAULT_TITLES = {
   [SHAPE_TYPES.PROCESS]: 'A = B',
   [SHAPE_TYPES.FOR]: 'PROCESOS',
   [SHAPE_TYPES.WHILE]: 'WHILE',
-  [SHAPE_TYPES.IF]: 'IF......',
+  [SHAPE_TYPES.IF]: 'IF',
 };
 
 const DEFAULT_SIZES = {
@@ -30,6 +30,48 @@ const DEFAULT_SIZES = {
   [SHAPE_TYPES.WHILE]: { width: 220, height: 160 },
   default: { width: 140, height: 90 },
 };
+
+/** Proporciones del IF: evita triángulo aplastado o demasiado ancho */
+export const IF_SIZE_LIMITS = {
+  minWidth: 160,
+  minHeight: 120,
+  maxWidthRatio: 2.2,
+  minWidthRatio: 0.65,
+};
+
+/**
+ * @param {number} width
+ * @param {number} height
+ * @returns {{ width: number, height: number }}
+ */
+export function clampIfDimensions(width, height) {
+  let w = Math.max(IF_SIZE_LIMITS.minWidth, width);
+  let h = Math.max(IF_SIZE_LIMITS.minHeight, height);
+  const ratio = w / h;
+  if (ratio > IF_SIZE_LIMITS.maxWidthRatio) {
+    w = Math.round(h * IF_SIZE_LIMITS.maxWidthRatio);
+  }
+  if (ratio < IF_SIZE_LIMITS.minWidthRatio) {
+    h = Math.round(w / IF_SIZE_LIMITS.minWidthRatio);
+  }
+  return { width: w, height: h };
+}
+
+/**
+ * @param {Shape} shape
+ * @param {number} width
+ * @param {number} height
+ * @returns {{ width: number, height: number }}
+ */
+export function clampShapeDimensions(shape, width, height) {
+  if (shape.type === SHAPE_TYPES.IF) {
+    return clampIfDimensions(width, height);
+  }
+  return {
+    width: Math.max(SHAPE_SIZE_LIMITS.minWidth, width),
+    height: Math.max(SHAPE_SIZE_LIMITS.minHeight, height),
+  };
+}
 
 /**
  * @param {string} type
@@ -101,11 +143,8 @@ export function translateShape(shape, dx, dy) {
  * @returns {Shape}
  */
 export function resizeShape(shape, width, height) {
-  return {
-    ...shape,
-    width: Math.max(SHAPE_SIZE_LIMITS.minWidth, width),
-    height: Math.max(SHAPE_SIZE_LIMITS.minHeight, height),
-  };
+  const size = clampShapeDimensions(shape, width, height);
+  return { ...shape, ...size };
 }
 
 /**

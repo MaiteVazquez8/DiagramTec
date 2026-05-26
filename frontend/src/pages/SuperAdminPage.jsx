@@ -33,7 +33,14 @@ export default function SuperAdminPage() {
         api.get('/admin/users'),
         api.get('/admin/classes')
       ]);
-      setStats(statsRes.data.stats);
+      const { totalUsers, totalClasses, totalDesigns } = statsRes.data;
+      setStats({
+        users: totalUsers ?? 0,
+        classes: totalClasses ?? 0,
+        designs: totalDesigns ?? 0,
+        teachers: 0,
+        students: 0,
+      });
       setUsers(usersRes.data.users);
       setClasses(classesRes.data.classes);
     } catch (err) {

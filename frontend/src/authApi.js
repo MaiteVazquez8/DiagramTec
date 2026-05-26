@@ -1,8 +1,8 @@
 import axios from 'axios';
 
-// Login y registro vía backend proxy hacia PHP
+// Login y registro vía PHP (proxy /php-auth → Apache/php/)
 const authApi = axios.create({
-  baseURL: '/api/php-auth',
+  baseURL: '/php-auth',
   headers: {
     'Content-Type': 'application/json',
   },

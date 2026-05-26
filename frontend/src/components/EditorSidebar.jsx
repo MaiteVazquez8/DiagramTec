@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import Icon from './Icon';
 import { palette } from '../design';
 
 export default function EditorSidebar({ sidebarOpen, setSidebarOpen, handleDragStart, handleTouchEnd, renderPreview, handlePaletteClick, connectMode }) {
+  const paletteTouchPlacedRef = useRef(false);
   // barra lateral que contiene las figuras del diagrama
   return (
     <aside className={`editor-sidebar-fs figma-editor-sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
@@ -38,14 +40,21 @@ export default function EditorSidebar({ sidebarOpen, setSidebarOpen, handleDragS
                   className="shape-wrapper drag-source" 
                   draggable 
                   onDragStart={(event) => handleDragStart(event, item.type)}
-                  onTouchEnd={(event) => handleTouchEnd(event, item.type)}
+                  onTouchEnd={(event) => {
+                    if (handleTouchEnd(event, item.type)) {
+                      paletteTouchPlacedRef.current = true;
+                    }
+                  }}
                   onClick={() => {
-                    // fallback para moviles: click para añadir al centro
-                    if (window.innerWidth <= 768) {
-                      const rect = document.querySelector('.canvas-zoom-layer').getBoundingClientRect();
-                      const x = (window.innerWidth / 2 - rect.left) / 1 - 20;
-                      const y = (window.innerHeight / 2 - rect.top) / 1 - 20;
-                      handleTouchEnd({ changedTouches: [{ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }] }, item.type);
+                    if (paletteTouchPlacedRef.current) {
+                      paletteTouchPlacedRef.current = false;
+                      return;
+                    }
+                    if (window.matchMedia('(pointer: coarse)').matches) {
+                      handleTouchEnd(
+                        { changedTouches: [{ clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }] },
+                        item.type
+                      );
                     }
                   }}
                 >

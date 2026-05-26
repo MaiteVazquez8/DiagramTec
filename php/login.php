@@ -9,7 +9,6 @@ if (
     header('Content-Type: application/json; charset=utf-8');
     include __DIR__ . '/conexion.php';
     include __DIR__ . '/jwt.php';
-    include __DIR__ . '/mail.php';
 
     $body = json_decode(file_get_contents('php://input'), true) ?: [];
     $email = strtolower(trim($body['email'] ?? ''));
@@ -33,23 +32,6 @@ if (
     }
 
     $token = generarJWT($user);
-
-    // create PHP session as well to mirror form login behavior
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
-
-    $_SESSION['jwt'] = $token;
-    $_SESSION['user_id'] = $user['id'];
-    $_SESSION['role'] = $user['role'];
-
-    // send notification email and include result in JSON
-    $emailSent = enviarMail(
-        $user['email'],
-        "Nuevo inicio de sesión",
-        "<h2>Inicio de sesión detectado</h2><p>Tu cuenta inició sesión correctamente.</p>"
-    );
-
     echo json_encode([
         'token' => $token,
         'user' => [
@@ -59,18 +41,17 @@ if (
             'email' => $user['email'],
             'role' => $user['role'],
         ],
-        'emailSent' => $emailSent,
     ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 session_start();
 
-include('conexion.php');
-include('jwt.php');
-include('mail.php');
+include __DIR__ . '/conexion.php';
+include __DIR__ . '/jwt.php';
+include __DIR__ . '/mail.php';
 
-$message = "";
+$message = '';
 
 if (isset($_POST['login'])) {
 
