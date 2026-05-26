@@ -70,7 +70,7 @@ export default function LoginPage() {
           {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Ingresar</button>
         </form>
-        <button className="ghost-link" type="button">Olvide mi contraseña</button>
+        <button className="ghost-link" type="button" onClick={() => navigate('/recover')}>Olvide mi contraseña</button>
         <p className="small-text">
           ¿No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
         </p>

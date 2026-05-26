@@ -32,6 +32,11 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 
 
 
+import RecoverPasswordPage from './pages/RecoverPasswordPage.jsx';
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
+import Footer from './components/Footer.jsx';
+
+
 import Icon from './components/Icon.jsx';
 
 
@@ -176,6 +181,9 @@ function AppShell() {
           <Route path="/login" element={<LoginPage />} />
 
           <Route path="/signup" element={<SignupPage />} />
+
+          <Route path="/recover" element={<RecoverPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
 
