@@ -1,3 +1,4 @@
+/** Generación y descarga de PDF a partir del canvas del diagrama. */
 import { jsPDF } from 'jspdf';
 import { getDiagramBounds } from '../math/bounds.js';
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';

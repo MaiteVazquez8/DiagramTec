@@ -1,6 +1,9 @@
+/**
+ * Cliente HTTP para el backend Node (diseños, clases, comentarios, admin).
+ * Proxy Vite: /api → servidor en desarrollo.
+ * El token JWT se inyecta con setAuthToken desde AuthContext.
+ */
 import axios from 'axios';
-
-// Backend Node (vite proxy /api → http://127.0.0.1:4002)
 const api = axios.create({
   baseURL: '/api',
   headers: {

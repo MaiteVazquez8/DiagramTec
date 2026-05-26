@@ -1,3 +1,4 @@
+/** Página de inicio (ruta /). Enlaces al editor, diseños y clases según sesión. */
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 

@@ -1,3 +1,4 @@
+/** Listado de clases: crear, unirse por código y abrir detalle (ruta /classes). */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api.js';
@@ -93,10 +94,6 @@ export default function ClassesPage() {
       <div className="figma-sector-inner">
         <header className="figma-sector-hero">
           <h1>Mis clases</h1>
-          <p>
-            Únete a las clases de tus profesores o crea las tuyas. Comparte diagramas y colabora
-            con tu equipo desde un mismo espacio.
-          </p>
           <div className="figma-sector-toolbar">
             {user?.role === 'teacher' && (
               <button
@@ -114,7 +111,7 @@ export default function ClassesPage() {
               onClick={() => setShowJoinModal(true)}
               id="btn-open-join"
             >
-              <PlusIcon /> Unirse a clases
+              <PlusIcon /> Unirse a clase
             </button>
           </div>
         </header>
@@ -219,11 +216,16 @@ export default function ClassesPage() {
                       <Icon name="trash" size={17} strokeWidth={2} />
                     </button>
                   )}
-                  <h3 className="class-list-card-title">{classItem.title}</h3>
-                  <p className="class-list-card-sub">{subtitle}</p>
-                  {isOwner && classItem.code && (
-                    <span className="class-list-card-code">Código: {classItem.code}</span>
-                  )}
+                  <div className="class-list-card-media figma-dot-pattern">
+                    <Icon name="classBook" size={48} className="class-list-card-book-icon" />
+                  </div>
+                  <div className="class-list-card-body">
+                    <h3 className="class-list-card-title">{classItem.title}</h3>
+                    <p className="class-list-card-sub">{subtitle}</p>
+                    {isOwner && classItem.code && (
+                      <span className="class-list-card-code">Código: {classItem.code}</span>
+                    )}
+                  </div>
                 </article>
               );
             })
@@ -262,47 +264,40 @@ export default function ClassesPage() {
 
         {showJoinModal && (
           <div
-            className="modal-overlay"
+            className="modal-overlay figma-modal-overlay"
             onClick={() => setShowJoinModal(false)}
             id="join-class-overlay"
           >
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>Unirse a clase</h2>
-                <button
-                  type="button"
-                  className="modal-close"
-                  onClick={() => setShowJoinModal(false)}
-                  id="close-join-modal"
-                >
-                  ✕
-                </button>
-              </div>
+            <div className="modal modal--join" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowJoinModal(false)}
+                id="close-join-modal"
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
               <form onSubmit={handleJoin}>
+                <div className="modal-header">
+                  <h2>Código de clase</h2>
+                </div>
                 <div className="modal-body">
                   <p>
-                    Pídele a tu profesor el código de clase y luego ingrésalo aquí.
+                    Pídele a tu profesor el código de la clase y luego ingrésalo aquí.
                   </p>
-                  <label htmlFor="join-code-input">Código de clase</label>
                   <input
                     id="join-code-input"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value)}
                     required
-                    placeholder="ABC123"
+                    placeholder="Tu código de la clase..."
                     autoFocus
                   />
                 </div>
                 <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={() => setShowJoinModal(false)}
-                  >
-                    Cancelar
-                  </button>
                   <button className="primary-button" type="submit" id="btn-join-class">
-                    + Unirse
+                    Unirse
                   </button>
                 </div>
               </form>

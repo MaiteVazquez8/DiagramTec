@@ -103,6 +103,7 @@ function startPhpServer() {
     console.error('Failed to start PHP server:', err);
   }
 
+
 function startPhpServer() {
   if (PHP_BACKEND_URL) {
     console.log(`Using external PHP backend at ${PHP_BACKEND_URL}`);
@@ -132,6 +133,7 @@ function startPhpServer() {
   } catch (err) {
     console.error('Failed to start PHP server:', err);
   }
+
 
 }
 

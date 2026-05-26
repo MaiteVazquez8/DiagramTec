@@ -1,3 +1,4 @@
+/** Despacha el componente SVG/HTML correcto según shape.type. */
 import React from 'react';
 import { 
   StartEndShape, InputShape, PrintShape, ForShape, WhileShape, IfShape, ProcessShape 

@@ -1,3 +1,4 @@
+/** Barra superior del editor: título, guardar, exportar PDF, zoom. */
 import { Link } from 'react-router-dom';
 import Icon from './Icon';
 
@@ -6,8 +7,7 @@ export default function EditorToolbar({
   classes, saveClassId, setSaveClassId,
   message, error,
   handleSave, handleClear, handleExport, handleExportPDF,
-  zoom, zoomIn, zoomOut, zoomReset,
-  sidebarOpen, isSaving,
+  isSaving,
   isGuest = false,
 }) {
   // componente de la barra de herramientas del editor
@@ -24,20 +24,6 @@ export default function EditorToolbar({
         />
       </div>
 
-      <div className="toolbar-center-fs">
-        <div className="zoom-controls figma-zoom-controls">
-          <button type="button" className="zoom-btn" onClick={zoomOut} title="Alejar" id="btn-zoom-out">
-            <Icon name="zoomOut" size={16} />
-          </button>
-          <button type="button" className="zoom-label" onClick={zoomReset} title="Restablecer zoom" id="btn-zoom-reset">
-            {Math.round(zoom * 100)}%
-          </button>
-          <button type="button" className="zoom-btn" onClick={zoomIn} title="Acercar" id="btn-zoom-in">
-            <Icon name="zoomIn" size={16} />
-          </button>
-        </div>
-      </div>
-
       <div className="toolbar-right-fs">
         <div className="toolbar-actions-group figma-toolbar-actions">
           {isGuest ? (
@@ -48,18 +34,15 @@ export default function EditorToolbar({
               id="btn-save"
               title="Inicia sesión para guardar tu diseño"
             >
-              <Icon name="save" size={16} /> Iniciar sesión
+              <Icon name="save" size={18} /> Guardar
             </Link>
           ) : (
             <button type="button" className="btn btn-primary figma-btn-save" onClick={handleSave} disabled={isSaving} id="btn-save">
-              <Icon name="save" size={16} /> {isSaving ? 'Guardando...' : 'Guardar'}
+              <Icon name="save" size={18} /> {isSaving ? 'Guardando...' : 'Guardar'}
             </button>
           )}
-          <button type="button" className="btn btn-secondary figma-btn-outline" onClick={handleClear} id="btn-clear" disabled={isSaving}>
-            <Icon name="trash" size={16} /> Limpiar
-          </button>
-          <button type="button" className="btn btn-secondary figma-btn-outline" onClick={handleExportPDF} id="btn-export-pdf" disabled={isSaving}>
-            <Icon name="download" size={16} /> PDF
+          <button type="button" className="btn btn-primary figma-btn-save figma-btn-pdf" onClick={handleExportPDF} id="btn-export-pdf" disabled={isSaving}>
+            <Icon name="download" size={18} /> PDF
           </button>
         </div>
       </div>

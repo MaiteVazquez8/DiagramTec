@@ -1,4 +1,7 @@
-
+/**
+ * Definición visual de cada tipo de forma del diagrama
+ * (inicio/fin, proceso, entrada/salida, for, while, if).
+ */
 import React from 'react';
 
 // figura para el inicio y el final del diagrama
