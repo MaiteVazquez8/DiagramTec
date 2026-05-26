@@ -1,3 +1,4 @@
+/** Panel de administración: usuarios y clases (ruta /superadmin, solo superadmin). */
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
@@ -89,16 +90,19 @@ export default function SuperAdminPage() {
   const teachers = users.filter(u => u.role === 'teacher' || u.role === 'superadmin');
 
   return (
-    <div className="superadmin-container figma-sector admin-sector">
-      <header className="admin-top-bar">
-        <nav className="admin-nav-links">
+    <section className="figma-sector superadmin-sector admin-sector" id="superadmin-page">
+      <div className="figma-sector-inner">
+        <header className="figma-sector-hero">
+          <h1>Superadmin</h1>
+        </header>
+
+        <nav className="admin-nav-links superadmin-sector__subnav" aria-label="Secciones de administración">
           <a href="#alumnos" onClick={(e) => { e.preventDefault(); scrollToSection('alumnos'); }}>Gestión de alumnos</a>
           <a href="#profesores" onClick={(e) => { e.preventDefault(); scrollToSection('profesores'); }}>Gestión de profesores</a>
           <a href="#clases" onClick={(e) => { e.preventDefault(); scrollToSection('clases'); }}>Gestión de clases</a>
         </nav>
-      </header>
 
-      <div className="admin-body-wrapper">
+        <div className="admin-body-wrapper">
         <SuperAdminSidebar />
         
         <main className="admin-main-content">
@@ -236,6 +240,7 @@ export default function SuperAdminPage() {
           </section>
 
         </main>
+        </div>
       </div>
 
       {editingUser && (
@@ -277,6 +282,6 @@ export default function SuperAdminPage() {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

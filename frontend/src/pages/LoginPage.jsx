@@ -1,3 +1,4 @@
+/** Inicio de sesión vía authApi (PHP). Redirige al guardar token en AuthContext. */
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../api.js';

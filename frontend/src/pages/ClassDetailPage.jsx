@@ -1,3 +1,7 @@
+/**
+ * Detalle de una clase (ruta /classes/:id): banner, publicaciones, comentarios,
+ * modal para compartir diseños del profesor.
+ */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api.js';
@@ -25,6 +29,7 @@ export default function ClassDetailPage() {
   const [commentText, setCommentText] = useState('');
   const [modalComment, setModalComment] = useState('');
   const [collapsedPosts, setCollapsedPosts] = useState(new Set());
+  const [showClassMenu, setShowClassMenu] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, title: '', message: '' });
 
@@ -70,9 +75,27 @@ export default function ClassDetailPage() {
   }, [message, error]);
 
   const handleSelectDesign = (designId) => {
-    setSelectedDesignId(designId);
-    setShowUploadModal(false);
-    setMessage('Diseño adjuntado a tu mensaje');
+    setSelectedDesignId((prev) => (prev === designId ? null : designId));
+  };
+
+  const handleModalPublish = async () => {
+    if (!selectedDesignId) {
+      setError('Selecciona un diseño para compartir');
+      return;
+    }
+    try {
+      await api.put(`/designs/${selectedDesignId}`, {
+        classId: Number(id),
+        description: modalComment.trim() || null,
+      });
+      setMessage('Diseño compartido en la clase');
+      setSelectedDesignId(null);
+      setModalComment('');
+      setShowUploadModal(false);
+      loadClassData();
+    } catch (err) {
+      setError('No se pudo compartir el diseño');
+    }
   };
 
   const handlePostComment = async () => {
@@ -191,43 +214,53 @@ export default function ClassDetailPage() {
   return (
     <section className="figma-sector class-detail-sector" id="class-detail-page">
       <div className="figma-sector-inner">
-      <div className="class-detail-header">
-        <button
-          type="button"
-          className="class-detail-back"
-          onClick={() => navigate('/classes')}
-          id="btn-back-classes"
-        >
-          <ArrowLeft /> Volver
-        </button>
-        <h1 className="class-detail-page-title">Clase</h1>
-        <div className="class-header-actions">
-          {classInfo.joined ? (
-            <button type="button" className="class-detail-leave-btn" onClick={handleLeaveClass} id="btn-leave-class">
-              Abandonar clase
-            </button>
-          ) : (
-            user?.id !== classInfo.ownerId && (
-              <button type="button" className="primary-button" onClick={handleJoinClass} id="btn-join-class">
-                + Unirse a clase
-              </button>
-            )
+      <button
+        type="button"
+        className="class-detail-back"
+        onClick={() => navigate('/classes')}
+        id="btn-back-classes"
+      >
+        <ArrowLeft /> Volver
+      </button>
+
+      <article className="class-detail-banner">
+        <div className="class-detail-banner__menu-wrap">
+          <button
+            type="button"
+            className="class-detail-banner__menu"
+            onClick={() => setShowClassMenu((v) => !v)}
+            aria-label="Opciones de la clase"
+            aria-expanded={showClassMenu}
+          >
+            <Icon name="dots" size={18} />
+          </button>
+          {showClassMenu && (
+            <div className="class-detail-banner__dropdown" role="menu">
+              {classInfo.joined ? (
+                <button type="button" role="menuitem" onClick={() => { setShowClassMenu(false); handleLeaveClass(); }}>
+                  Abandonar clase
+                </button>
+              ) : (
+                user?.id !== classInfo.ownerId && (
+                  <button type="button" role="menuitem" onClick={() => { setShowClassMenu(false); handleJoinClass(); }}>
+                    Unirse a la clase
+                  </button>
+                )
+              )}
+            </div>
           )}
         </div>
-      </div>
-
-      <div className="class-detail-info-card">
-        <div className="class-detail-avatar">
-          {classInfo.title.charAt(0).toUpperCase()}
+        <div className="class-detail-banner__media figma-dot-pattern" aria-hidden>
+          <Icon name="classBook" size={40} className="class-list-card-book-icon" />
         </div>
-        <div className="class-detail-text">
-          <h2>{classInfo.title}</h2>
+        <div className="class-detail-banner__body">
+          <h1>{classInfo.title}</h1>
           <p>{classInfo.ownerName}</p>
           {canSeeCode && classInfo.code && (
             <span className="class-detail-code-badge">Código: {classInfo.code}</span>
           )}
         </div>
-      </div>
+      </article>
 
       {/* ── Toast Notifications ── */}
       <div className="toast-container">
@@ -271,55 +304,50 @@ export default function ClassDetailPage() {
                 }
               }}
               handleDelete={handleDeletePost}
+              handleView={(designId) => navigate(`/editor/${designId}`)}
               currentUser={user}
-              navigate={navigate}
               getInitials={getInitials}
             />
           ))
         )}
       </div>
 
-      {/* ── Comments Section ── */}
       {comments.length > 0 && (
-        <div className="comments-section" style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-          <h4 style={{ marginBottom: '1rem', color: 'var(--dark)' }}>Conversación</h4>
-          <div className="comments-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {comments.map((c) => {
-              const isOwner = c.userId === user?.id;
-              const isAdmin = user?.role === 'superadmin';
-              const isTeacher = user?.role === 'teacher';
-              const targetIsStudent = c.authorRole === 'student';
-              const canDelete = isAdmin || isOwner || (isTeacher && targetIsStudent);
+        <div className="figma-class-comments">
+          {comments.map((c) => {
+            const isOwner = c.userId === user?.id;
+            const isAdmin = user?.role === 'superadmin';
+            const isTeacher = user?.role === 'teacher';
+            const targetIsStudent = c.authorRole === 'student';
+            const canDelete = isAdmin || isOwner || (isTeacher && targetIsStudent);
 
-              return (
-                <div key={c.id} className="comment-bubble-wrapper" style={{ display: 'flex', gap: '0.75rem', group: 'true' }}>
-                  <div className="comment-avatar-tiny" style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--dark-soft)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
-                    {getInitials(c.authorName)}
+            return (
+              <article key={c.id} className="figma-class-comment">
+                <div className="figma-class-post__avatar">{getInitials(c.authorName)}</div>
+                <div className="figma-class-comment__bubble">
+                  <div className="figma-class-comment__top">
+                    <span className="figma-class-post__name">{c.authorName}</span>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="figma-class-post__icon-btn"
+                        onClick={() => handleDeleteComment(c.id)}
+                        title="Eliminar comentario"
+                        aria-label="Eliminar comentario"
+                      >
+                        <Icon name="close" size={14} />
+                      </button>
+                    )}
                   </div>
-                  <div className="comment-bubble" style={{ background: '#f8f9fa', padding: '0.75rem 1rem', borderRadius: '18px', borderTopLeftRadius: '4px', maxWidth: '80%', position: 'relative' }}>
-                    <div className="comment-author" style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--red)', marginBottom: '0.2rem', display: 'flex', justifyContent: 'space-between' }}>
-                      {c.authorName}
-                      {canDelete && (
-                        <button 
-                          onClick={() => handleDeleteComment(c.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,0,0,0.2)', padding: '0 4px', fontSize: '10px' }}
-                          title="Eliminar comentario"
-                        >
-                          <Icon name="close" size={10} />
-                        </button>
-                      )}
-                    </div>
-                    <div className="comment-text" style={{ fontSize: '0.9rem', color: 'var(--dark)' }}>{c.content}</div>
-                  </div>
+                  <p>{c.content}</p>
                 </div>
-              );
-            })}
-          </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {/* ── Share / Upload design bar ── */}
-      <div className={`class-composer ${selectedDesignId ? 'has-attachment' : ''}`}>
+      <div className={`class-composer figma-class-composer ${selectedDesignId ? 'has-attachment' : ''}`}>
         <div className="class-composer-avatar">
           {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
         </div>
@@ -336,7 +364,11 @@ export default function ClassDetailPage() {
           <input
             type="text"
             className="class-composer-input"
-            placeholder={selectedDesignId ? 'Añade una descripción a tu diseño...' : 'Escribe un mensaje o duda...'}
+            placeholder={
+              selectedDesignId
+                ? 'Añade una descripción a tu diseño...'
+                : 'Subir comentario / diseño'
+            }
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
@@ -373,51 +405,100 @@ export default function ClassDetailPage() {
       {/* ── Upload Design Modal ── */}
       {showUploadModal && (
         <div
-          className="modal-overlay"
+          className="modal-overlay figma-modal-overlay"
           onClick={() => setShowUploadModal(false)}
           id="upload-modal-overlay"
         >
           <div
-            className="modal upload-modal"
+            className="modal figma-designs-modal"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '600px' }}
+            role="dialog"
+            aria-labelledby="figma-designs-modal-title"
           >
-            <div className="modal-header">
-              <h2>Seleccionar Diseño</h2>
-              <button className="modal-close" onClick={() => setShowUploadModal(false)}><Icon name="close" size={18} /></button>
+            <button
+              type="button"
+              className="modal-close figma-designs-modal__close"
+              onClick={() => setShowUploadModal(false)}
+              aria-label="Cerrar"
+            >
+              <Icon name="close" size={18} />
+            </button>
+
+            <header className="figma-designs-modal__header">
+              <h2 id="figma-designs-modal-title">Mis diseños</h2>
+              <button
+                type="button"
+                className="primary-button figma-designs-modal__upload-btn"
+                onClick={() => {
+                  setShowUploadModal(false);
+                  navigate('/editor');
+                }}
+                id="btn-modal-new-design"
+              >
+                <Icon name="upload" size={18} strokeWidth={2} />
+                Subir diseño
+              </button>
+            </header>
+
+            <div className="figma-designs-modal__body">
+              {userDesigns.length === 0 ? (
+                <div className="figma-designs-modal__empty figma-dot-pattern">
+                  <Icon name="image" size={48} strokeWidth={1.2} />
+                  <p>No tienes diseños para compartir. Crea uno con «Subir diseño».</p>
+                </div>
+              ) : (
+                <div className="figma-designs-modal__grid">
+                  {userDesigns.map((d) => (
+                    <article
+                      key={d.id}
+                      className={`figma-card figma-card--compact${selectedDesignId === d.id ? ' is-selected' : ''}`}
+                      id={`upload-item-${d.id}`}
+                    >
+                      <button
+                        type="button"
+                        className="figma-card-media figma-dot-pattern"
+                        onClick={() => handleSelectDesign(d.id)}
+                        aria-pressed={selectedDesignId === d.id}
+                      >
+                        {d.image ? (
+                          <img src={d.image} alt="" className="design-thumb-img" />
+                        ) : (
+                          <Icon name="image" size={36} strokeWidth={1.25} />
+                        )}
+                      </button>
+                      <div className="figma-card-foot">
+                        <h3 className="figma-card-title" title={d.title}>{d.title}</h3>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="modal-body">
-              <p style={{ fontWeight: 600, marginBottom: '1rem', color: 'var(--dark)' }}>
-                Tus Diseños Personales
-              </p>
-              <div className="upload-designs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
-                {userDesigns.length === 0 ? (
-                  <p className="small-text" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '2rem 0' }}>
-                    No tienes diseños para compartir.
-                  </p>
-                ) : (
-                  userDesigns.map((d) => (
-                    <div
-                      key={d.id}
-                      className={`upload-design-item ${selectedDesignId === d.id ? 'selected' : ''}`}
-                      onClick={() => handleSelectDesign(d.id)}
-                      id={`upload-item-${d.id}`}
-                      style={{ cursor: 'pointer', border: selectedDesignId === d.id ? '2px solid var(--red)' : '1.5px solid var(--cream-dim)', borderRadius: 'var(--radius-md)', overflow: 'hidden', transition: 'all 0.2s', background: '#fff' }}
-                    >
-                      <div className="upload-design-thumb" style={{ aspectRatio: '4/3', background: 'var(--cream-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
-                        {d.image ? (
-                          <img src={d.image} alt={d.title} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        ) : (
-                          <Icon name="image" size={24} color="var(--dark-soft)" />
-                        )}
-                      </div>
-                      <div className="upload-design-name" style={{ padding: '0.65rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center', color: 'var(--dark)' }}>{d.title}</div>
-                    </div>
-                  ))
-                )}
+            <footer className="figma-designs-modal__footer">
+              <div className="figma-designs-modal__avatar" aria-hidden>
+                {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
               </div>
-            </div>
+              <input
+                type="text"
+                className="figma-designs-modal__input"
+                placeholder="Agregar comentario..."
+                value={modalComment}
+                onChange={(e) => setModalComment(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleModalPublish()}
+                id="modal-design-comment"
+              />
+              <button
+                type="button"
+                className="figma-designs-modal__send"
+                onClick={handleModalPublish}
+                title="Publicar diseño"
+                aria-label="Publicar diseño"
+                id="btn-modal-publish-design"
+              >
+                <Icon name="send" size={20} strokeWidth={2} />
+              </button>
+            </footer>
           </div>
         </div>
       )}
