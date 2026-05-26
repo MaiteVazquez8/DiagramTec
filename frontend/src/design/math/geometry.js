@@ -57,6 +57,78 @@ export function rectBorderScale(shape, absDx, absDy) {
 }
 
 /**
+ * Intersección rayo–segmento: P = origin + t * direction.
+ * @returns {number | null} t mínimo positivo
+ */
+function raySegmentIntersectionT(origin, direction, a, b) {
+  const { x: ox, y: oy } = origin;
+  const { x: dx, y: dy } = direction;
+  const sx = b.x - a.x;
+  const sy = b.y - a.y;
+  const denom = dx * sy - dy * sx;
+  if (Math.abs(denom) < 1e-9) return null;
+  const t = ((a.x - ox) * sy - (a.y - oy) * sx) / denom;
+  const u = ((a.x - ox) * dy - (a.y - oy) * dx) / denom;
+  if (t > 1e-6 && u >= 0 && u <= 1) return t;
+  return null;
+}
+
+/**
+ * Escala hasta el borde de un polígono convexo (origen = centro, direction = hacia el otro nodo).
+ * @param {Point} origin
+ * @param {{ x: number, y: number }} direction
+ * @param {Point[]} vertices
+ * @returns {number | null}
+ */
+export function polygonBorderScale(origin, direction, vertices) {
+  let bestT = Infinity;
+  for (let i = 0; i < vertices.length; i += 1) {
+    const a = vertices[i];
+    const b = vertices[(i + 1) % vertices.length];
+    const t = raySegmentIntersectionT(origin, direction, a, b);
+    if (t !== null && t < bestT) bestT = t;
+  }
+  return bestT === Infinity ? null : bestT;
+}
+
+/**
+ * Vértices del contorno visible de la figura (coordenadas del lienzo).
+ * @param {import('../models/shape.js').Shape} shape
+ * @returns {Point[] | null}
+ */
+export function getShapeOutlineVertices(shape) {
+  const { x, y, width: w, height: h } = shape;
+  switch (shape.type) {
+    case 'input':
+      return [
+        { x, y },
+        { x: x + w, y },
+        { x: x + 0.85 * w, y: y + h },
+        { x: x + 0.15 * w, y: y + h },
+      ];
+    case 'print':
+      return [
+        { x: x + 0.15 * w, y },
+        { x: x + 0.85 * w, y },
+        { x: x + w, y: y + h },
+        { x, y: y + h },
+      ];
+    case 'if': {
+      const roofY = y + 0.4 * h;
+      return [
+        { x: x + w / 2, y: y + 0.06 * h },
+        { x: x + 0.96 * w, y: roofY },
+        { x: x + 0.96 * w, y: y + h },
+        { x: x + 0.04 * w, y: y + h },
+        { x: x + 0.04 * w, y: roofY },
+      ];
+    }
+    default:
+      return null;
+  }
+}
+
+/**
  * @param {Rect} rect
  * @returns {{ minX: number, minY: number, maxX: number, maxY: number }}
  */

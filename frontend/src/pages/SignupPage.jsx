@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../api.js';
+import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 
@@ -24,14 +24,13 @@ export default function SignupPage() {
     }
 
     try {
-      // Llamada a registro.php en PHP
-      const formData = new FormData();
-      formData.append('firstName', firstName);
-      formData.append('lastName', lastName);
-      formData.append('email', email);
-      formData.append('password', password);
-      formData.append('role', role);
-      const response = await api.post('registro.php', formData);
+      const response = await authApi.post('/registro.php', {
+        firstName,
+        lastName,
+        email,
+        password,
+        role,
+      });
       if (response.data && response.data.token) {
         login(response.data.token);
         navigate('/');

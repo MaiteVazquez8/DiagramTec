@@ -26,6 +26,8 @@ export {
   vectorLength,
   ellipseBorderScale,
   rectBorderScale,
+  polygonBorderScale,
+  getShapeOutlineVertices,
   rectExtents,
 } from './math/geometry.js';
 
@@ -35,6 +37,7 @@ export {
   stepZoomOut,
   screenToCanvas,
   computeCenterPan,
+  computePanForZoomChange,
   clientDeltaToCanvas,
 } from './math/zoom.js';
 
@@ -59,6 +62,8 @@ export {
   shapesToMap,
   getDefaultTitle,
   getDefaultSize,
+  clampIfDimensions,
+  clampShapeDimensions,
 } from './models/shape.js';
 
 export {
