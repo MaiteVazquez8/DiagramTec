@@ -1,5 +1,72 @@
 <?php
 
+<<<<<<< HEAD
+=======
+require_once __DIR__ . '/lib/cors.php';
+
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+    include __DIR__ . '/conexion.php';
+    include __DIR__ . '/jwt.php';
+    include __DIR__ . '/mail.php';
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $email = strtolower(trim($body['email'] ?? ''));
+    $userPassword = $body['password'] ?? '';
+
+    if ($email === '' || $userPassword === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Email y contraseña requeridos'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare('SELECT * FROM users WHERE email = ?');
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    if (!$user || !password_verify($userPassword, $user['passwordHash'])) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Credenciales inválidas'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $token = generarJWT($user);
+
+    // create PHP session as well to mirror form login behavior
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    $_SESSION['jwt'] = $token;
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['role'] = $user['role'];
+
+    // send notification email and include result in JSON
+    $emailSent = enviarMail(
+        $user['email'],
+        "Nuevo inicio de sesión",
+        "<h2>Inicio de sesión detectado</h2><p>Tu cuenta inició sesión correctamente.</p>"
+    );
+
+    echo json_encode([
+        'token' => $token,
+        'user' => [
+            'id' => (int) $user['id'],
+            'firstName' => $user['firstName'],
+            'lastName' => $user['lastName'],
+            'email' => $user['email'],
+            'role' => $user['role'],
+        ],
+        'emailSent' => $emailSent,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+>>>>>>> 38a3c18 (Cambios en backend, frontend y php)
 session_start();
 
 include('conexion.php');

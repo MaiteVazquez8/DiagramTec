@@ -1,5 +1,61 @@
 <?php
 
+require_once __DIR__ . '/lib/cors.php';
+
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+    include __DIR__ . '/conexion.php';
+    include __DIR__ . '/mail.php';
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $email = strtolower(trim($body['email'] ?? ''));
+
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Ingresa un correo válido.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode(['error' => 'El correo no existe. Ingresa un correo registrado.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $token = random_int(100000, 999999);
+    $update = $mysql->prepare("UPDATE users SET token = ? WHERE id = ?");
+    $update->bind_param('ii', $token, $user['id']);
+
+    if (!$update->execute()) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al generar el token.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $mailEnviado = enviarMail(
+        $user['email'],
+        'Recuperación de contraseña',
+        "<h2>Recuperación de contraseña</h2><p>Solicitaste cambiar tu contraseña.</p><p>Tu código de recuperación es:</p><h1>$token</h1><p>Este código es de un solo uso.</p>"
+    );
+
+    if ($mailEnviado) {
+        echo json_encode(['message' => 'Se envió un código al correo.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    http_response_code(500);
+    echo json_encode(['error' => 'No se pudo enviar el correo.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 include('conexion.php');
 include('mail.php');
 
@@ -9,9 +65,9 @@ if (isset($_POST['enviarToken'])) {
 
     $email = trim($_POST['email']);
 
-    if (empty($email)) {
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
-        $message = "Ingrese un correo";
+        $message = "Ingrese un correo válido";
 
     } else {
 

@@ -1,33 +1,33 @@
 const express = require('express');
 const axios = require('axios');
-const router = express.Router();
 
-// Proxy any request under /php/* to the internal PHP built-in server
-router.all('/*', async (req, res) => {
+const router = express.Router();
+const PHP_BACKEND_URL = process.env.PHP_BACKEND_URL || 'http://localhost:8000';
+
+router.all('/:file(*)', async (req, res) => {
   try {
-    const targetPath = req.originalUrl.replace(/^\/php/, '');
-    const targetUrl = `http://localhost:8000${targetPath}`;
-    const axiosConfig = {
-      method: req.method,
-      url: targetUrl,
-      headers: Object.assign({}, req.headers),
-      data: req.body,
-      responseType: 'stream',
-      validateStatus: () => true
-    };
-    // remove host to avoid conflicts
-    delete axiosConfig.headers.host;
-    const response = await axios(axiosConfig);
-    res.status(response.status);
-    for (const [k, v] of Object.entries(response.headers)) {
-      // avoid overriding express headers that may cause issues
-      if (k.toLowerCase() === 'transfer-encoding') continue;
-      res.setHeader(k, v);
+    let file = req.params.file;
+    if (!file.toLowerCase().endsWith('.php')) {
+      file = `${file}.php`;
     }
-    response.data.pipe(res);
+
+    const response = await axios({
+      method: req.method,
+      url: `${PHP_BACKEND_URL}/${file}`,
+      data: req.body,
+      params: req.query,
+      headers: {
+        'Content-Type': req.headers['content-type'] || 'application/json',
+      },
+    });
+
+    res.status(response.status).send(response.data);
   } catch (err) {
-    console.error('PHP proxy error', err.message);
-    res.status(500).json({ error: 'Error proxying to PHP' });
+    console.error('PHP proxy error:', err.message || err);
+    if (err.response) {
+      return res.status(err.response.status).send(err.response.data);
+    }
+    res.status(500).json({ error: 'PHP proxy error' });
   }
 });
 
