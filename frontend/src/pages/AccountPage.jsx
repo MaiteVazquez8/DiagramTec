@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+/** Perfil del usuario logueado: datos básicos y accesos rápidos (ruta /account). */
 import { Link } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';

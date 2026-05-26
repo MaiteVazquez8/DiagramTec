@@ -1,3 +1,4 @@
+/** Pila undo/redo del estado completo del diagrama. */
 import { cloneDiagramState } from '../models/diagramState.js';
 import { HISTORY_MAX_ENTRIES } from '../constants/canvas.js';
 

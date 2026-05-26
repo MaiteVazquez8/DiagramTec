@@ -1,3 +1,4 @@
+/** Cálculo de puntos de anclaje y segmentos SVG entre dos formas. */
 import {
   ellipseBorderScale,
   getShapeOutlineVertices,

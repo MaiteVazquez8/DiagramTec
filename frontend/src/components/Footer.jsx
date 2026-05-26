@@ -1,3 +1,4 @@
+/** Pie de página legacy (no montado en App.jsx actual). */
 export default function Footer() {
   return (
     <footer className="app-footer">

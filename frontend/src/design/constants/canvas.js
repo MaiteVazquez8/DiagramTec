@@ -1,4 +1,4 @@
-/** Límites y dimensiones del lienzo del editor DFD */
+/** Límites del lienzo, zoom, exportación (padding, escala, fondo preview PNG). */
 
 export const CANVAS_SIZE = { width: 2000, height: 2000 };
 
@@ -26,7 +26,7 @@ export const EXPORT_DEFAULTS = {
   minCaptureHeight: 600,
   previewScale: 0.8,
   pdfScale: 2,
-  previewBackground: '#fcf8ef',
+  previewBackground: null,
   pdfBackground: '#ffffff',
   jpegQuality: 0.6,
 };

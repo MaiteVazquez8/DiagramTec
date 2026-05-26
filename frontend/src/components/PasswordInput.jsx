@@ -1,3 +1,4 @@
+/** Campo contraseña con botón mostrar/ocultar. Usado en login y registro. */
 import { useState } from 'react';
 
 export default function PasswordInput({ value, onChange, placeholder = 'Contraseña', label }) {

@@ -18,7 +18,7 @@ export const palette = [
   { type: SHAPE_TYPES.CONNECT, label: 'Conexión' },
   { type: SHAPE_TYPES.INPUT, label: 'Entrada / Input' },
   { type: SHAPE_TYPES.PRINT, label: 'Salida / Print' },
-  { type: SHAPE_TYPES.PROCESS, label: 'Proceso / Asignación' },
+  { type: SHAPE_TYPES.PROCESS, label: 'Proceso / Variable' },
   { type: SHAPE_TYPES.FOR, label: 'Ciclo FOR' },
   { type: SHAPE_TYPES.WHILE, label: 'Ciclo WHILE' },
   { type: SHAPE_TYPES.IF, label: 'Ciclo IF' },

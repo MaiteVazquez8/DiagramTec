@@ -1,3 +1,4 @@
+/** Registro de usuario nuevo vía authApi (PHP). */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import authApi from '../authApi.js';
