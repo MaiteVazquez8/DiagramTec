@@ -3,7 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { spawn } = require('child_process');
+
 const fs = require('fs');
+
+
 const path = require('path');
 
 const { openDb } = require('./db');
@@ -36,6 +39,7 @@ async function startServer() {
     console.log(`Backend listening on http://localhost:${PORT}`);
   });
 }
+
 
 function findPhpInLaragonRoot(laragonRoot) {
   const phpBinDir = path.join(laragonRoot, 'bin', 'php');
@@ -94,6 +98,29 @@ function startPhpServer() {
   } catch (err) {
     console.error('Failed to start PHP server:', err);
   }
+
+function startPhpServer() {
+  try {
+    const phpRoot = path.join(__dirname, '..', 'php');
+    const php = spawn('php', ['-S', 'localhost:8000', '-t', phpRoot], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    php.stdout.on('data', (data) => console.log(`[php] ${data.toString().trim()}`));
+    php.stderr.on('data', (data) => console.error(`[php][err] ${data.toString().trim()}`));
+    php.on('close', (code) => console.log(`PHP server exited with code ${code}`));
+
+    process.on('exit', () => php.kill());
+    process.on('SIGINT', () => {
+      php.kill();
+      process.exit();
+    });
+
+    console.log('PHP built-in server started at http://localhost:8000');
+  } catch (err) {
+    console.error('Failed to start PHP server:', err);
+  }
+
 }
 
 startPhpServer();
