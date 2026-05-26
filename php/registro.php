@@ -4,7 +4,96 @@ ini_set('display_errors', 1);
 
 include('conexion.php');
 
-$message = "";
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+    include __DIR__ . '/conexion.php';
+    include __DIR__ . '/jwt.php';
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $firstName = trim($body['firstName'] ?? '');
+    $lastName = trim($body['lastName'] ?? '');
+    $email = strtolower(trim($body['email'] ?? ''));
+    $password = $body['password'] ?? '';
+    $role = in_array($body['role'] ?? '', ['student', 'teacher'], true) ? $body['role'] : 'student';
+
+    if ($firstName === '' || $lastName === '' || $email === '' || $password === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Faltan datos obligatorios'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Ingresa un correo válido'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $domain = substr(strrchr($email, '@'), 1);
+    if ($domain === false || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Ingresa un correo con un dominio válido'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare('SELECT id FROM users WHERE email = ?');
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    if ($stmt->get_result()->num_rows > 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'El correo ya está registrado'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $stmt = $mysql->prepare(
+        'INSERT INTO users (firstName, lastName, email, passwordHash, role) VALUES (?, ?, ?, ?, ?)'
+    );
+    $stmt->bind_param('sssss', $firstName, $lastName, $email, $hash, $role);
+    if (!$stmt->execute()) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al crear usuario'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $id = (int) $stmt->insert_id;
+    $user = [
+        'id' => $id,
+        'firstName' => $firstName,
+        'lastName' => $lastName,
+        'email' => $email,
+        'role' => $role,
+    ];
+
+    include __DIR__ . '/mail.php';
+    $mailEnviado = enviarMail(
+        $user['email'],
+        'Confirmación de registro',
+        "<h2>Bienvenido a DiagramTec</h2><p>Gracias por registrarte con este correo.</p>"
+    );
+
+    if (!$mailEnviado) {
+        $delete = $mysql->prepare('DELETE FROM users WHERE id = ?');
+        $delete->bind_param('i', $id);
+        $delete->execute();
+        http_response_code(400);
+        echo json_encode(['error' => 'No se pudo enviar el correo. Usa un correo real.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    echo json_encode([
+        'token' => generarJWT($user),
+        'user' => $user,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+include __DIR__ . '/conexion.php';
+include __DIR__ . '/mail.php';
+
+$message = '';
 
 if (isset($_POST['CrearUsuario'])) {
 
@@ -24,11 +113,17 @@ if (isset($_POST['CrearUsuario'])) {
 
         $message = "Todos los campos son obligatorios";
 
-    } elseif ($password !== $password2) {
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
-        $message = "Las contraseñas no coinciden";
+        $message = "Ingrese un correo válido";
 
     } else {
+        $domain = substr(strrchr($email, '@'), 1);
+        if ($domain === false || (!checkdnsrr($domain, 'MX') && !checkdnsrr($domain, 'A'))) {
+            $message = "Ingrese un correo con un dominio válido";
+        } elseif ($password !== $password2) {
+            $message = "Las contraseñas no coinciden";
+        } else {
 
         $stmt = $mysql->prepare("
             SELECT id
@@ -72,8 +167,22 @@ if (isset($_POST['CrearUsuario'])) {
             );
 
             if ($stmt->execute()) {
+                $insertId = $stmt->insert_id;
 
-                $message = "Usuario creado correctamente";
+                $mailEnviado = enviarMail(
+                    $email,
+                    'Confirmación de registro',
+                    "<h2>Bienvenido a DiagramTec</h2><p>Gracias por registrarte con este correo.</p>"
+                );
+
+                if ($mailEnviado) {
+                    $message = "Usuario creado correctamente";
+                } else {
+                    $delete = $mysql->prepare('DELETE FROM users WHERE id = ?');
+                    $delete->bind_param('i', $insertId);
+                    $delete->execute();
+                    $message = "No se pudo enviar el correo. Usa un correo real.";
+                }
 
             } else {
 
@@ -82,6 +191,7 @@ if (isset($_POST['CrearUsuario'])) {
             }
         }
     }
+}
 }
 ?>
 

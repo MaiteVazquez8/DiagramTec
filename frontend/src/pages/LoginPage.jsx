@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../api.js';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 
@@ -15,18 +15,20 @@ export default function LoginPage() {
     event.preventDefault();
     setError('');
     try {
-      const formData = new FormData();
-      formData.append('email', email);
-      formData.append('password', password);
-      const response = await api.post('login.php', formData);
-      if (response.data && response.data.token) {
+      const response = await authApi.post('/login', { email, password });
+      if (response.data?.token) {
         login(response.data.token);
         navigate('/');
       } else {
         setError(response.data?.error || 'No se pudo iniciar sesión');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo iniciar sesión');
+      const msg = err.response?.data?.error;
+      setError(
+        err.response?.status === 401
+          ? 'Credenciales inválidas'
+          : msg || 'No se pudo iniciar sesión',
+      );
     }
   };
 
@@ -65,7 +67,7 @@ export default function LoginPage() {
           {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Ingresar</button>
         </form>
-        <button className="ghost-link" type="button">Olvide mi contraseña</button>
+        <button className="ghost-link" type="button" onClick={() => navigate('/recover')}>Olvide mi contraseña</button>
         <p className="small-text">
           ¿No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
         </p>
