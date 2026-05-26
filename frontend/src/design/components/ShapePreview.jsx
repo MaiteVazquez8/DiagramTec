@@ -1,3 +1,4 @@
+/** Miniatura de una forma en la paleta del sidebar. */
 import Icon from '../../components/Icon.jsx';
 import RenderShape from '../../components/RenderShape.jsx';
 import { createShape } from '../models/shape.js';

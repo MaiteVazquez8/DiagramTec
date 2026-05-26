@@ -1,163 +1,234 @@
+/**
+ * Shell de la aplicación: proveedor de auth, router y layout común.
+ * - Header con navegación Figma (Diseños | Inicio | Clases | Superadmin)
+ * - Rutas públicas, protegidas (login) y admin (superadmin)
+ * - El editor usa main.main-editor; el resto main.main-figma
+ */
 import React, { useState } from 'react';
+
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
+
 import { AuthProvider, useAuth } from './AuthContext.jsx';
+
 import HomePage from './pages/HomePage.jsx';
+
 import LoginPage from './pages/LoginPage.jsx';
+
 import SignupPage from './pages/SignupPage.jsx';
+
 import AccountPage from './pages/AccountPage.jsx';
+
 import ClassesPage from './pages/ClassesPage.jsx';
+
 import ClassDetailPage from './pages/ClassDetailPage.jsx';
+
 import DesignsPage from './pages/DesignsPage.jsx';
+
 import EditorPage from './pages/EditorPage.jsx';
+
 import SuperAdminPage from './pages/SuperAdminPage.jsx';
+
 import NotFoundPage from './pages/NotFoundPage.jsx';
+
+
+
 import RecoverPasswordPage from './pages/RecoverPasswordPage.jsx';
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import Footer from './components/Footer.jsx';
 
+
 import Icon from './components/Icon.jsx';
 
-// ruta protegida solo para usuarios superadministradores
+
+
+/** Solo usuarios con role === 'superadmin'. */
 function AdminRoute({ children }) {
+
   const { user, loading } = useAuth();
+
   if (loading) return <div className="page-container">Cargando...</div>;
+
   if (!user || user.role !== 'superadmin') return <Navigate to="/" replace />;
+
   return children;
+
 }
 
-// ruta protegida para cualquier usuario autenticado
+
+
+/** Redirige a /login si no hay sesión. */
 function ProtectedRoute({ children }) {
+
   const { user, loading } = useAuth();
+
   if (loading) return <div className="page-container">Cargando...</div>;
+
   return user ? children : <Navigate to="/login" replace />;
+
 }
 
-// componente de cabecera con navegacion y estado del usuario
+
+
+function HeaderProfileAvatar() {
+  return (
+    <svg
+      className="figma-header-profile-svg"
+      viewBox="0 0 48 48"
+      width="48"
+      height="48"
+      aria-hidden
+    >
+      <circle cx="24" cy="24" r="24" className="figma-profile-bg" />
+      <circle cx="24" cy="17.5" r="6.25" className="figma-profile-silhouette" />
+      <ellipse cx="24" cy="36" rx="11" ry="7.5" className="figma-profile-silhouette" />
+    </svg>
+  );
+}
+
+/** Barra superior: logo, nav central, avatar a cuenta/login, menú móvil. */
 function Header() {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  
+
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
-
-  const roleLabel = user?.role === 'superadmin'
-    ? 'Administrador'
-    : user?.role === 'teacher'
-      ? 'Profesor'
-      : 'Alumno';
+  const profileTo = user ? '/account' : '/login';
 
   return (
     <header className="app-header figma-header">
-      <div className="header-left">
-        <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
-          <img src="/Diagram2.png" alt="" className="brand-logo" />
-        </Link>
-      </div>
+      <div className="figma-header-inner">
+        <div className="figma-header-logo">
+          <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
+            <img src="/Diagram(3).png" alt="DiagramTec" className="brand-logo" />
+          </Link>
+        </div>
 
-      <button className="mobile-menu-btn figma-menu-btn" onClick={toggleMenu} aria-label="Menú móvil">
-        <Icon name={menuOpen ? 'close' : 'menu'} size={24} strokeWidth={2.5} />
-      </button>
+        <button
+          type="button"
+          className="mobile-menu-btn figma-menu-btn"
+          onClick={toggleMenu}
+          aria-label="Menú móvil"
+          aria-expanded={menuOpen}
+        >
+          <Icon name={menuOpen ? 'close' : 'menu'} size={24} strokeWidth={2.5} />
+        </button>
 
-      <div className={`nav-container figma-nav-container ${menuOpen ? 'open' : ''}`}>
-        <nav className="figma-nav">
-          <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
-          <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
-          {user ? <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink> : null}
-          {user?.role === 'superadmin' ? (
-            <NavLink to="/superadmin" onClick={closeMenu}>Panel Admin</NavLink>
-          ) : null}
-          {user ? <NavLink to="/account" onClick={closeMenu}>Mi cuenta</NavLink> : null}
-        </nav>
+        <div className={`figma-header-nav-wrap ${menuOpen ? 'open' : ''}`}>
+          <nav className="figma-nav" aria-label="Principal">
+            <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
+            <span className="figma-nav-divider" aria-hidden />
+            <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
+            <span className="figma-nav-divider" aria-hidden />
+            <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink>
+            {user?.role === 'superadmin' && (
+              <>
+                <span className="figma-nav-divider" aria-hidden />
+                <NavLink to="/superadmin" onClick={closeMenu}>Superadmin</NavLink>
+              </>
+            )}
+          </nav>
 
-        <div className="header-actions figma-header-actions">
-          {user ? (
-            <div className="user-nav-group">
-              <Link to="/account" className="user-chip figma-user-chip" title="Ver mi cuenta" onClick={closeMenu}>
-                <span className="user-avatar figma-user-avatar">{user.firstName[0]}</span>
-                <div className="user-info-text">
-                  <span className="user-name">{user.firstName} {user.lastName}</span>
-                  <span className="user-role-badge">{roleLabel}</span>
-                </div>
-              </Link>
-              <button
-                type="button"
-                className="logout-btn-premium figma-logout-btn"
-                onClick={() => { logout(); closeMenu(); }}
-                title="Cerrar sesión"
-              >
-                <Icon name="logout" size={18} strokeWidth={2.5} />
-                <span>Salir</span>
+          <div className="figma-header-mobile-extra">
+            {user ? (
+              <button type="button" className="figma-header-logout-mobile" onClick={() => { logout(); closeMenu(); }}>
+                Cerrar sesión
               </button>
-            </div>
-          ) : (
-            <>
-              <NavLink className="secondary-button" to="/editor" onClick={closeMenu} style={{ padding: '0.5rem 1rem', fontSize: '0.88rem' }}>
-                + Crear diseño
-              </NavLink>
+            ) : (
               <NavLink className="figma-header-login" to="/login" onClick={closeMenu}>
                 Iniciar sesión
               </NavLink>
-            </>
-          )}
+            )}
+          </div>
         </div>
+
+        <Link
+          to={profileTo}
+          className="figma-header-profile"
+          title={user ? 'Mi cuenta' : 'Iniciar sesión'}
+          onClick={closeMenu}
+          aria-label={user ? 'Mi cuenta' : 'Iniciar sesión'}
+        >
+          <HeaderProfileAvatar />
+        </Link>
       </div>
     </header>
   );
 }
 
+
+
+/** Contenedor con Header + <main> y definición de todas las rutas. */
 function AppShell() {
+
   const location = useLocation();
+
   const isEditor = location.pathname.startsWith('/editor');
 
+
+
   return (
-    <>
+
+    <div className="app-shell">
+
       <Header />
-      <main className={isEditor ? 'main-editor' : ''}>
+
+      <main className={isEditor ? 'main-editor' : 'main-figma'}>
+
         <Routes>
+
           <Route path="/" element={<HomePage />} />
+
           <Route path="/login" element={<LoginPage />} />
+
           <Route path="/signup" element={<SignupPage />} />
+
           <Route path="/recover" element={<RecoverPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+
           <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
+
           <Route path="/classes/:id" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
+
           <Route path="/designs" element={<DesignsPage />} />
+
           <Route path="/editor" element={<EditorPage />} />
+
           <Route path="/editor/:id" element={<EditorPage />} />
+
           <Route path="/superadmin" element={<AdminRoute><SuperAdminPage /></AdminRoute>} />
+
           <Route path="*" element={<NotFoundPage />} />
+
         </Routes>
+
       </main>
-      {!isEditor && <Footer />}
-    </>
+
+    </div>
+
   );
+
 }
 
-// componente principal de la aplicacion que define las rutas
+
+
 export default function App() {
+
   return (
+
     <AuthProvider>
+
       <BrowserRouter>
-        <Header />
-        <main>
-          {/* definicion de todas las rutas de navegacion */}
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
-            <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
-            <Route path="/classes/:id" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
-            <Route path="/designs" element={<DesignsPage />} />
-            <Route path="/editor" element={<EditorPage />} />
-            <Route path="/editor/:id" element={<EditorPage />} />
-            <Route path="/superadmin" element={<AdminRoute><SuperAdminPage /></AdminRoute>} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </main>
-        <Footer />
+
+        <AppShell />
+
       </BrowserRouter>
+
     </AuthProvider>
+
   );
+
 }
+
+

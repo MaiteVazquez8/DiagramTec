@@ -1,3 +1,4 @@
+/** Modelo de forma: crear, duplicar, redimensionar, títulos por defecto. */
 import { SHAPE_TYPES } from '../constants/palette.js';
 import { SHAPE_SIZE_LIMITS } from '../constants/canvas.js';
 

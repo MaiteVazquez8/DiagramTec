@@ -1,3 +1,4 @@
+/** Alta/baja/movimiento de formas en el array del diagrama. */
 import { removeConnectionsForShape } from '../models/connection.js';
 
 /**

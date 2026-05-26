@@ -1,4 +1,5 @@
 /**
+ * Serialización JSON del diagrama (shapes + connections) para API y localStorage.
  * @typedef {Object} DiagramContent
  * @property {import('./shape.js').Shape[]} shapes
  * @property {import('./connection.js').Connection[]} connections

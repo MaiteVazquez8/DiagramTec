@@ -1,3 +1,4 @@
+/** Conversión pantalla↔lienzo, pasos de zoom y cálculo de pan. */
 import { CANVAS_CENTER_OFFSET, ZOOM_LIMITS } from '../constants/canvas.js';
 
 /**
@@ -41,7 +42,7 @@ export function screenToCanvas(clientX, clientY, canvasRect, zoom, offset = { x:
 }
 
 /**
- * Pan para centrar el origen del lienzo en el viewport.
+ * Param para centrar el origen del lienzo en el viewport.
  * @param {number} viewportWidth
  * @param {number} viewportHeight
  * @param {number} [zoom]
