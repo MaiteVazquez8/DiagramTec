@@ -1,7 +1,5 @@
 <?php
 
-<<<<<<< HEAD
-=======
 require_once __DIR__ . '/lib/cors.php';
 
 if (
@@ -66,7 +64,6 @@ if (
     exit;
 }
 
->>>>>>> 38a3c18 (Cambios en backend, frontend y php)
 session_start();
 
 include('conexion.php');
