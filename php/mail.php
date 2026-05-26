@@ -5,8 +5,9 @@ use PHPMailer\PHPMailer\Exception;
 require 'vendor/autoload.php';
 
 function enviarMail($destino, $asunto, $mensaje) {
-
     $mail = new PHPMailer(true);
+    $mail->CharSet = 'UTF-8';
+    $mail->Encoding = 'base64';
 
     try {
 
@@ -39,9 +40,7 @@ function enviarMail($destino, $asunto, $mensaje) {
         return true;
 
     } catch (Exception $e) {
-
         return false;
-
     }
 }
 ?>
