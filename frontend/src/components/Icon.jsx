@@ -148,6 +148,8 @@ export const ICONIFY_ICONS = {
 
   circleCheck: 'tabler:circle-check',
 
+  help: 'tabler:help-circle',
+
 };
 
 
