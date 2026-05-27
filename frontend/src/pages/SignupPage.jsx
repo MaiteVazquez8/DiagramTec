@@ -1,7 +1,7 @@
 /** Registro de usuario nuevo vía authApi (PHP). */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import authApi from '../authApi.js';
+import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 
@@ -13,7 +13,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('student');
+  const [role, setRole] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (event) => {
@@ -23,9 +23,13 @@ export default function SignupPage() {
       setError('Las contraseñas no coinciden');
       return;
     }
+    if (!role) {
+      setError('Selecciona un rol');
+      return;
+    }
 
     try {
-      const response = await authApi.post('/registro.php', {
+      const response = await api.post('/auth/register', {
         firstName,
         lastName,
         email,
@@ -44,23 +48,10 @@ export default function SignupPage() {
   };
 
   return (
-    <section className="page-container auth-layout">
-      <article className="auth-info">
-        <p className="section-eyebrow">Register</p>
-        <h1>Crear cuenta nueva</h1>
-        <p>
-          Completa tus datos para activar tu perfil y empezar a crear diagramas con guardado en la nube.
-        </p>
-        <ul>
-          <li>Correo de verificacion al registrarte</li>
-          <li>Perfil editable desde tu cuenta</li>
-          <li>Rol de estudiante o profesor</li>
-        </ul>
-      </article>
-
-      <article className="form-card auth-card">
+    <section className="page-container auth-page-wrap">
+      <article className="form-card auth-card figma-auth-card">
         <div className="auth-tabs">
-          <Link to="/login">Ingresar</Link>
+          <Link to="/login">Iniciar sesion</Link>
           <span className="active">Registrarse</span>
         </div>
         <h2>Crear cuenta</h2>
@@ -68,43 +59,44 @@ export default function SignupPage() {
           <div className="form-row">
             <label>
               Nombre
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+              <input placeholder="Tu nombre..." value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
             </label>
             <label>
               Apellido
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+              <input placeholder="Tu apellido..." value={lastName} onChange={(e) => setLastName(e.target.value)} required />
             </label>
           </div>
           <label>
             Email
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input type="email" placeholder="Tu email..." value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <div className="form-row">
             <PasswordInput
               label="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tu contraseña"
+              placeholder="Tu contraseña..."
             />
             <PasswordInput
               label="Confirmar contraseña"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirma tu contraseña"
+              placeholder="Tu contraseña..."
             />
           </div>
           <label>
             Rol
             <select value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="" disabled>Rol</option>
               <option value="student">Estudiante</option>
               <option value="teacher">Profesor</option>
             </select>
           </label>
           {error ? <p className="error-text">{error}</p> : null}
-          <button className="primary-button full-width" type="submit">Crear cuenta</button>
+          <button className="primary-button full-width" type="submit">Iniciar sesion</button>
         </form>
         <p className="small-text">
-          ¿Ya tienes cuenta? <Link to="/login">Ingresar</Link>
+          ¿Tenes una cuenta? <Link to="/login">Iniciar sesion</Link>
         </p>
       </article>
     </section>

@@ -1,98 +1,168 @@
 import { useEffect, useState } from 'react';
-/** Perfil del usuario logueado: datos básicos y accesos rápidos (ruta /account). */
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import Icon from '../components/Icon.jsx';
 
 export default function AccountPage() {
-  const { user, setUser } = useAuth();
-  const [firstName, setFirstName] = useState(user?.firstName || '');
-  const [lastName, setLastName] = useState(user?.lastName || '');
-  const [email, setEmail] = useState(user?.email || '');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [confirmModal, setConfirmModal] = useState(null);
 
-  useEffect(() => {
-    if (user) {
-      setFirstName(user.firstName);
-      setLastName(user.lastName);
-      setEmail(user.email);
-    }
-  }, [user]);
-
-  const handleSave = async (event) => {
-    event.preventDefault();
-    setError('');
-    setMessage('');
-    try {
-      const response = await api.put('/auth/me', { firstName, lastName, email });
-      setUser(response.data.user);
-      setMessage('Datos actualizados correctamente');
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo actualizar la cuenta');
-    }
-  };
+  const initials = `${user?.firstName || ''} ${user?.lastName || ''}`
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || '?';
 
   return (
-    <section className="page-container profile-layout">
-      <aside className="panel-card profile-sidebar">
-        <div className="avatar-circle" aria-hidden>👤</div>
-        <h2>{firstName} {lastName}</h2>
-        <p>{email}</p>
-        <span className="badge">{user?.role === 'teacher' ? 'Profesor' : 'Estudiante'}</span>
-        <div className="profile-actions">
-          <Link className="secondary-button" to="/designs">Mis diseños</Link>
-          <Link className="secondary-button" to="/classes">Mis clases</Link>
-        </div>
-      </aside>
+    <section className="figma-sector" id="account-page">
+      <div className="figma-sector-inner account-layout">
+        <aside className="account-sidebar">
+          <div className="account-avatar">
+            <div className="account-avatar-circle" aria-hidden>
+              {initials}
+            </div>
+            <div className="account-avatar-info">
+              <h2>{user?.firstName} {user?.lastName}</h2>
+              <p>{user?.email}</p>
+              <p className="account-role">{user?.role === 'teacher' ? 'Profesor' : 'Estudiante'}</p>
+            </div>
+          </div>
+          <div className="account-actions">
+            <button 
+              type="button" 
+              className="primary-button account-btn"
+              onClick={() => navigate('/edit-profile')}
+            >
+              <Icon name="edit" size={18} strokeWidth={2} />
+              Editar información
+            </button>
+            <button 
+              type="button" 
+              className="secondary-button account-btn" 
+              onClick={() => setConfirmModal('logout')}
+            >
+              <Icon name="logout" size={18} strokeWidth={2} />
+              Cerrar sesión
+            </button>
+            <button
+              type="button"
+              className="danger-button account-btn"
+              onClick={() => setConfirmModal('delete')}
+            >
+              <Icon name="trash" size={18} strokeWidth={2} />
+              Eliminar cuenta
+            </button>
+          </div>
+          <button type="button" className="account-help-link">
+            <Icon name="help" size={18} strokeWidth={2} />
+            Ayuda
+          </button>
+        </aside>
 
-      <article className="form-card profile-form">
-        <h1>Perfil</h1>
-        <p className="small-text">Actualiza tus datos personales para mantener tu cuenta al dia.</p>
-        <section className="profile-block-grid">
-          <div className="profile-block">
-            <div className="profile-block-head">
-              <h3>Mis diseños</h3>
-              <Link to="/designs">Ver todos</Link>
+        <main className="account-main">
+          <section className="account-section">
+            <header className="account-section-head">
+              <h1>Mis diseños</h1>
+              <Link to="/designs" className="account-link">Ver todo &gt;</Link>
+            </header>
+            <div className="account-cards-row">
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
             </div>
-            <div className="mini-cards">
-              <div className="mini-card">Vista panel</div>
-              <div className="mini-card">Prom y IA</div>
-              <div className="mini-card">Diagrama web</div>
+          </section>
+
+          <section className="account-section">
+            <header className="account-section-head">
+              <h1>Mis clases</h1>
+              <Link to="/classes" className="account-link">Ver todo &gt;</Link>
+            </header>
+            <div className="account-cards-row">
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+              <div className="account-card-placeholder figma-dot-pattern" />
+            </div>
+          </section>
+        </main>
+      </div>
+
+      {confirmModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <button 
+              type="button"
+              className="modal-close"
+              onClick={() => setConfirmModal(null)}
+            >
+              ✕
+            </button>
+            <div className="modal-body">
+              {confirmModal === 'logout' && (
+                <>
+                  <p>¿Esta seguro que quiere cerrar sesión?</p>
+                  <div className="modal-actions">
+                    <button 
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setConfirmModal(null)}
+                    >
+                      No
+                    </button>
+                    <button 
+                      type="button"
+                      className="primary-button"
+                      onClick={() => {
+                        setConfirmModal(null);
+                        logout();
+                      }}
+                    >
+                      Si
+                    </button>
+                  </div>
+                </>
+              )}
+              {confirmModal === 'delete' && (
+                <>
+                  <p>¿Esta seguro que quiere eliminar su cuenta?</p>
+                  <div className="modal-actions">
+                    <button 
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setConfirmModal(null)}
+                    >
+                      No
+                    </button>
+                    <button 
+                      type="button"
+                      className="danger-button"
+                      onClick={async () => {
+                        try {
+                          await api.delete('/users/me');
+                          logout();
+                        } catch (err) {
+                          console.error(err);
+                          setConfirmModal(null);
+                        }
+                      }}
+                    >
+                      Si
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-          <div className="profile-block">
-            <div className="profile-block-head">
-              <h3>Mis clases</h3>
-              <Link to="/classes">Ver todos</Link>
-            </div>
-            <div className="mini-cards">
-              <div className="mini-card">Normal class</div>
-              <div className="mini-card">Clase 2</div>
-              <div className="mini-card">Clase 3</div>
-            </div>
-          </div>
-        </section>
-        <form onSubmit={handleSave}>
-          <div className="form-row">
-            <label>
-              Nombre
-              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-            </label>
-            <label>
-              Apellido
-              <input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-            </label>
-          </div>
-          <label>
-            Email
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
-          {message ? <p className="success-text">{message}</p> : null}
-          {error ? <p className="error-text">{error}</p> : null}
-          <button className="primary-button" type="submit">Guardar cambios</button>
-        </form>
-      </article>
+        </div>
+      )}
     </section>
   );
 }
