@@ -18,6 +18,8 @@ import SignupPage from './pages/SignupPage.jsx';
 
 import AccountPage from './pages/AccountPage.jsx';
 
+import EditProfilePage from './pages/EditProfilePage.jsx';
+
 import ClassesPage from './pages/ClassesPage.jsx';
 
 import ClassDetailPage from './pages/ClassDetailPage.jsx';
@@ -33,7 +35,6 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 
 
 import RecoverPasswordPage from './pages/RecoverPasswordPage.jsx';
-import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import Footer from './components/Footer.jsx';
 
 
@@ -183,9 +184,11 @@ function AppShell() {
           <Route path="/signup" element={<SignupPage />} />
 
           <Route path="/recover" element={<RecoverPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/reset-password" element={<RecoverPasswordPage />} />
 
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+
+          <Route path="/edit-profile" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
 
           <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
 
@@ -204,6 +207,8 @@ function AppShell() {
         </Routes>
 
       </main>
+
+      {!isEditor ? <Footer /> : null}
 
     </div>
 

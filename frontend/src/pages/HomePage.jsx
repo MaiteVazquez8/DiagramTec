@@ -1,53 +1,95 @@
 /** Página de inicio (ruta /). Enlaces al editor, diseños y clases según sesión. */
 import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
+import Icon from '../components/Icon.jsx';
 
 export default function HomePage() {
   const { user } = useAuth();
+  const heroActions = [
+    { to: '/editor', label: 'Crear diseño' },
+    { to: '/editor', label: 'Cómo empezar' },
+    { to: '/designs', label: 'DiagramTec' },
+    { to: '/designs', label: 'Ver diseños' },
+    { to: '/classes', label: 'Unirse a clases' },
+  ];
+
   return (
-    <section className="page-container landing-page">
-      <article className="hero-card home-hero">
-        <p className="section-eyebrow">TecDiagram</p>
-        <h1>Bienvenido a TecDiagram</h1>
+    <section className="page-container figma-home-page">
+      <article className="figma-home-hero">
+        <h1>Bienvenido a DiagramTec</h1>
         <p>
-          La plataforma moderna para crear diagramas de flujo profesionales, guardar tus proyectos
-          y colaborar con tu equipo.
+          La plataforma moderna para crear diagramas de flujo de datos de forma intuitiva, guardar
+          tus proyectos y participar en clases.
         </p>
-        <div className="hero-actions">
-          <Link className="primary-button" to="/editor">+ Crear diagrama nuevo</Link>
-          {!user ? <Link className="secondary-button" to="/login">Ingresar / Registrarse</Link> : null}
+        <div className="figma-home-auth-actions">
+          {!user ? <Link className="primary-button" to="/login">+ Iniciar sesión</Link> : null}
+          {!user ? <Link className="primary-button" to="/signup">+ Registrarse</Link> : null}
         </div>
       </article>
 
-      <div className="cards-grid feature-grid">
-        <article className="info-card">
-          <p className="feature-icon" aria-hidden>👤</p>
-          <h2>Como invitado</h2>
-          <p>Explora la plataforma, crea un flujo rápido y prueba la experiencia antes de registrarte.</p>
-          <span className="badge">Sin limitaciones para probar</span>
-        </article>
-        <article className="info-card">
-          <p className="feature-icon" aria-hidden>🔐</p>
-          <h2>Con cuenta propia</h2>
-          <p>Guarda tus diseños, organiza tus clases y accede a tu historial desde tu perfil.</p>
-          <span className="badge">Acceso premium</span>
-        </article>
-        <article className="info-card">
-          <p className="feature-icon" aria-hidden>💡</p>
-          <h2>Diseños profesionales</h2>
-          <p>Construye diagramas con componentes avanzados, conexiones automaticas y exportacion a imagen.</p>
-          <span className="badge">Herramientas Pro</span>
-        </article>
+      <div className="figma-home-shortcuts">
+        {heroActions.map((action) => (
+          <article className="figma-mini-card" key={action.label}>
+            <div className="figma-mini-card-media" aria-hidden>
+              <Icon name="image" size={64} />
+            </div>
+            <Link className="primary-button figma-mini-card-button" to={action.to}>+ {action.label}</Link>
+          </article>
+        ))}
       </div>
 
-      <div className="quick-actions">
-        <h3>Listo para empezar?</h3>
-        <div className="action-links">
-          <Link className="card-link" to="/editor">Nuevo diagrama</Link>
-          <Link className="card-link" to="/designs">Mis diseños</Link>
-          <Link className="card-link" to="/classes">Mis clases</Link>
+      <section className="figma-home-block">
+        <h2>Cómo empezar</h2>
+        <p>
+          Configura tu perfil, crea tu primer diagrama y colabora con tu equipo. Una guía rápida
+          diseñada para que aproveches al máximo todas nuestras funciones de modelado y gestión académica.
+        </p>
+        <div className="figma-video-placeholder">
+          <button className="primary-button figma-video-button" type="button">+ Video / Tutorial</button>
         </div>
-      </div>
+      </section>
+
+      <section className="figma-home-block">
+        <h2>DiagramTec</h2>
+        <div className="figma-about-grid">
+          <div>
+            <h3>¿Quiénes somos?</h3>
+            <p>
+              Somos un equipo de desarrollo perteneciente a la E.E.S.T. N°1 de Monte Grande,
+              especializado en la orientación de Programación. Nuestro proyecto, Diagram Tec,
+              nace bajo la supervisión del profesor Diego Callamullo con el firme propósito de
+              modernizar las herramientas de aprendizaje técnico dentro de nuestra institución.
+            </p>
+            <p>Nuestro equipo esta conformado por:</p>
+            <ul>
+              <li><strong>Líder Back-End:</strong> Maite Vazquez.</li>
+              <li><strong>Marketing:</strong> Nayla Gomez.</li>
+              <li><strong>Desarrollo de Front-End:</strong> Santiago Alvarez y Leandro Pereyra.</li>
+              <li><strong>Documentación y Base de Datos:</strong> Joaquin Villalva.</li>
+            </ul>
+            <p>
+              <strong>Nuestro objetivo</strong><br />
+              En el ámbito educativo actual, la representación visual de procesos es fundamental.
+              Diagram Tec tiene como objetivo principal proporcionar una plataforma digital interactiva
+              que facilite la creación, gestión y edición de Diagramas de Flujo de Datos (DFD).
+              Buscamos transformar la enseñanza tradicional en una experiencia dinámica, accesible
+              y eficiente para toda la comunidad del Tecnológico.
+            </p>
+            <p>
+              <strong>¿Qué nos diferencia?</strong><br />
+              Nuestra plataforma no es solo un editor de diagramas; es un ecosistema educativo
+              diseñado para potenciar el análisis de sistemas.
+            </p>
+            <p><strong>La identidad de DiagramTec</strong><br />
+              El nombre Diagram Tec simboliza nuestra esencia: la combinación de la funcionalidad
+              técnica de los diagramas con la identidad de nuestra escuela.
+            </p>
+          </div>
+          <div className="figma-about-logo-wrap">
+            <img src="/Diagram(3).png" alt="Logo DiagramTec" className="figma-about-logo" />
+          </div>
+        </div>
+      </section>
     </section>
   );
 }

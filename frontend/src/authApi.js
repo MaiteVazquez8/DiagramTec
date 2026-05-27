@@ -4,7 +4,7 @@
  */
 import axios from 'axios';
 const authApi = axios.create({
-  baseURL: '/php-auth',
+  baseURL: '/api/php-auth',
   headers: {
     'Content-Type': 'application/json',
   },
