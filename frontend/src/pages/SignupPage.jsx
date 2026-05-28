@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import AppToast from '../components/AppToast.jsx';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -49,6 +50,7 @@ export default function SignupPage() {
 
   return (
     <section className="page-container auth-page-wrap">
+      <AppToast error={error} onCloseError={() => setError('')} />
       <article className="form-card auth-card figma-auth-card">
         <div className="auth-tabs">
           <Link to="/login">Iniciar sesion</Link>
@@ -92,7 +94,6 @@ export default function SignupPage() {
               <option value="teacher">Profesor</option>
             </select>
           </label>
-          {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Iniciar sesion</button>
         </form>
         <p className="small-text">

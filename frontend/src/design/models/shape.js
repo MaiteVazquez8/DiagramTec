@@ -176,5 +176,14 @@ export function bringShapeToFront(shapes, shapeId) {
  * @returns {Map<string|number, Shape>}
  */
 export function shapesToMap(shapes) {
-  return new Map(shapes.map((shape) => [shape.id, shape]));
+  const map = new Map();
+  for (const shape of shapes) {
+    map.set(shape.id, shape);
+    map.set(String(shape.id), shape);
+    const numericId = Number(shape.id);
+    if (!Number.isNaN(numericId)) {
+      map.set(numericId, shape);
+    }
+  }
+  return map;
 }

@@ -1,5 +1,9 @@
 const classService = require('../services/classService');
 
+function sameId(a, b) {
+  return Number(a) === Number(b);
+}
+
 async function listClasses(req, res) {
   const db = req.app.locals.db;
   const rows = await classService.listClasses(db, req.user.id);
@@ -25,7 +29,7 @@ async function createClass(req, res) {
 async function getClass(req, res) {
   const db = req.app.locals.db;
   const classId = Number(req.params.id);
-  const classRow = await classService.getClass(db, classId);
+  const classRow = await classService.getClass(db, classId, req.user.id);
   if (!classRow) {
     const err = new Error('CLASS_NOT_FOUND');
     err.statusCode = 404;
@@ -44,7 +48,7 @@ async function deleteClass(req, res) {
     err.statusCode = 404;
     throw err;
   }
-  if (classRow.ownerId !== req.user.id && req.user.role !== 'superadmin') {
+  if (!sameId(classRow.ownerId, req.user.id) && req.user.role !== 'superadmin') {
     return res.status(403).json({ error: 'No autorizado' });
   }
   await classService.deleteClass(db, classId);
@@ -76,12 +80,31 @@ async function getDesigns(req, res) {
     throw err;
   }
   const memberRows = await classService.isUserInClass(db, classId, req.user.id);
-  if (!memberRows && classRow.ownerId !== req.user.id && req.user.role !== 'superadmin') {
+  const isOwner = sameId(classRow.ownerId, req.user.id);
+  if (!memberRows && !isOwner && req.user.role !== 'superadmin') {
     return res.status(403).json({ error: 'No autorizado' });
   }
   const designs = await classService.listDesignsByClass(db, classId);
   const comments = await classService.getClassComments(db, classId);
   res.json({ designs, comments });
+}
+
+async function getMembers(req, res) {
+  const db = req.app.locals.db;
+  const classId = Number(req.params.id);
+  const result = await classService.listClassMembers(db, classId, req.user);
+  res.json(result);
+}
+
+async function expelStudent(req, res) {
+  const db = req.app.locals.db;
+  const classId = Number(req.params.id);
+  const { userId: targetUserId } = req.body;
+  if (!targetUserId) {
+    return res.status(400).json({ error: 'Usuario obligatorio' });
+  }
+  await classService.expelStudent(db, classId, Number(targetUserId), req.user);
+  res.json({ ok: true });
 }
 
 async function postComment(req, res) {
@@ -102,5 +125,7 @@ module.exports = {
   joinClass,
   leaveClass,
   getDesigns,
-  postComment
+  getMembers,
+  postComment,
+  expelStudent
 };
