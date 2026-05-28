@@ -5,3 +5,9 @@ frontend/dist/
 backend/data/database.sqlite
 php/vendor/
 .DS_Store
+
+# pnpm
+.pnpm-store/
+.pnpm-debug.log*
+frontend/pnpm-lock.yaml
+backend/pnpm-lock.yaml
