@@ -23,7 +23,7 @@ export function buildInlinePdfDataUrl(canvas, width, height) {
 }
 
 /**
- * Descarga PDF A4 escalado desde canvas de alta resolución.
+ * Descarga PDF ajustado al contenido real del diagrama.
  * @param {HTMLCanvasElement} canvas
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {string} [filename]
@@ -35,15 +35,11 @@ export function downloadDiagramPdf(canvas, shapes, filename = 'diagrama') {
 
   const pdf = new jsPDF({
     orientation: bounds.width > bounds.height ? 'landscape' : 'portrait',
-    unit: 'mm',
-    format: 'a4',
+    unit: 'px',
+    format: [bounds.width, bounds.height],
   });
 
-  const imgProps = pdf.getImageProperties(highResImg);
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-
-  pdf.addImage(highResImg, 'PNG', 0, 0, pdfWidth, pdfHeight);
+  pdf.addImage(highResImg, 'PNG', 0, 0, bounds.width, bounds.height);
 
   let dataUri = '';
   try {

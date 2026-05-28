@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
+import AppToast from '../components/AppToast.jsx';
 
 export default function RecoverPasswordPage() {
   const navigate = useNavigate();
@@ -56,6 +57,12 @@ export default function RecoverPasswordPage() {
 
   return (
     <section className="page-container auth-page-wrap">
+      <AppToast
+        message={message}
+        error={error}
+        onCloseMessage={() => setMessage('')}
+        onCloseError={() => setError('')}
+      />
       <article className="form-card auth-card figma-auth-card">
         <div className="auth-tabs">
           <Link to="/login">Iniciar sesion</Link>
@@ -94,8 +101,6 @@ export default function RecoverPasswordPage() {
             />
           </label>
           <button className="ghost-link" type="button" onClick={handleSendCode}>Reenviar codigo</button>
-          {message ? <p className="success-text">{message}</p> : null}
-          {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Cambiar contraseña</button>
         </form>
       </article>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import AppToast from '../components/AppToast.jsx';
 
 export default function EditProfilePage() {
   const { user, setUser } = useAuth();
@@ -53,6 +54,12 @@ export default function EditProfilePage() {
 
   return (
     <section className="figma-sector" id="edit-profile-page">
+      <AppToast
+        message={message}
+        error={error}
+        onCloseMessage={() => setMessage('')}
+        onCloseError={() => setError('')}
+      />
       <div className="edit-profile-container">
         <h1>Modificar datos</h1>
 
@@ -125,11 +132,6 @@ export default function EditProfilePage() {
               Cambiar contraseña
             </button>
           )}
-
-          <div className="form-messages">
-            {message && <p className="success-text">{message}</p>}
-            {error && <p className="error-text">{error}</p>}
-          </div>
 
           <button 
             type="submit"

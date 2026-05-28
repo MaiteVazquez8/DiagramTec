@@ -24,11 +24,19 @@ import ClassesPage from './pages/ClassesPage.jsx';
 
 import ClassDetailPage from './pages/ClassDetailPage.jsx';
 
+import ClassMembersPage from './pages/ClassMembersPage.jsx';
+
 import DesignsPage from './pages/DesignsPage.jsx';
 
 import EditorPage from './pages/EditorPage.jsx';
 
 import SuperAdminPage from './pages/SuperAdminPage.jsx';
+
+import SuperAdminStudentsPage from './pages/SuperAdminStudentsPage.jsx';
+
+import SuperAdminTeachersPage from './pages/SuperAdminTeachersPage.jsx';
+
+import SuperAdminClassesPage from './pages/SuperAdminClassesPage.jsx';
 
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
@@ -39,6 +47,7 @@ import Footer from './components/Footer.jsx';
 
 
 import Icon from './components/Icon.jsx';
+import ProfileSilhouette from './components/ProfileSilhouette.jsx';
 
 
 
@@ -49,7 +58,9 @@ function AdminRoute({ children }) {
 
   if (loading) return <div className="page-container">Cargando...</div>;
 
-  if (!user || user.role !== 'superadmin') return <Navigate to="/" replace />;
+  if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
+    return <Navigate to="/" replace />;
+  }
 
   return children;
 
@@ -71,29 +82,21 @@ function ProtectedRoute({ children }) {
 
 
 function HeaderProfileAvatar() {
-  return (
-    <svg
-      className="figma-header-profile-svg"
-      viewBox="0 0 48 48"
-      width="48"
-      height="48"
-      aria-hidden
-    >
-      <circle cx="24" cy="24" r="24" className="figma-profile-bg" />
-      <circle cx="24" cy="17.5" r="6.25" className="figma-profile-silhouette" />
-      <ellipse cx="24" cy="36" rx="11" ry="7.5" className="figma-profile-silhouette" />
-    </svg>
-  );
+  return <ProfileSilhouette size={44} className="figma-header-profile-svg" />;
 }
 
 /** Barra superior: logo, nav central, avatar a cuenta/login, menú móvil. */
 function Header() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const isSuperAdminPanel = location.pathname.startsWith('/superadmin');
 
   const toggleMenu = () => setMenuOpen(!menuOpen);
   const closeMenu = () => setMenuOpen(false);
-  const profileTo = user ? '/account' : '/login';
+  const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
+  const profileTo = !user ? '/login' : isSuperAdmin ? '/superadmin' : '/account';
+  const profileLabel = !user ? 'Iniciar sesión' : isSuperAdmin ? 'Panel superadmin' : 'Mi cuenta';
 
   return (
     <header className="app-header figma-header">
@@ -115,16 +118,28 @@ function Header() {
         </button>
 
         <div className={`figma-header-nav-wrap ${menuOpen ? 'open' : ''}`}>
-          <nav className="figma-nav" aria-label="Principal">
-            <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
-            <span className="figma-nav-divider" aria-hidden />
-            <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
-            <span className="figma-nav-divider" aria-hidden />
-            <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink>
-            {user?.role === 'superadmin' && (
+          <nav className="figma-nav" aria-label={isSuperAdminPanel ? 'Administración' : 'Principal'}>
+            {isSuperAdminPanel ? (
               <>
+                <NavLink to="/superadmin/alumnos" onClick={closeMenu}>Gestión de alumnos</NavLink>
                 <span className="figma-nav-divider" aria-hidden />
-                <NavLink to="/superadmin" onClick={closeMenu}>Superadmin</NavLink>
+                <NavLink to="/superadmin/profesores" onClick={closeMenu}>Gestión de profesores</NavLink>
+                <span className="figma-nav-divider" aria-hidden />
+                <NavLink to="/superadmin/clases" onClick={closeMenu}>Gestión de clases</NavLink>
+              </>
+            ) : (
+              <>
+                <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
+                <span className="figma-nav-divider" aria-hidden />
+                <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
+                <span className="figma-nav-divider" aria-hidden />
+                <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink>
+                {(user?.role === 'superadmin' || user?.role === 'admin') && (
+                  <>
+                    <span className="figma-nav-divider" aria-hidden />
+                    <NavLink to="/superadmin" onClick={closeMenu}>Superadmin</NavLink>
+                  </>
+                )}
               </>
             )}
           </nav>
@@ -145,9 +160,9 @@ function Header() {
         <Link
           to={profileTo}
           className="figma-header-profile"
-          title={user ? 'Mi cuenta' : 'Iniciar sesión'}
+          title={profileLabel}
           onClick={closeMenu}
-          aria-label={user ? 'Mi cuenta' : 'Iniciar sesión'}
+          aria-label={profileLabel}
         >
           <HeaderProfileAvatar />
         </Link>
@@ -164,16 +179,19 @@ function AppShell() {
   const location = useLocation();
 
   const isEditor = location.pathname.startsWith('/editor');
+  const isSuperAdmin = location.pathname.startsWith('/superadmin');
 
-
+  let mainClass = 'main-figma';
+  if (isEditor) mainClass = 'main-editor';
+  else if (isSuperAdmin) mainClass = 'main-figma main-superadmin';
 
   return (
 
-    <div className="app-shell">
+    <div className={`app-shell${isSuperAdmin ? ' app-shell--superadmin' : ''}`}>
 
       <Header />
 
-      <main className={isEditor ? 'main-editor' : 'main-figma'}>
+      <main className={mainClass}>
 
         <Routes>
 
@@ -192,6 +210,8 @@ function AppShell() {
 
           <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
 
+          <Route path="/classes/:id/members" element={<ProtectedRoute><ClassMembersPage /></ProtectedRoute>} />
+
           <Route path="/classes/:id" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
 
           <Route path="/designs" element={<DesignsPage />} />
@@ -201,6 +221,12 @@ function AppShell() {
           <Route path="/editor/:id" element={<EditorPage />} />
 
           <Route path="/superadmin" element={<AdminRoute><SuperAdminPage /></AdminRoute>} />
+
+          <Route path="/superadmin/alumnos" element={<AdminRoute><SuperAdminStudentsPage /></AdminRoute>} />
+
+          <Route path="/superadmin/profesores" element={<AdminRoute><SuperAdminTeachersPage /></AdminRoute>} />
+
+          <Route path="/superadmin/clases" element={<AdminRoute><SuperAdminClassesPage /></AdminRoute>} />
 
           <Route path="*" element={<NotFoundPage />} />
 
