@@ -1,5 +1,11 @@
-/** Tarjeta de publicación en detalle de clase: preview del diagrama, expandir/colapsar, acciones. */
+/** Tarjeta de publicación en detalle de clase (mock Figma). */
+import { useState, useRef, useEffect } from 'react';
 import Icon from './Icon';
+
+function sameId(a, b) {
+  if (a == null || b == null) return false;
+  return Number(a) === Number(b);
+}
 
 export default function ClassPost({
   design,
@@ -8,12 +14,21 @@ export default function ClassPost({
   handleCopy,
   handleDelete,
   handleView,
+  handleExpel,
+  canExpelStudent,
   currentUser,
   getInitials,
 }) {
-  const isOwner = design.ownerId === currentUser?.id;
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  const isOwner = sameId(design.ownerId, currentUser?.id);
   const isAdmin = currentUser?.role === 'superadmin';
   const canDelete = isAdmin || isOwner;
+  const isStudentPost =
+    design.ownerRole === 'student'
+    && !sameId(design.ownerId, design.classOwnerId);
+  const showExpel = Boolean(canExpelStudent && isStudentPost && handleExpel);
 
   const formattedDate = new Date(design.createdAt).toLocaleDateString('es-AR', {
     day: '2-digit',
@@ -21,28 +36,38 @@ export default function ClassPost({
     year: 'numeric',
   });
 
+  const bodyText = design.description?.trim() || design.title;
+
+  const handleDownloadPdf = () => {
+    if (!design.pdf_data) return;
+    const link = document.createElement('a');
+    link.href = design.pdf_data;
+    link.download = `${design.title || 'diagrama'}.pdf`;
+    link.click();
+  };
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const onDocClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [showMenu]);
+
   return (
     <article className={`figma-class-post${isCollapsed ? ' is-collapsed' : ''}`} id={`post-${design.id}`}>
       <header className="figma-class-post__head">
-        <div className="figma-class-post__avatar">{getInitials(design.ownerName)}</div>
+        <div className="figma-class-post__avatar" aria-hidden>
+          {getInitials(design.ownerName)}
+        </div>
         <div className="figma-class-post__meta">
-          <div className="figma-class-post__name">
-            {isCollapsed ? design.title : design.ownerName}
-          </div>
+          <div className="figma-class-post__name">{design.ownerName}</div>
           <div className="figma-class-post__date">{formattedDate}</div>
         </div>
         <div className="figma-class-post__head-actions">
-          {canDelete && (
-            <button
-              type="button"
-              className="figma-class-post__icon-btn"
-              onClick={() => handleDelete(design.id)}
-              title="Eliminar publicación"
-              aria-label="Eliminar publicación"
-            >
-              <Icon name="trash" size={17} />
-            </button>
-          )}
           <button
             type="button"
             className="figma-class-post__icon-btn"
@@ -50,61 +75,115 @@ export default function ClassPost({
             aria-expanded={!isCollapsed}
             aria-label={isCollapsed ? 'Expandir publicación' : 'Contraer publicación'}
           >
-            {isCollapsed ? <Icon name="chevronDown" size={20} /> : <Icon name="chevronUp" size={20} />}
+            <Icon name={isCollapsed ? 'chevronDown' : 'chevronUp'} size={20} />
           </button>
+          <div className="figma-class-post__menu-wrap" ref={menuRef}>
+            <button
+              type="button"
+              className={`figma-class-post__icon-btn figma-class-post__menu-btn${showMenu ? ' figma-class-post__menu-btn--open' : ''}`}
+              onClick={() => setShowMenu((v) => !v)}
+              aria-expanded={showMenu}
+              aria-haspopup="menu"
+              aria-label="Opciones de la publicación"
+            >
+              <Icon name="dots" size={18} />
+            </button>
+            {showMenu && (
+              <div className="figma-class-post__popover" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="figma-class-post__popover-btn"
+                  onClick={() => { setShowMenu(false); handleView(design.id); }}
+                >
+                  Ver diseño
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="figma-class-post__popover-btn"
+                  onClick={() => { setShowMenu(false); handleCopy(design.id); }}
+                >
+                  Copiar diseño
+                </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="figma-class-post__popover-btn"
+                    onClick={() => { setShowMenu(false); handleDelete(design.id); }}
+                  >
+                    Eliminar publicación
+                  </button>
+                )}
+                {showExpel && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="figma-class-post__popover-btn"
+                    onClick={() => {
+                      setShowMenu(false);
+                      handleExpel(design.ownerId, design.ownerName);
+                    }}
+                  >
+                    Expulsar estudiante
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {!isCollapsed && (
         <div className="figma-class-post__body">
-          <h3 className="figma-class-post__title">{design.title}</h3>
-          {design.description && (
-            <p className="figma-class-post__description">{design.description}</p>
-          )}
+          {bodyText && <p className="figma-class-post__description">{bodyText}</p>}
 
-          <div className="figma-class-post__preview figma-dot-pattern">
-            {design.image ? (
-              <img src={design.image} alt={design.title} className="figma-class-post__preview-img" />
-            ) : (
-              <div className="figma-class-post__preview-placeholder" aria-hidden>
-                <Icon name="image" size={40} strokeWidth={1.2} />
-              </div>
-            )}
+          <div className="figma-class-post__preview-wrap">
+            <div className="figma-class-post__preview-actions" aria-label="Acciones del diseño">
+              <button
+                type="button"
+                className="figma-class-post__action-btn"
+                onClick={() => handleView(design.id)}
+                title="Ver diseño"
+                aria-label="Ver diseño"
+              >
+                <Icon name="eye" size={22} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                className="figma-class-post__action-btn"
+                onClick={() => handleCopy(design.id)}
+                title="Copiar diseño"
+                aria-label="Copiar diseño"
+              >
+                <Icon name="copy" size={22} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                className="figma-class-post__action-btn"
+                onClick={handleDownloadPdf}
+                disabled={!design.pdf_data}
+                title={design.pdf_data ? 'Descargar PDF' : 'PDF no disponible'}
+                aria-label="Descargar PDF"
+              >
+                <Icon name="download" size={22} strokeWidth={2} />
+              </button>
+            </div>
+            <div className="figma-class-post__preview figma-dot-pattern">
+              {design.image ? (
+                <img src={design.image} alt={design.title} className="figma-class-post__preview-img" />
+              ) : (
+                <div className="figma-class-post__preview-placeholder" aria-hidden>
+                  <Icon name="image" size={40} strokeWidth={1.2} />
+                </div>
+              )}
+            </div>
           </div>
-
-          {design.pdf_data && (
-            <button
-              type="button"
-              className="figma-class-post__pdf-link"
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = design.pdf_data;
-                link.download = `${design.title}.pdf`;
-                link.click();
-              }}
-            >
-              <Icon name="download" size={14} />
-              Descargar PDF
-            </button>
-          )}
 
           <footer className="figma-class-post__footer">
             <Icon name="comment" size={18} className="figma-class-post__footer-icon" />
-            <button
-              type="button"
-              className="figma-class-post__footer-cta"
-              onClick={() => document.getElementById('class-comment-input')?.focus()}
-            >
-              Subir comentario / diseño
-            </button>
-            <div className="figma-class-post__footer-aside">
-              <button type="button" className="figma-class-post__footer-link" onClick={() => handleView(design.id)}>
-                Ver diseño
-              </button>
-              <button type="button" className="figma-class-post__footer-link" onClick={() => handleCopy(design.id)}>
-                Copiar diseño
-              </button>
-            </div>
+            <span className="figma-class-post__footer-label">Comentarios / diseños recibidos</span>
           </footer>
         </div>
       )}

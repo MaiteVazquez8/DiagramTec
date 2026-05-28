@@ -59,7 +59,7 @@ export const ICONIFY_ICONS = {
 
   upload: 'tabler:photo-up',
 
-  search: 'tabler:file-search',
+  search: 'tabler:search',
 
   empty: 'tabler:folder',
 
@@ -88,10 +88,10 @@ export const ICONIFY_ICONS = {
   /* —— Header / sesión —— */
 
   menu: 'tabler:list-details',
+  list: 'tabler:list',
+  circleX: 'tabler:circle-x',
 
   close: 'tabler:x',
-
-  circleX: 'tabler:circle-x',
 
   user: 'tabler:user-cog',
 
@@ -137,8 +137,12 @@ export const ICONIFY_ICONS = {
 
   book: 'tabler:book-filled',
   classBook: 'tabler:book-filled',
+  bookmark: 'tabler:bookmark',
 
   emptyClass: 'tabler:users',
+  usersGroup: 'tabler:users-group',
+
+  filePlus: 'tabler:file-plus',
 
   folder: 'tabler:folder',
 
