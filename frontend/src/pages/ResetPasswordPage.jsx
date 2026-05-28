@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authApi from '../authApi.js';
+import AppToast from '../components/AppToast.jsx';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -40,6 +41,12 @@ export default function ResetPasswordPage() {
 
   return (
     <section className="page-container auth-layout">
+      <AppToast
+        message={message}
+        error={error}
+        onCloseMessage={() => setMessage('')}
+        onCloseError={() => setError('')}
+      />
       <article className="form-card auth-card">
         <h2>Restablecer contraseña</h2>
         <p>Introduce tu correo, el token recibido y la nueva contraseña.</p>
@@ -84,8 +91,6 @@ export default function ResetPasswordPage() {
               placeholder="Confirmar contraseña"
             />
           </label>
-          {message ? <p className="success-text">{message}</p> : null}
-          {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Cambiar contraseña</button>
         </form>
         <p className="small-text">

@@ -7,12 +7,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-import {
-  ArrowLeft, ImageIcon, SmallImageIcon, CommentIcon, UploadIcon, ClockIcon,
-  SendIcon, ChevronUp, ChevronDown, TrashIcon, BookIcon, PlusIcon, ArrowIcon
-} from '../components/EditorUI.jsx';
+import { SendIcon, TrashIcon } from '../components/EditorUI.jsx';
 import Icon from '../components/Icon.jsx';
 import ClassPost from '../components/ClassPost';
+import AppToast from '../components/AppToast.jsx';
+import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
+
+function sameId(a, b) {
+  if (a == null || b == null) return false;
+  return Number(a) === Number(b);
+}
 
 export default function ClassDetailPage() {
   const { id } = useParams();
@@ -31,34 +35,52 @@ export default function ClassDetailPage() {
   const [collapsedPosts, setCollapsedPosts] = useState(new Set());
   const [showClassMenu, setShowClassMenu] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [confirmModal, setConfirmModal] = useState({ show: false, type: '', id: null, title: '', message: '' });
+  const [confirmModal, setConfirmModal] = useState({
+    show: false,
+    type: '',
+    targetId: null,
+    userId: null,
+    highlightName: '',
+  });
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
-  const closeConfirm = () => setConfirmModal({ ...confirmModal, show: false });
+  const closeConfirm = () => {
+    if (confirmBusy) return;
+    setConfirmModal({
+      show: false, type: '', targetId: null, userId: null, highlightName: '',
+    });
+  };
 
-  const triggerConfirm = (type, id, title, message) => {
-    setConfirmModal({ show: true, type, id, title, message });
+  const triggerConfirm = (type, targetId = null, userId = null, highlightName = '') => {
+    setConfirmModal({ show: true, type, targetId, userId, highlightName });
   };
 
   const loadClassData = async () => {
     try {
       const res = await api.get(`/classes/${id}`);
       setClassInfo(res.data.class);
-
-      // Load class designs and comments
-      const designsRes = await api.get(`/classes/${id}/designs`);
-      setDesigns(designsRes.data.designs);
-      setComments(designsRes.data.comments || []);
     } catch (err) {
       setError('No se pudo cargar la información de la clase');
+      return;
+    }
+
+    try {
+      const designsRes = await api.get(`/classes/${id}/designs`);
+      setDesigns(designsRes.data.designs || []);
+      setComments(designsRes.data.comments || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudieron cargar las publicaciones');
     }
   };
 
   const loadUserDesigns = async () => {
+    if (!user?.id) return;
     try {
       const res = await api.get('/designs');
-      setUserDesigns(res.data.designs.filter((d) => d.ownerId === user?.id));
+      const mine = (res.data.designs || []).filter((d) => sameId(d.ownerId, user.id));
+      setUserDesigns(mine);
     } catch (err) {
-      // ignore
+      setError(err.response?.data?.error || 'No se pudieron cargar tus diseños');
     }
   };
 
@@ -94,7 +116,7 @@ export default function ClassDetailPage() {
       setShowUploadModal(false);
       loadClassData();
     } catch (err) {
-      setError('No se pudo compartir el diseño');
+      setError(err.response?.data?.error || 'No se pudo compartir el diseño');
     }
   };
 
@@ -168,28 +190,53 @@ export default function ClassDetailPage() {
   };
 
   const handleDeletePost = (designId) => {
-    triggerConfirm('post', designId, '¿Eliminar publicación?', 'Esta acción eliminará el diseño compartido de forma permanente.');
+    triggerConfirm('post', designId);
   };
 
   const handleDeleteComment = (commentId) => {
-    triggerConfirm('comment', commentId, '¿Eliminar comentario?', '¿Estás seguro de que deseas eliminar este mensaje?');
+    triggerConfirm('comment', commentId);
+  };
+
+  const handleExpelStudent = (studentUserId, studentName) => {
+    triggerConfirm('expel', null, studentUserId, studentName);
+  };
+
+  const confirmModalVariant = (type) => {
+    if (type === 'post') return 'deletePost';
+    if (type === 'comment') return 'deleteComment';
+    if (type === 'class') return 'deleteClass';
+    return type;
   };
 
   const confirmAction = async () => {
-    const { type, id } = confirmModal;
+    const { type, targetId, userId: targetUserId } = confirmModal;
+    setConfirmBusy(true);
     try {
       if (type === 'post') {
-        // En lugar de borrar el diseño, le quitamos el ID de la clase
-        await api.put(`/designs/${id}`, { classId: null });
+        await api.put(`/designs/${targetId}`, { classId: null });
         setMessage('Publicación eliminada de la clase');
       } else if (type === 'comment') {
-        await api.delete(`/comments/${id}`);
+        await api.delete(`/comments/${targetId}`);
         setMessage('Comentario eliminado');
+      } else if (type === 'expel') {
+        await api.post(`/classes/${id}/expel`, { userId: targetUserId });
+        setMessage('Estudiante expulsado de la clase');
+      } else if (type === 'class') {
+        await api.delete(`/classes/${targetId ?? id}`);
+        navigate('/classes');
+        return;
       }
       loadClassData();
     } catch (err) {
-      setError(`No se pudo eliminar ${type === 'post' ? 'la publicación' : 'el comentario'}`);
+      if (type === 'class') {
+        setError(err.response?.data?.error || 'No se pudo eliminar la clase');
+      } else if (type === 'expel') {
+        setError(err.response?.data?.error || 'No se pudo expulsar al estudiante');
+      } else {
+        setError(`No se pudo eliminar ${type === 'post' ? 'la publicación' : 'el comentario'}`);
+      }
     } finally {
+      setConfirmBusy(false);
       closeConfirm();
     }
   };
@@ -209,81 +256,133 @@ export default function ClassDetailPage() {
     );
   }
 
-  const canSeeCode = user?.role === 'teacher' || user?.id === classInfo.ownerId;
+  const isTeacher = user?.role === 'teacher';
+  const isClassOwner = sameId(user?.id, classInfo.ownerId) || classInfo.isOwner;
+  const canSeeCode = isTeacher || isClassOwner || user?.role === 'superadmin';
+  const canDeleteClass =
+    user?.role === 'superadmin'
+    || user?.role === 'admin'
+    || (isTeacher && isClassOwner);
+  const canLeaveClass = classInfo.joined && !canDeleteClass && !isClassOwner;
+  const canPublishToClass =
+    (isTeacher || user?.role === 'superadmin')
+    && (isClassOwner || Boolean(classInfo.joined));
+  const canExpelStudents = (isTeacher && isClassOwner) || user?.role === 'superadmin';
+
+  const openUploadModal = () => {
+    setShowUploadModal(true);
+    loadUserDesigns();
+  };
 
   return (
     <section className="figma-sector class-detail-sector" id="class-detail-page">
       <div className="figma-sector-inner">
-      <button
-        type="button"
-        className="class-detail-back"
-        onClick={() => navigate('/classes')}
-        id="btn-back-classes"
-      >
-        <ArrowLeft /> Volver
-      </button>
-
-      <article className="class-detail-banner">
+      <article className="class-detail-banner figma-dot-pattern">
+        <div className="class-detail-banner__bookmark" aria-hidden>
+          <Icon name="bookmark" size={22} />
+        </div>
         <div className="class-detail-banner__menu-wrap">
           <button
             type="button"
-            className="class-detail-banner__menu"
+            className={`class-detail-banner__menu${showClassMenu ? ' class-detail-banner__menu--open' : ''}`}
             onClick={() => setShowClassMenu((v) => !v)}
             aria-label="Opciones de la clase"
             aria-expanded={showClassMenu}
+            aria-haspopup="menu"
           >
             <Icon name="dots" size={18} />
           </button>
           {showClassMenu && (
-            <div className="class-detail-banner__dropdown" role="menu">
-              {classInfo.joined ? (
-                <button type="button" role="menuitem" onClick={() => { setShowClassMenu(false); handleLeaveClass(); }}>
+            <div className="class-detail-banner__popover" role="menu">
+              {canDeleteClass && (
+                <button
+                  type="button"
+                  className="class-detail-banner__popover-btn"
+                  role="menuitem"
+                  onClick={() => {
+                    setShowClassMenu(false);
+                    triggerConfirm('class', Number(id));
+                  }}
+                >
+                  Eliminar clase
+                </button>
+              )}
+              {canLeaveClass && (
+                <button
+                  type="button"
+                  className="class-detail-banner__popover-btn"
+                  role="menuitem"
+                  onClick={() => { setShowClassMenu(false); handleLeaveClass(); }}
+                >
                   Abandonar clase
                 </button>
-              ) : (
-                user?.id !== classInfo.ownerId && (
-                  <button type="button" role="menuitem" onClick={() => { setShowClassMenu(false); handleJoinClass(); }}>
-                    Unirse a la clase
-                  </button>
-                )
+              )}
+              {!classInfo.joined && !canDeleteClass && !isClassOwner && (
+                <button
+                  type="button"
+                  className="class-detail-banner__popover-btn"
+                  role="menuitem"
+                  onClick={() => { setShowClassMenu(false); handleJoinClass(); }}
+                >
+                  Unirse a la clase
+                </button>
               )}
             </div>
           )}
         </div>
-        <div className="class-detail-banner__media figma-dot-pattern" aria-hidden>
-          <Icon name="classBook" size={40} className="class-list-card-book-icon" />
-        </div>
-        <div className="class-detail-banner__body">
-          <h1>{classInfo.title}</h1>
-          <p>{classInfo.ownerName}</p>
-          {canSeeCode && classInfo.code && (
-            <span className="class-detail-code-badge">Código: {classInfo.code}</span>
+        <div className="class-detail-banner__foot">
+          <div className="class-detail-banner__info">
+            <h1>{classInfo.title}</h1>
+            <p>{classInfo.ownerName}</p>
+          </div>
+          {canSeeCode && (
+            <div className="class-detail-banner__code">
+              <span className="class-detail-banner__code-label">Código</span>
+              {classInfo.code && (
+                <span className="class-detail-banner__code-value">{classInfo.code}</span>
+              )}
+            </div>
           )}
         </div>
       </article>
 
-      {/* ── Toast Notifications ── */}
-      <div className="toast-container">
-        {message && (
-          <div className="toast success-toast">
-            <div className="toast-icon">✓</div>
-            <div className="toast-content">{message}</div>
-            <button className="toast-close" onClick={() => setMessage('')}><Icon name="close" size={14} /></button>
-          </div>
-        )}
-        {error && (
-          <div className="toast error-toast">
-            <div className="toast-icon">!</div>
-            <div className="toast-content">{error}</div>
-            <button className="toast-close" onClick={() => setError('')}><Icon name="close" size={14} /></button>
-          </div>
+      <AppToast
+        message={message}
+        error={error}
+        onCloseMessage={() => setMessage('')}
+        onCloseError={() => setError('')}
+      />
+
+      <div className="class-detail-section-head">
+        <h2 className="class-section-title">Publicaciones de la clase</h2>
+        {canExpelStudents && (
+          <button
+            type="button"
+            className="class-detail-section-head__icon class-detail-section-head__icon--btn"
+            onClick={() => navigate(`/classes/${id}/members`)}
+            aria-label="Ver miembros de la clase"
+          >
+            <Icon name="usersGroup" size={26} />
+          </button>
         )}
       </div>
+      <hr className="class-detail-section-rule" />
 
-      {/* ── Publications Section ── */}
-      <h3 className="class-section-title">Publicaciones de la clase</h3>
+      {canPublishToClass && (
+        <button
+          type="button"
+          className="class-upload-trigger"
+          onClick={openUploadModal}
+          id="btn-upload-class-post"
+        >
+          <span className="class-upload-trigger__icon" aria-hidden>
+            <Icon name="filePlus" size={22} />
+          </span>
+          <span className="class-upload-trigger__text">Subir publicación a clase</span>
+        </button>
+      )}
 
-      <div className="posts-feed">
+      <div className="posts-feed class-detail-posts">
         {designs.length === 0 ? (
           <div className="class-posts-empty figma-dot-pattern">
             <p>No hay publicaciones en esta clase aún.</p>
@@ -292,12 +391,14 @@ export default function ClassDetailPage() {
           designs.map((design) => (
             <ClassPost
               key={design.id}
-              design={design}
+              design={{ ...design, classOwnerId: classInfo.ownerId }}
               isCollapsed={collapsedPosts.has(design.id)}
               togglePost={togglePost}
-              handleCopy={async (id) => {
+              canExpelStudent={canExpelStudents}
+              handleExpel={handleExpelStudent}
+              handleCopy={async (designId) => {
                 try {
-                  await handleCopyDesign(id);
+                  await handleCopyDesign(designId);
                   setMessage('Diseño copiado con éxito a tus diseños personales');
                 } catch (err) {
                   setError('Error al copiar: ' + (err.response?.data?.error || err.message));
@@ -347,49 +448,31 @@ export default function ClassDetailPage() {
         </div>
       )}
 
-      <div className={`class-composer figma-class-composer ${selectedDesignId ? 'has-attachment' : ''}`}>
-        <div className="class-composer-avatar">
-          {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
-        </div>
-        <div className="class-composer-field">
-          {selectedDesignId && (
-            <div className="class-composer-attachment">
-              <Icon name="image" size={12} />
-              <span>Diseño adjunto: {userDesigns.find((d) => d.id === selectedDesignId)?.title}</span>
-              <button type="button" onClick={() => setSelectedDesignId(null)} aria-label="Quitar diseño">
-                <Icon name="close" size={12} />
-              </button>
-            </div>
-          )}
-          <input
-            type="text"
-            className="class-composer-input"
-            placeholder={
-              selectedDesignId
-                ? 'Añade una descripción a tu diseño...'
-                : 'Subir comentario / diseño'
-            }
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
-            id="class-comment-input"
-          />
-        </div>
-        <div className="class-composer-actions">
-          {user?.role === 'teacher' && (
-            <button
-              type="button"
-              className={`class-composer-upload ${selectedDesignId ? 'active' : ''}`}
-              onClick={() => {
-                setShowUploadModal(true);
-                loadUserDesigns();
-              }}
-              title="Adjuntar diseño"
-              id="btn-open-upload"
-            >
-              <UploadIcon />
-            </button>
-          )}
+      {!isTeacher && (
+        <div className={`class-composer class-composer--student ${selectedDesignId ? 'has-attachment' : ''}`}>
+          <div className="class-composer-avatar">
+            {user ? getInitials(`${user.firstName} ${user.lastName}`) : '?'}
+          </div>
+          <div className="class-composer-field">
+            {selectedDesignId && (
+              <div className="class-composer-attachment">
+                <Icon name="image" size={12} />
+                <span>Diseño adjunto: {userDesigns.find((d) => d.id === selectedDesignId)?.title}</span>
+                <button type="button" onClick={() => setSelectedDesignId(null)} aria-label="Quitar diseño">
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            )}
+            <input
+              type="text"
+              className="class-composer-input"
+              placeholder="Escribe un comentario..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+              id="class-comment-input"
+            />
+          </div>
           <button
             type="button"
             className="class-composer-send primary-button"
@@ -400,7 +483,7 @@ export default function ClassDetailPage() {
             <SendIcon /> Enviar
           </button>
         </div>
-      </div>
+      )}
 
       {/* ── Upload Design Modal ── */}
       {showUploadModal && (
@@ -426,25 +509,13 @@ export default function ClassDetailPage() {
 
             <header className="figma-designs-modal__header">
               <h2 id="figma-designs-modal-title">Mis diseños</h2>
-              <button
-                type="button"
-                className="primary-button figma-designs-modal__upload-btn"
-                onClick={() => {
-                  setShowUploadModal(false);
-                  navigate('/editor');
-                }}
-                id="btn-modal-new-design"
-              >
-                <Icon name="upload" size={18} strokeWidth={2} />
-                Subir diseño
-              </button>
             </header>
 
             <div className="figma-designs-modal__body">
               {userDesigns.length === 0 ? (
                 <div className="figma-designs-modal__empty figma-dot-pattern">
                   <Icon name="image" size={48} strokeWidth={1.2} />
-                  <p>No tienes diseños para compartir. Crea uno con «Subir diseño».</p>
+                  <p>No tienes diseños para compartir. Crea uno desde la sección Diseños.</p>
                 </div>
               ) : (
                 <div className="figma-designs-modal__grid">
@@ -492,13 +563,30 @@ export default function ClassDetailPage() {
                 type="button"
                 className="figma-designs-modal__send"
                 onClick={handleModalPublish}
-                title="Publicar diseño"
+                disabled={!selectedDesignId}
+                title={selectedDesignId ? 'Publicar diseño' : 'Selecciona un diseño'}
                 aria-label="Publicar diseño"
                 id="btn-modal-publish-design"
               >
                 <Icon name="send" size={20} strokeWidth={2} />
               </button>
             </footer>
+            <div className="figma-designs-modal__publish-bar">
+              <p className="figma-designs-modal__publish-hint">
+                {selectedDesignId
+                  ? `Publicar: ${userDesigns.find((d) => d.id === selectedDesignId)?.title || 'diseño seleccionado'}`
+                  : 'Selecciona un diseño de la grilla para publicarlo en la clase'}
+              </p>
+              <button
+                type="button"
+                className="primary-button figma-designs-modal__publish-btn"
+                onClick={handleModalPublish}
+                disabled={!selectedDesignId}
+                id="btn-modal-publish-class"
+              >
+                Publicar en clase
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -535,36 +623,14 @@ export default function ClassDetailPage() {
           </div>
         </div>
       )}
-      {/* ── Confirm Modal (Premium Design) ── */}
-      {confirmModal.show && (
-        <div className="modal-overlay" onClick={closeConfirm} style={{ zIndex: 1000 }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '380px' }}>
-            <div className="modal-header" style={{ border: 'none', paddingBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ background: '#fee2e2', color: '#dc2626', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="trash" size={20} />
-                </div>
-                <h2 style={{ fontSize: '1.25rem', margin: 0 }}>{confirmModal.title}</h2>
-              </div>
-            </div>
-            <div className="modal-body" style={{ paddingTop: '0.5rem' }}>
-              <p style={{ margin: 0, color: 'var(--dark-soft)', fontSize: '0.95rem' }}>{confirmModal.message}</p>
-            </div>
-            <div className="modal-footer" style={{ border: 'none', paddingTop: '0' }}>
-              <button className="secondary-button" onClick={closeConfirm} style={{ border: 'none', background: 'transparent' }}>
-                Cancelar
-              </button>
-              <button 
-                className="primary-button" 
-                onClick={confirmAction}
-                style={{ background: '#dc2626', borderColor: '#dc2626', color: '#fff', padding: '0.6rem 1.5rem' }}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ClassConfirmModal
+        open={confirmModal.show}
+        variant={confirmModalVariant(confirmModal.type)}
+        highlightName={confirmModal.highlightName}
+        onClose={closeConfirm}
+        onConfirm={confirmAction}
+        busy={confirmBusy}
+      />
       </div>
     </section>
   );

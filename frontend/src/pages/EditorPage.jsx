@@ -9,6 +9,7 @@ import api from '../api.js';
 import html2canvas from 'html2canvas';
 
 import Icon from '../components/Icon.jsx';
+import AppToast from '../components/AppToast.jsx';
 import EditorSidebar from '../components/EditorSidebar';
 import EditorToolbar from '../components/EditorToolbar';
 import EditorSubToolbar from '../components/EditorSubToolbar';
@@ -77,9 +78,13 @@ export default function EditorPage() {
   const [isPanning, setIsPanning] = useState(false);
   const [historyStack, setHistoryStack] = useState({ entries: [], index: -1 });
   const [isSaving, setIsSaving] = useState(false);
+  const [paletteTouchDrag, setPaletteTouchDrag] = useState(null);
+  const [paletteDragOverCanvas, setPaletteDragOverCanvas] = useState(false);
 
   const canvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
+  const paletteDragSessionRef = useRef(null);
+  const shapeConnectHandledByTouchRef = useRef(false);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const [clipboardShape, setClipboardShape] = useState(null);
@@ -339,18 +344,99 @@ export default function EditorPage() {
     placeShapeAt(type, event.clientX, event.clientY);
   };
 
-  const handleDragStart = (event, type) => {
-    event.dataTransfer.setData(PALETTE_DRAG_TYPE_KEY, type);
-    event.dataTransfer.effectAllowed = 'copy';
+  const PALETTE_DRAG_THRESHOLD = 6;
+
+  const endPaletteDragSession = useCallback(() => {
+    const session = paletteDragSessionRef.current;
+    if (!session) return;
+    window.removeEventListener('touchmove', session.onMove);
+    window.removeEventListener('touchend', session.onEnd);
+    window.removeEventListener('touchcancel', session.onEnd);
+    window.removeEventListener('mousemove', session.onMove);
+    window.removeEventListener('mouseup', session.onEnd);
+    paletteDragSessionRef.current = null;
+    setPaletteTouchDrag(null);
+    setPaletteDragOverCanvas(false);
+  }, []);
+
+  useEffect(() => () => endPaletteDragSession(), [endPaletteDragSession]);
+
+  const handlePaletteDragStart = (event, type, onPlaced) => {
+    if (type === SHAPE_TYPES.CONNECT) return;
+
+    const isTouch = event.type === 'touchstart';
+    const startPoint = isTouch ? event.touches?.[0] : event;
+    if (!startPoint) return;
+
+    if (!isTouch && event.button !== 0) return;
+
+    event.stopPropagation();
+    if (!isTouch) event.preventDefault();
+
+    endPaletteDragSession();
+
+    const startX = startPoint.clientX;
+    const startY = startPoint.clientY;
+    let dragging = false;
+
+    const isOverCanvas = (clientX, clientY) => {
+      const canvas = canvasWrapperRef.current;
+      if (!canvas) return false;
+      const target = document.elementFromPoint(clientX, clientY);
+      return target && (canvas === target || canvas.contains(target));
+    };
+
+    const onMove = (moveEvent) => {
+      if (!paletteDragSessionRef.current) return;
+
+      const point = isTouch
+        ? moveEvent.touches[0]
+        : moveEvent;
+      if (!point) return;
+
+      if (isTouch && moveEvent.cancelable) moveEvent.preventDefault();
+
+      const dx = point.clientX - startX;
+      const dy = point.clientY - startY;
+
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < PALETTE_DRAG_THRESHOLD) return;
+        dragging = true;
+      }
+
+      setPaletteTouchDrag({ type, x: point.clientX, y: point.clientY });
+      setPaletteDragOverCanvas(isOverCanvas(point.clientX, point.clientY));
+    };
+
+    const onEnd = (endEvent) => {
+      const placedType = paletteDragSessionRef.current?.type;
+      const wasDragging = dragging;
+      endPaletteDragSession();
+
+      if (!wasDragging || !placedType) return;
+
+      const endPoint = isTouch ? endEvent.changedTouches[0] : endEvent;
+      if (!endPoint) return;
+
+      if (isOverCanvas(endPoint.clientX, endPoint.clientY)) {
+        placeShapeAt(placedType, endPoint.clientX, endPoint.clientY);
+        onPlaced?.();
+      }
+    };
+
+    paletteDragSessionRef.current = { type, onMove, onEnd };
+    if (isTouch) {
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+      window.addEventListener('touchcancel', onEnd);
+    } else {
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
+    }
   };
 
-  const handleTouchEnd = (event, type) => {
-    const touch = event.changedTouches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    const canvas = canvasWrapperRef.current;
-    if (canvas && (canvas === target || canvas.contains(target))) {
-      placeShapeAt(type, touch.clientX, touch.clientY);
-    }
+  const handlePaletteTapPlace = (type) => {
+    placeShapeAt(type, window.innerWidth / 2, window.innerHeight / 2);
   };
 
   const handlePaletteClick = (type) => {
@@ -360,16 +446,41 @@ export default function EditorPage() {
     }
   };
 
-  const handleShapeClick = (event, shape) => {
+  const handleShapeConnect = (event, shape) => {
     if (!connectMode) return;
     event.stopPropagation();
-    event.preventDefault();
+    if (event.cancelable) event.preventDefault();
     const result = handleConnectClick(connections, connectSource, shape.id);
     setConnections(result.connections);
     setConnectSource(result.connectSource);
-    if (result.connections.length !== connections.length) {
+    if (result.message) setMessage(result.message);
+    if (result.created || result.removed) {
       commitHistory(shapes, result.connections);
     }
+  };
+
+  const handleShapeClick = (event, shape) => {
+    if (!connectMode) return;
+    if (shapeConnectHandledByTouchRef.current) {
+      shapeConnectHandledByTouchRef.current = false;
+      return;
+    }
+    handleShapeConnect(event, shape);
+  };
+
+  const handleShapeTouchStart = (event, shape) => {
+    if (connectMode) {
+      event.stopPropagation();
+      return;
+    }
+    handleTouchStartShape(event, shape);
+  };
+
+  const handleShapeTouchEndConnect = (event, shape) => {
+    if (!connectMode) return;
+    if (event.target.closest('.resize-handle')) return;
+    shapeConnectHandledByTouchRef.current = true;
+    handleShapeConnect(event, shape);
   };
 
   const handleMouseDown = (event, shape) => {
@@ -624,9 +735,9 @@ export default function EditorPage() {
   };
 
   const handleCanvasTouchStart = (e) => {
-    if (connectMode || e.touches.length !== 1) return;
+    if (connectMode) return;
+    if (e.touches.length !== 1) return;
     if (!isCanvasBackgroundTarget(e.target)) return;
-    if (e.cancelable) e.preventDefault();
     setSelectedId(null);
     setSelectedConnectionId(null);
     setConnectSource(null);
@@ -652,22 +763,28 @@ export default function EditorPage() {
   };
 
   return (
-    <div className="editor-fullscreen figma-editor" id="editor-page">
+    <div
+      className={`editor-fullscreen figma-editor${paletteTouchDrag ? ' is-palette-dragging' : ''}`}
+      id="editor-page"
+    >
       <EditorSidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        handleDragStart={handleDragStart}
-        handleTouchEnd={handleTouchEnd}
+        onPaletteDragStart={handlePaletteDragStart}
+        onPaletteTapPlace={handlePaletteTapPlace}
         renderPreview={(type) => <ShapePreview type={type} />}
         handlePaletteClick={handlePaletteClick}
         connectMode={connectMode}
       />
 
       <div className="editor-main-fs figma-editor-main">
-        <div className="editor-toast-container">
-          {message && <div className="floating-toast success">{message}</div>}
-          {error && <div className="floating-toast error">{error}</div>}
-        </div>
+        <AppToast
+          message={message}
+          error={error}
+          onCloseMessage={() => setMessage('')}
+          onCloseError={() => setError('')}
+          containerClassName="editor-toast-container"
+        />
 
         <div className="figma-editor-panel">
           <div className="figma-editor-panel-head">
@@ -712,7 +829,7 @@ export default function EditorPage() {
 
           <div className="figma-editor-canvas-area">
         <div
-          className={`editor-canvas-fs figma-canvas-panel ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''}`}
+          className={`editor-canvas-fs figma-canvas-panel ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''} ${paletteTouchDrag ? 'palette-touch-active' : ''} ${paletteDragOverCanvas ? 'palette-drop-target' : ''}`}
           ref={canvasWrapperRef}
           onDrop={handleDrop}
           onDragOver={(event) => event.preventDefault()}
@@ -736,7 +853,14 @@ export default function EditorPage() {
               position: 'relative',
             }}
           >
-            <svg id="connections-layer" aria-hidden="true">
+            <svg
+              id="connections-layer"
+              className="connection-layer"
+              width={CANVAS_SIZE.width}
+              height={CANVAS_SIZE.height}
+              viewBox={`0 0 ${CANVAS_SIZE.width} ${CANVAS_SIZE.height}`}
+              aria-hidden="true"
+            >
               {connections.map((connection) => {
                 const line = getConnectionLineFromMap(connection, shapesById);
                 if (!line) return null;
@@ -779,7 +903,8 @@ export default function EditorPage() {
                 className={`shape-element ${selectedId === shape.id ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
                 style={{ left: shape.x, top: shape.y, width: shape.width, height: shape.height }}
                 onMouseDown={(event) => handleMouseDown(event, shape)}
-                onTouchStart={(event) => handleTouchStartShape(event, shape)}
+                onTouchStart={(event) => handleShapeTouchStart(event, shape)}
+                onTouchEnd={(event) => handleShapeTouchEndConnect(event, shape)}
                 onClick={(event) => handleShapeClick(event, shape)}
               >
                 <RenderShape shape={shape} />
@@ -798,6 +923,21 @@ export default function EditorPage() {
         </div>
         </div>
       </div>
+
+      {paletteTouchDrag && (
+        <div
+          className="palette-touch-drag-ghost"
+          style={{
+            left: paletteTouchDrag.x,
+            top: paletteTouchDrag.y,
+          }}
+          aria-hidden
+        >
+          <div className="palette-touch-drag-ghost-inner">
+            <ShapePreview type={paletteTouchDrag.type} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

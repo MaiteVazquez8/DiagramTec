@@ -18,7 +18,7 @@ function authMiddleware(req, res, next) {
 }
 
 function adminMiddleware(req, res, next) {
-  if (!req.user || req.user.role !== 'superadmin') {
+  if (!req.user || (req.user.role !== 'superadmin' && req.user.role !== 'admin')) {
     return res.status(403).json({ error: 'Acceso solo para super administradores' });
   }
   next();

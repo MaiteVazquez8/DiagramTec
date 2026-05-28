@@ -1,3 +1,5 @@
+import { normalizeConnection } from './connection.js';
+
 /**
  * Serialización JSON del diagrama (shapes + connections) para API y localStorage.
  * @typedef {Object} DiagramContent
@@ -22,7 +24,7 @@ export function parseDiagramContent(raw) {
       const parsed = JSON.parse(raw);
       return {
         shapes: parsed.shapes ?? [],
-        connections: parsed.connections ?? [],
+        connections: (parsed.connections ?? []).map(normalizeConnection),
       };
     } catch {
       return { shapes: [], connections: [] };
@@ -30,7 +32,7 @@ export function parseDiagramContent(raw) {
   }
   return {
     shapes: raw.shapes ?? [],
-    connections: raw.connections ?? [],
+    connections: (raw.connections ?? []).map(normalizeConnection),
   };
 }
 

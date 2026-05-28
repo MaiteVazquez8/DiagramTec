@@ -31,8 +31,15 @@ async function deleteUser(db, id) {
 async function listClasses(db) {
   const [rows] = await db.execute(`
     SELECT c.id, c.title, c.description, c.code, c.createdAt,
-      CONCAT(u.firstName, ' ', u.lastName) AS ownerName
-    FROM classes c LEFT JOIN users u ON u.id = c.ownerId
+      CONCAT(u.firstName, ' ', u.lastName) AS ownerName,
+      (
+        SELECT COUNT(*)
+        FROM class_members cm
+        INNER JOIN users us ON us.id = cm.userId AND us.role = 'student'
+        WHERE cm.classId = c.id
+      ) AS studentCount
+    FROM classes c
+    LEFT JOIN users u ON u.id = c.ownerId
     ORDER BY c.createdAt DESC
   `);
   return rows;

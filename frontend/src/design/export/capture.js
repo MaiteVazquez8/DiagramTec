@@ -64,8 +64,6 @@ export async function captureDiagramHighRes(canvasElement, shapes, options = {})
   const padding = options.padding ?? EXPORT_DEFAULTS.pdfPadding;
   const bounds = getDiagramBounds(shapes, {
     padding,
-    fallbackWidth: 2000,
-    fallbackHeight: 2000,
   });
   const region = captureRegionFromBounds(bounds, { padding });
 
