@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-import { PlusIcon, EmptyClassIcon, TrashIcon } from '../components/EditorUI.jsx';
+import { PlusIcon, EmptyClassIcon } from '../components/EditorUI.jsx';
 import Icon from '../components/Icon.jsx';
+import AppToast from '../components/AppToast.jsx';
 
 export default function ClassesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isTeacher = user?.role === 'teacher';
   const [classes, setClasses] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -17,8 +19,7 @@ export default function ClassesPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [classToDelete, setClassToDelete] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadClasses = async () => {
     try {
@@ -49,7 +50,7 @@ export default function ClassesPage() {
       setMessage(`Clase creada. Código: ${response.data.class.code}`);
       setTitle('');
       setDescription('');
-      setShowCreateForm(false);
+      setShowCreateModal(false);
       loadClasses();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo crear la clase');
@@ -71,204 +72,216 @@ export default function ClassesPage() {
     }
   };
 
-  const handleDeleteClass = (e, classItem) => {
-    e.stopPropagation();
-    setClassToDelete(classItem);
+  const openClass = (classId) => {
+    navigate(`/classes/${classId}`);
   };
 
-  const confirmDelete = async () => {
-    if (!classToDelete) return;
-    try {
-      await api.delete(`/classes/${classToDelete.id}`);
-      setMessage('Clase eliminada con éxito');
-      setClassToDelete(null);
-      loadClasses();
-    } catch (err) {
-      setError('No se pudo eliminar la clase');
-      setClassToDelete(null);
+  const renderClassCard = (classItem, index) => {
+    if (isTeacher) {
+      return (
+        <article
+          key={classItem.id}
+          className="figma-card figma-card--compact class-list-card"
+          id={`class-card-${classItem.id}`}
+          style={{ animationDelay: `${Math.min(index, 8) * 0.05}s` }}
+          onClick={() => openClass(classItem.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') openClass(classItem.id);
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="figma-card-media figma-dot-pattern class-list-card-media">
+            <Icon name="classBook" size={48} className="class-list-card-book-icon" />
+          </div>
+          <div className="figma-card-foot class-list-card-foot">
+            <h3 className="figma-card-title class-list-card-title" title={classItem.title}>
+              {classItem.title}
+            </h3>
+            <button
+              type="button"
+              className="figma-card-menu-btn class-list-card-edit-btn"
+              title="Abrir clase"
+              aria-label={`Abrir clase ${classItem.title}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                openClass(classItem.id);
+              }}
+            >
+              <Icon name="edit" size={18} />
+            </button>
+          </div>
+        </article>
+      );
     }
+
+    const subtitle = classItem.description?.trim()
+      ? classItem.description
+      : `Prof. ${classItem.ownerName}`;
+
+    return (
+      <article
+        key={classItem.id}
+        className="class-list-card class-list-card--student"
+        id={`class-card-${classItem.id}`}
+        style={{ animationDelay: `${Math.min(index, 8) * 0.05}s` }}
+        onClick={() => openClass(classItem.id)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') openClass(classItem.id);
+        }}
+        role="button"
+        tabIndex={0}
+      >
+        <div className="class-list-card-media figma-dot-pattern">
+          <Icon name="classBook" size={48} className="class-list-card-book-icon" />
+        </div>
+        <div className="class-list-card-body">
+          <h3 className="class-list-card-title">{classItem.title}</h3>
+          <p className="class-list-card-sub">{subtitle}</p>
+        </div>
+      </article>
+    );
   };
 
   return (
-    <section className="figma-sector" id="classes-page">
+    <section
+      className={`figma-sector ${isTeacher ? 'classes-page--teacher' : 'classes-page--student'}`}
+      id="classes-page"
+    >
       <div className="figma-sector-inner">
         <header className="figma-sector-hero">
           <h1>Mis clases</h1>
           <div className="figma-sector-toolbar">
-            {user?.role === 'teacher' && (
+            {isTeacher ? (
               <button
                 type="button"
-                className="secondary-button"
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                id="btn-toggle-create"
+                className="primary-button classes-teacher-create-btn"
+                onClick={() => setShowCreateModal(true)}
+                id="btn-open-create-class"
               >
-                <PlusIcon /> Crear clase
+                <Icon name="plus" size={18} strokeWidth={2.5} />
+                Crear clase
               </button>
-            )}
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => setShowJoinModal(true)}
-              id="btn-open-join"
-            >
-              <PlusIcon /> Unirse a clase
-            </button>
-          </div>
-        </header>
-
-        <div className="toast-container">
-          {message && (
-            <div className="toast success-toast">
-              <div className="toast-icon">✓</div>
-              <div className="toast-content">{message}</div>
-              <button type="button" className="toast-close" onClick={() => setMessage('')}>✕</button>
-            </div>
-          )}
-          {error && (
-            <div className="toast error-toast">
-              <div className="toast-icon">!</div>
-              <div className="toast-content">{error}</div>
-              <button type="button" className="toast-close" onClick={() => setError('')}>✕</button>
-            </div>
-          )}
-        </div>
-
-        {showCreateForm && user?.role === 'teacher' && (
-          <div className="figma-form-panel">
-            <h2>Crear clase nueva</h2>
-            <form onSubmit={handleCreate}>
-              <label>
-                Nombre de la clase
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  required
-                  placeholder="Ej: Programación I"
-                  id="create-class-name"
-                />
-              </label>
-              <label>
-                Descripción
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Descripción opcional de la clase"
-                  id="create-class-desc"
-                />
-              </label>
-              <div className="figma-sector-toolbar" style={{ marginBottom: 0 }}>
-                <button className="primary-button" type="submit" id="btn-create-class">
-                  + Crear clase
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="class-list-grid">
-          {classes.length === 0 ? (
-            <div className="figma-empty-panel figma-dot-pattern">
-              <EmptyClassIcon />
-              <h3>No hay clases</h3>
-              <p>Únete a una clase con el código que te dé tu profesor.</p>
+            ) : (
               <button
                 type="button"
                 className="primary-button"
                 onClick={() => setShowJoinModal(true)}
+                id="btn-open-join"
               >
-                <PlusIcon /> Unirse a clases
+                <PlusIcon /> Unirse a clase
               </button>
+            )}
+          </div>
+        </header>
+
+        <AppToast
+          message={message}
+          error={error}
+          onCloseMessage={() => setMessage('')}
+          onCloseError={() => setError('')}
+        />
+
+        <div className={isTeacher ? 'figma-cards-grid figma-classes-grid' : 'class-list-grid'}>
+          {classes.length === 0 ? (
+            <div className="figma-empty-panel figma-dot-pattern">
+              <EmptyClassIcon />
+              <h3>No hay clases</h3>
+              <p>
+                {isTeacher
+                  ? 'Crea tu primera clase para compartir diagramas con tus estudiantes.'
+                  : 'Únete a una clase con el código que te dé tu profesor.'}
+              </p>
+              {isTeacher ? (
+                <button
+                  type="button"
+                  className="primary-button classes-teacher-create-btn"
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  <Icon name="plus" size={18} strokeWidth={2.5} />
+                  Crear clase
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setShowJoinModal(true)}
+                >
+                  <PlusIcon /> Unirse a clases
+                </button>
+              )}
             </div>
           ) : (
-            classes.map((classItem) => {
-              const isOwner = user?.role === 'teacher' && classItem.ownerId === user.id;
-              const subtitle = classItem.description?.trim()
-                ? classItem.description
-                : `Prof. ${classItem.ownerName}`;
-
-              return (
-                <article
-                  key={classItem.id}
-                  className="class-list-card"
-                  id={`class-card-${classItem.id}`}
-                  onClick={() => navigate(`/classes/${classItem.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') navigate(`/classes/${classItem.id}`);
-                  }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  {isOwner && (
-                    <button
-                      type="button"
-                      className="class-list-card-delete"
-                      onClick={(e) => handleDeleteClass(e, classItem)}
-                      title="Eliminar clase"
-                      aria-label={`Eliminar clase ${classItem.title}`}
-                    >
-                      <Icon name="trash" size={17} strokeWidth={2} />
-                    </button>
-                  )}
-                  <div className="class-list-card-media figma-dot-pattern">
-                    <Icon name="classBook" size={48} className="class-list-card-book-icon" />
-                  </div>
-                  <div className="class-list-card-body">
-                    <h3 className="class-list-card-title">{classItem.title}</h3>
-                    <p className="class-list-card-sub">{subtitle}</p>
-                    {isOwner && classItem.code && (
-                      <span className="class-list-card-code">Código: {classItem.code}</span>
-                    )}
-                  </div>
-                </article>
-              );
-            })
+            classes.map((classItem, index) => renderClassCard(classItem, index))
           )}
         </div>
 
-        {classToDelete && (
-          <div className="modal-overlay" onClick={() => setClassToDelete(null)}>
-            <div className="modal modal-danger" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-              <div className="modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div className="modal-danger-icon">
-                    <TrashIcon />
-                  </div>
-                  <h2>¿Eliminar clase?</h2>
+        {showCreateModal && isTeacher && (
+          <div
+            className="modal-overlay figma-modal-overlay"
+            onClick={() => setShowCreateModal(false)}
+            id="create-class-overlay"
+          >
+            <div
+              className="modal modal--figma-form modal--create-class"
+              onClick={(e) => e.stopPropagation()}
+              id="create-class-modal"
+              role="dialog"
+              aria-labelledby="create-class-title"
+            >
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowCreateModal(false)}
+                id="close-create-class-modal"
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+              <form onSubmit={handleCreate} className="modal--figma-form__form">
+                <div className="modal-header">
+                  <h2 id="create-class-title">Crear clase</h2>
                 </div>
-                <button type="button" className="modal-close" onClick={() => setClassToDelete(null)}>✕</button>
-              </div>
-              <div className="modal-body">
-                <p>
-                  Esta acción es irreversible. Se perderán todos los diseños y la conversación de{' '}
-                  <strong>{classToDelete.title}</strong>.
-                </p>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="secondary-button" onClick={() => setClassToDelete(null)}>
-                  Cancelar
-                </button>
-                <button type="button" className="primary-button modal-danger-btn" onClick={confirmDelete}>
-                  Eliminar definitivamente
-                </button>
-              </div>
+                <div className="modal-body">
+                  <label className="figma-field">
+                    <span className="figma-field__label">Nombre de la clase</span>
+                    <input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      required
+                      placeholder="Nombre de la clase..."
+                      id="create-class-name"
+                      autoFocus
+                    />
+                  </label>
+                  <label className="figma-field">
+                    <span className="figma-field__label">Descripción</span>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Descripción..."
+                      id="create-class-desc"
+                      rows={4}
+                    />
+                  </label>
+                </div>
+                <div className="modal-footer">
+                  <button className="primary-button" type="submit" id="btn-create-class">
+                    Crear
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
 
-        {showJoinModal && (
+        {showJoinModal && !isTeacher && (
           <div
             className="modal-overlay figma-modal-overlay"
             onClick={() => setShowJoinModal(false)}
             id="join-class-overlay"
           >
-            <div className="modal modal--join" onClick={(e) => e.stopPropagation()}>
+            <div className="modal modal--join figma-dot-pattern" onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 className="modal-close"
@@ -308,4 +321,3 @@ export default function ClassesPage() {
     </section>
   );
 }
-

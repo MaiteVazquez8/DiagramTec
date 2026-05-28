@@ -70,6 +70,8 @@ export {
   createConnection,
   removeConnectionsForShape,
   removeConnection,
+  getPairKey,
+  hasConnectionBetween,
   handleConnectClick,
 } from './models/connection.js';
 
