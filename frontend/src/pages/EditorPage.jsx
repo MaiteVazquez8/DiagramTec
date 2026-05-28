@@ -640,7 +640,7 @@ export default function EditorPage() {
         const bounds = getDiagramBounds(shapes);
         const previewCanvas = await captureDiagramPreview(canvasRef.current, shapes);
         imageData = canvasToPngDataUrl(previewCanvas);
-        pdfDataString = buildInlinePdfDataUrl(previewCanvas, bounds.width, bounds.height);
+        pdfDataString = await buildInlinePdfDataUrl(previewCanvas, bounds.width, bounds.height);
       }
 
       const data = {
@@ -672,7 +672,7 @@ export default function EditorPage() {
     setMessage('Generando PDF...');
     try {
       const pdfCanvas = await captureDiagramHighRes(canvasRef.current, shapes);
-      const pdfData = downloadDiagramPdf(pdfCanvas, shapes, saveTitle || 'diagrama');
+      const pdfData = await downloadDiagramPdf(pdfCanvas, shapes, saveTitle || 'diagrama');
       setMessage('PDF descargado');
 
       if (id && pdfData) {
