@@ -41,9 +41,21 @@ async function updateProfile(req, res) {
   res.json({ user });
 }
 
+async function deleteAccount(req, res) {
+  const db = req.app.locals.db;
+  const deleted = await authService.deleteAccount(db, req.user.id);
+  if (!deleted) {
+    const err = new Error('USER_NOT_FOUND');
+    err.statusCode = 404;
+    throw err;
+  }
+  res.status(204).send();
+}
+
 module.exports = { 
     register, 
     login, 
     me, 
-    updateProfile 
+    updateProfile,
+    deleteAccount 
 };
