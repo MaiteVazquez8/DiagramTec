@@ -8,5 +8,6 @@ router.post('/register', asyncHandler(authController.register));
 router.post('/login', asyncHandler(authController.login));
 router.get('/me', authMiddleware, asyncHandler(authController.me));
 router.put('/me', authMiddleware, asyncHandler(authController.updateProfile));
+router.delete('/me', authMiddleware, asyncHandler(authController.deleteAccount));
 
 module.exports = router;

@@ -5,6 +5,10 @@ import Icon from '../components/Icon.jsx';
 
 export default function HomePage() {
   const { user } = useAuth();
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const heroActions = [
     { to: '/editor', label: 'Crear diseño' },
     { to: '/editor', label: 'Cómo empezar' },
@@ -22,8 +26,8 @@ export default function HomePage() {
           tus proyectos y participar en clases.
         </p>
         <div className="figma-home-auth-actions">
-          {!user ? <Link className="primary-button" to="/login">+ Iniciar sesión</Link> : null}
-          {!user ? <Link className="primary-button" to="/signup">+ Registrarse</Link> : null}
+          {!user ? <Link className="primary-button figma-home-login-button" to="/login">+ Iniciar sesión</Link> : null}
+          {!user ? <Link className="primary-button figma-home-register-button" to="/signup">+ Registrarse</Link> : null}
         </div>
       </article>
 
@@ -90,6 +94,18 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <div className="figma-home-back-to-top-wrap">
+        <button
+          className="figma-home-back-to-top"
+          type="button"
+          onClick={scrollToTop}
+          aria-label="Subir hasta arriba"
+          title="Subir hasta arriba"
+        >
+          <Icon name="arrowUp" size={22} />
+        </button>
+      </div>
     </section>
   );
 }
