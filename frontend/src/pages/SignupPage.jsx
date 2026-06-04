@@ -94,7 +94,7 @@ export default function SignupPage() {
               <option value="teacher">Profesor</option>
             </select>
           </label>
-          <button className="primary-button full-width" type="submit">Iniciar sesion</button>
+          <button className="primary-button full-width" type="submit">Registrarse</button>
         </form>
         <p className="small-text">
           ¿Tenes una cuenta? <Link to="/login">Iniciar sesion</Link>

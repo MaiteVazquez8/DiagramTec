@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 export default function Footer() {
   return (
     <footer className="app-footer">
-      <div className="footer-content">
+      <div className="footer-brand-section">
         <div className="footer-brand">
           <img src="/Diagram(3).png" alt="DiagramTec" className="footer-logo" />
           <div className="footer-socials">
@@ -21,7 +21,9 @@ export default function Footer() {
             </a>
           </div>
         </div>
+      </div>
 
+      <div className="footer-content">
         <div className="footer-section footer-separator">
           <h3>Ayuda</h3>
           <ul>
