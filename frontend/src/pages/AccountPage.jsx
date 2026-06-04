@@ -12,6 +12,7 @@ export default function AccountPage() {
   const [designs, setDesigns] = useState([]);
   const [classes, setClasses] = useState([]);
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const initials = `${user?.firstName || ''} ${user?.lastName || ''}`
     .trim()
@@ -131,7 +132,7 @@ export default function AccountPage() {
   return (
     <section className="figma-sector" id="account-page">
       <div className="figma-sector-inner account-layout">
-        <aside className="account-sidebar">
+        <aside className={`account-sidebar ${sidebarCollapsed ? 'account-sidebar--collapsed' : ''}`}>
           <div className="account-sidebar__body">
             <div className="account-avatar">
               <div className="account-avatar-ring" aria-hidden title={initials}>
@@ -143,24 +144,20 @@ export default function AccountPage() {
                 <p className="account-role">{user?.role === 'teacher' ? 'Profesor' : 'Estudiante'}</p>
               </div>
             </div>
+          </div>
+
+          <div className="account-sidebar__actions">
             <button
               type="button"
-              className="account-edit-button"
+              className="account-action-button"
               onClick={() => navigate('/edit-profile')}
             >
               <Icon name="userEdit" size={19} strokeWidth={2} />
-              Editar Informacion
+              <span>Editar Informacion</span>
             </button>
-          </div>
-
-          <button type="button" className="account-sidebar__collapse" aria-label="Contraer menú de cuenta">
-            <Icon name="chevronRight" size={28} strokeWidth={2.5} />
-          </button>
-
-          <div className="account-sidebar__footer">
             <button
               type="button"
-              className="account-session-button account-session-button--logout"
+              className="account-action-button"
               onClick={() => setConfirmModal('logout')}
             >
               <Icon name="logout" size={18} strokeWidth={2} />
@@ -168,13 +165,20 @@ export default function AccountPage() {
             </button>
             <button
               type="button"
-              className="account-session-button account-session-button--delete"
+              className="account-action-button"
               onClick={() => setConfirmModal('delete')}
             >
               <Icon name="userX" size={18} strokeWidth={2} />
               <span>Eliminar cuenta</span>
             </button>
-            <button type="button" className="account-session-button account-session-button--help">
+          </div>
+
+          <button type="button" className="account-sidebar__collapse" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? 'Expandir menú de cuenta' : 'Contraer menú de cuenta'}>
+            <Icon name="chevronRight" size={28} strokeWidth={2.5} />
+          </button>
+
+          <div className="account-sidebar__footer">
+            <button type="button" className="account-help-button">
               <Icon name="help" size={18} strokeWidth={2} />
               <span>Ayuda</span>
             </button>
@@ -221,13 +225,6 @@ export default function AccountPage() {
                   <div className="modal-actions">
                     <button
                       type="button"
-                      className="secondary-button"
-                      onClick={() => setConfirmModal(null)}
-                    >
-                      No
-                    </button>
-                    <button
-                      type="button"
                       className="primary-button"
                       onClick={() => {
                         setConfirmModal(null);
@@ -236,13 +233,6 @@ export default function AccountPage() {
                     >
                       Sí
                     </button>
-                  </div>
-                </>
-              )}
-              {confirmModal === 'delete' && (
-                <>
-                  <p>¿Está seguro que quiere eliminar su cuenta?</p>
-                  <div className="modal-actions">
                     <button
                       type="button"
                       className="secondary-button"
@@ -250,6 +240,13 @@ export default function AccountPage() {
                     >
                       No
                     </button>
+                  </div>
+                </>
+              )}
+              {confirmModal === 'delete' && (
+                <>
+                  <p>¿Está seguro que quiere eliminar su cuenta?</p>
+                  <div className="modal-actions">
                     <button
                       type="button"
                       className="danger-button"
@@ -264,6 +261,13 @@ export default function AccountPage() {
                       }}
                     >
                       Sí
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setConfirmModal(null)}
+                    >
+                      No
                     </button>
                   </div>
                 </>
