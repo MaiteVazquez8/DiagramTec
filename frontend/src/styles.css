@@ -4749,12 +4749,12 @@ main:has(.figma-sector) {
   transform: translateY(-1px);
 }
 
-/* Modal confirmación clase (Figma: expulsar, eliminar publicación/clase) */
-.class-confirm-overlay {
+/* Modal de confirmación reutilizable (Figma: Si / No, fondo con puntos) */
+.confirm-modal-overlay {
   z-index: 1300;
 }
 
-.class-confirm-modal {
+.confirm-modal {
   position: relative;
   width: min(440px, 92vw);
   padding: 2.75rem 2rem 2rem;
@@ -4766,13 +4766,13 @@ main:has(.figma-sector) {
   overflow: visible;
 }
 
-.class-confirm-modal__close {
+.confirm-modal__close {
   position: absolute;
   top: 0.85rem;
   right: 0.85rem;
 }
 
-.class-confirm-modal__message {
+.confirm-modal__message {
   margin: 0.5rem 0 1.85rem;
   padding: 0 0.5rem;
   font-size: 1.05rem;
@@ -4781,12 +4781,12 @@ main:has(.figma-sector) {
   color: #111;
 }
 
-.class-confirm-modal__highlight {
+.confirm-modal__highlight {
   color: var(--figma-red, #810000);
   font-weight: 800;
 }
 
-.class-confirm-modal__actions {
+.confirm-modal__actions {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -4794,7 +4794,7 @@ main:has(.figma-sector) {
   flex-wrap: wrap;
 }
 
-.class-confirm-modal__btn {
+.confirm-modal__btn {
   min-width: 108px;
   padding: 0.72rem 2rem;
   border: none;
@@ -4808,12 +4808,12 @@ main:has(.figma-sector) {
   transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
-.class-confirm-modal__btn:hover:not(:disabled) {
+.confirm-modal__btn:hover:not(:disabled) {
   background: #6a0000;
   transform: translateY(-1px);
 }
 
-.class-confirm-modal__btn:disabled {
+.confirm-modal__btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
