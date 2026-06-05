@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
+import ConfirmModal from '../components/ConfirmModal.jsx';
 import Icon from '../components/Icon.jsx';
 import ProfileSilhouette from '../components/ProfileSilhouette.jsx';
 
@@ -9,6 +10,7 @@ export default function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [confirmModal, setConfirmModal] = useState(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [designs, setDesigns] = useState([]);
   const [classes, setClasses] = useState([]);
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
@@ -208,74 +210,35 @@ export default function AccountPage() {
         </main>
       </div>
 
-      {confirmModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <button
-              type="button"
-              className="modal-close"
-              onClick={() => setConfirmModal(null)}
-            >
-              x
-            </button>
-            <div className="modal-body">
-              {confirmModal === 'logout' && (
-                <>
-                  <p>¿Está seguro que quiere cerrar sesión?</p>
-                  <div className="modal-actions">
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={() => {
-                        setConfirmModal(null);
-                        logout();
-                      }}
-                    >
-                      Sí
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => setConfirmModal(null)}
-                    >
-                      No
-                    </button>
-                  </div>
-                </>
-              )}
-              {confirmModal === 'delete' && (
-                <>
-                  <p>¿Está seguro que quiere eliminar su cuenta?</p>
-                  <div className="modal-actions">
-                    <button
-                      type="button"
-                      className="danger-button"
-                      onClick={async () => {
-                        try {
-                          await api.delete('/auth/me');
-                          logout();
-                        } catch (err) {
-                          console.error(err);
-                          setConfirmModal(null);
-                        }
-                      }}
-                    >
-                      Sí
-                    </button>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => setConfirmModal(null)}
-                    >
-                      No
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={confirmModal === 'logout'}
+        message="¿Está seguro que quiere cerrar sesión?"
+        onClose={() => setConfirmModal(null)}
+        onConfirm={() => {
+          setConfirmModal(null);
+          logout();
+        }}
+      />
+      <ConfirmModal
+        open={confirmModal === 'delete'}
+        message="¿Está seguro que quiere eliminar su cuenta?"
+        onClose={() => {
+          if (!confirmBusy) setConfirmModal(null);
+        }}
+        onConfirm={async () => {
+          setConfirmBusy(true);
+          try {
+            await api.delete('/auth/me');
+            logout();
+          } catch (err) {
+            console.error(err);
+            setConfirmModal(null);
+          } finally {
+            setConfirmBusy(false);
+          }
+        }}
+        busy={confirmBusy}
+      />
     </section>
   );
 }
