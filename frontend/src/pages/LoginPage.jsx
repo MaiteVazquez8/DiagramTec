@@ -56,18 +56,18 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña..."
           />
+          <button
+            className="ghost-link"
+            type="button"
+            onClick={() => {
+              if (email) localStorage.setItem('recoverEmail', email);
+              navigate('/recover', { state: { email } });
+            }}
+          >
+            Olvide mi contraseña
+          </button>
           <button className="primary-button full-width" type="submit">Ingresar</button>
         </form>
-        <button
-          className="ghost-link"
-          type="button"
-          onClick={() => {
-            if (email) localStorage.setItem('recoverEmail', email);
-            navigate('/recover', { state: { email } });
-          }}
-        >
-          Olvide mi contraseña
-        </button>
         <p className="small-text">
           ¿No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
         </p>
