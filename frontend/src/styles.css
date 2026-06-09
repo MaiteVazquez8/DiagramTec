@@ -525,10 +525,13 @@ textarea {
 }
 
 .modal {
-  background: #fff;
-  border-radius: var(--radius-xl);
-  width: min(440px, 90vw);
-  box-shadow: var(--shadow-lg);
+  position: relative;
+  background: #fafafa;
+  background-image: radial-gradient(circle, #d0d0d0 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
+  border-radius: 16px;
+  width: min(480px, 90vw);
+  box-shadow: 0 10px 40px rgba(27, 23, 23, 0.2);
   animation: fadeInScale 0.3s ease;
   overflow: hidden;
 }
@@ -615,13 +618,22 @@ textarea {
 }
 
 .modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(27, 23, 23, 0.4);
-  font-size: 1.3rem;
+  color: rgba(27, 23, 23, 0.5);
+  font-size: 1.5rem;
+  font-weight: 300;
   transition: color var(--transition);
   padding: 0.25rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-close:hover {
@@ -629,13 +641,15 @@ textarea {
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 2.5rem 2rem;
+  text-align: center;
 }
 
 .modal-body p {
-  color: rgba(27, 23, 23, 0.6);
-  font-size: 0.9rem;
-  margin-bottom: 1.25rem;
+  color: rgba(27, 23, 23, 0.85);
+  font-size: 1.25rem;
+  font-weight: 500;
+  margin-bottom: 2rem;
   line-height: 1.65;
 }
 
@@ -675,19 +689,58 @@ textarea {
 .modal-actions {
   display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 1.2rem;
+  margin-top: 0;
 }
 
 .modal-actions button {
   flex: 1;
-  max-width: 150px;
-  padding: 0.8rem 1.5rem;
+  max-width: 160px;
+  padding: 1rem 2rem;
   border-radius: 999px;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1rem;
   border: none;
   cursor: pointer;
   transition: all var(--transition);
+}
+
+.modal-actions .primary-button {
+  background: #b51b1f;
+  color: #fff8e7;
+  box-shadow: 0 4px 16px rgba(181, 27, 31, 0.25);
+}
+
+.modal-actions .primary-button:hover {
+  background: #a1161b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(181, 27, 31, 0.35);
+}
+
+.modal-actions .secondary-button {
+  background: #b51b1f;
+  color: #fff8e7;
+  border: none;
+  box-shadow: 0 4px 16px rgba(181, 27, 31, 0.25);
+}
+
+.modal-actions .secondary-button:hover {
+  background: #a1161b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(181, 27, 31, 0.35);
+}
+
+.modal-actions .danger-button {
+  background: #b51b1f;
+  color: #fff8e7;
+  border: none;
+  box-shadow: 0 4px 16px rgba(181, 27, 31, 0.25);
+}
+
+.modal-actions .danger-button:hover {
+  background: #a1161b;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(181, 27, 31, 0.35);
 }
 
 .posts-feed {
@@ -1700,7 +1753,7 @@ textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--cream-dim);
+  background: #c9c9c9;
   border-radius: 999px;
 }
 
@@ -1990,19 +2043,37 @@ textarea {
 .account-layout {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  gap: 1.5rem;
+  gap: 3.15rem;
+  align-items: start;
+  transition: grid-template-columns 0.3s ease;
+  position: relative;
+}
+
+.account-layout:has(.account-sidebar--collapsed) {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3.15rem;
 }
 
 .account-sidebar {
-  background: #6d1617;
+  position: relative;
+  overflow: visible;
+  background: #6b2424;
   color: #fff;
-  border-radius: 4px;
-  padding: 1.5rem 1.2rem;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 420px;
-  box-shadow: var(--shadow-sm);
+  min-height: 680px;
+  box-shadow: none;
+  transition: all 0.3s ease;
+}
+
+.account-sidebar__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1rem 0;
+  text-align: center;
 }
 
 .account-avatar {
@@ -2010,154 +2081,340 @@ textarea {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.75rem;
+  gap: 1rem;
+  width: 100%;
 }
 
-.account-avatar-circle {
-  width: 96px;
-  height: 96px;
+.account-avatar-ring {
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
-  background: #d85c5f;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  display: grid;
-  place-items: center;
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #fff;
+  border: 3px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.account-avatar-svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 104px;
+  max-height: 104px;
+}
+
+.account-avatar-svg .figma-profile-bg {
+  fill: #9b2222;
 }
 
 .account-avatar-info h2 {
-  margin: 0;
-  font-size: 1.4rem;
+  margin: 0 0 0.2rem;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: 0;
   color: #fff;
 }
 
 .account-avatar-info p {
-  margin: 0.1rem 0;
-  color: #fff;
+  margin: 0 0 0.1rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.85);
+  word-break: break-word;
 }
 
 .account-role {
-  font-size: 0.9rem;
-  opacity: 0.9;
+  font-size: 0.8rem;
+  opacity: 1;
 }
 
-.account-actions {
-  margin-top: 1.4rem;
-  display: grid;
-  gap: 0.6rem;
-}
-
-.account-btn {
+.account-action-button,
+.account-session-button,
+.account-help-button {
   width: 100%;
-  justify-content: center;
-  gap: 0.75rem;
-}
-
-.figma-sector .account-sidebar .primary-button {
-  background: #8d1f2b;
-  color: #fff;
-  box-shadow: none;
-  border: none;
+  min-height: 48px;
   display: flex;
   align-items: center;
+  gap: 0.6rem;
   justify-content: center;
-  gap: 0.75rem;
-  border-radius: 8px;
-}
-
-.figma-sector .account-sidebar .primary-button:hover {
-  background: #6f1822;
-  transform: translateY(0);
-  box-shadow: none;
-}
-
-.figma-sector .account-sidebar .secondary-button {
-  background: #8d1f2b;
-  color: #fff;
   border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.figma-sector .account-sidebar .secondary-button:hover {
-  background: #6f1822;
-  color: #fff;
-}
-
-.figma-sector .account-sidebar .danger-button {
-  background: #8d1f2b;
-  color: #fff;
-  border: none;
-  padding: 0.75rem 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.figma-sector .account-sidebar .danger-button:hover {
-  background: #6f1822;
-  color: #fff;
-}
-
-.account-help-link {
-  margin-top: 1.2rem;
-  border: none;
-  background: none;
-  color: #fff;
-  text-align: left;
-  font-size: 0.9rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  padding: 0.8rem 1rem;
+}
+
+.account-action-button {
+  background: #b51b1f;
+  color: #fff8e7;
+}
+
+.account-action-button:hover {
+  background: #a1161b;
+  transform: translateY(-1px);
+}
+
+.account-sidebar__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 2rem 1rem 1rem;
+  width: 100%;
+}
+
+.account-sidebar__collapse {
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #b51b1f;
+  color: #fff8e7;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  transform: translateY(-50%);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.3s ease;
+  margin: 0;
+}
+
+.account-sidebar__collapse:hover {
+  background: #a1161b;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.account-sidebar__collapse .icon {
+  margin: 0;
+  transition: transform 0.3s ease;
+}
+
+.account-sidebar--collapsed {
+  min-width: 0 !important;
+  width: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  min-height: auto !important;
+}
+
+.account-sidebar--collapsed .account-sidebar__body,
+.account-sidebar--collapsed .account-sidebar__actions,
+.account-sidebar--collapsed .account-sidebar__footer {
+  display: none;
+}
+
+.account-sidebar--collapsed .account-sidebar__collapse .icon {
+  transform: scaleX(-1);
+}
+
+.account-sidebar__footer {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: auto;
+  padding: 0 1rem 1.5rem;
+  width: 100%;
+  flex-direction: column;
+}
+
+.account-session-button {
+  justify-content: center;
+  background: #b51b1f;
+  color: #fff8e7;
+}
+
+.account-session-button .icon {
+  color: #fff8e7;
+  flex-shrink: 0;
+}
+
+.account-session-button span {
+  flex: 1;
+  text-align: left;
+}
+
+.account-session-button:hover {
+  background: #a1161b;
+  transform: translateY(-1px);
+}
+
+.account-help-button {
+  background: transparent;
+  color: #fff8e7;
+  justify-content: flex-start;
+  width: auto;
+  min-height: auto;
+  border-radius: 0;
+  padding: 0;
+  font-size: 1rem;
+  gap: 0.3rem;
+}
+
+.account-help-button .icon {
+  color: #fff8e7;
+  flex-shrink: 0;
+}
+
+.account-help-button span {
+  flex: none;
+  text-align: left;
+}
+
+.account-help-button:hover {
+  background: transparent;
+  transform: none;
+  opacity: 0.8;
 }
 
 .account-main {
   display: flex;
   flex-direction: column;
-  gap: 1.4rem;
+  gap: 1.75rem;
+  min-width: 0;
+}
+
+.account-section {
+  min-width: 0;
 }
 
 .account-section-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 0.6rem;
+  gap: 1rem;
+  margin-bottom: 1.15rem;
 }
 
 .account-section-head h1 {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: clamp(2.5rem, 4.1vw, 3.25rem);
+  line-height: 1.02;
+  font-weight: 800;
+  color: #000;
+  letter-spacing: 0;
 }
 
 .account-link {
   font-size: 0.9rem;
-  color: var(--red);
+  color: #810000;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.account-link:hover {
+  color: #630000;
 }
 
 .account-cards-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.9rem;
-  padding: 0.75rem 0.5rem;
-  border-radius: 4px;
+  gap: 1.55rem;
 }
 
-.account-card-placeholder {
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  background: rgba(255, 255, 255, 0.85);
-  min-height: 110px;
+.account-preview-card {
+  min-width: 0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.account-preview-card[role="button"] {
+  cursor: pointer;
+}
+
+.account-preview-card__media {
+  aspect-ratio: 4 / 3;
+  min-height: 0;
+  padding: 0.75rem;
+  background-color: #fff;
+  background-image: radial-gradient(circle, #e5e5e5 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.account-preview-card__media:disabled {
+  cursor: default;
+}
+
+.account-preview-card__media > .icon,
+.account-preview-card__media > .icon svg,
+.account-preview-card__book,
+.account-preview-card__book svg {
+  color: #d0d0d0 !important;
+  width: 46px;
+  height: 46px;
+}
+
+.account-preview-card__foot {
+  min-height: 58px;
+  align-items: center;
+  color: #111;
+  padding: 0.65rem 0.75rem !important;
+}
+
+.account-preview-card__text {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+#account-page .account-preview-card .account-preview-card__text .figma-card-title {
+  margin: 0;
+  font-size: 1.22rem;
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: 0;
+  color: #000;
+}
+
+.account-preview-card__text p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.22;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-preview-card--class .account-preview-card__foot {
+  min-height: 70px;
+}
+
+#account-page .account-preview-card--class .account-preview-card__text .figma-card-title {
+  font-size: 1.08rem;
+  white-space: normal;
+}
+
+.account-preview-card__line {
+  width: min(88px, 70%);
+  height: 8px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  display: block;
+}
+
+.account-preview-card--empty {
+  pointer-events: none;
+  box-shadow: none;
+}
+
+.account-preview-card--empty:hover {
+  transform: none;
+  border-color: var(--figma-border);
+  box-shadow: none;
 }
 
 /* Edit Profile Page Styles */
@@ -4492,12 +4749,12 @@ main:has(.figma-sector) {
   transform: translateY(-1px);
 }
 
-/* Modal confirmación clase (Figma: expulsar, eliminar publicación/clase) */
-.class-confirm-overlay {
+/* Modal de confirmación reutilizable (Figma: Si / No, fondo con puntos) */
+.confirm-modal-overlay {
   z-index: 1300;
 }
 
-.class-confirm-modal {
+.confirm-modal {
   position: relative;
   width: min(440px, 92vw);
   padding: 2.75rem 2rem 2rem;
@@ -4509,13 +4766,13 @@ main:has(.figma-sector) {
   overflow: visible;
 }
 
-.class-confirm-modal__close {
+.confirm-modal__close {
   position: absolute;
   top: 0.85rem;
   right: 0.85rem;
 }
 
-.class-confirm-modal__message {
+.confirm-modal__message {
   margin: 0.5rem 0 1.85rem;
   padding: 0 0.5rem;
   font-size: 1.05rem;
@@ -4524,12 +4781,12 @@ main:has(.figma-sector) {
   color: #111;
 }
 
-.class-confirm-modal__highlight {
+.confirm-modal__highlight {
   color: var(--figma-red, #810000);
   font-weight: 800;
 }
 
-.class-confirm-modal__actions {
+.confirm-modal__actions {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -4537,7 +4794,7 @@ main:has(.figma-sector) {
   flex-wrap: wrap;
 }
 
-.class-confirm-modal__btn {
+.confirm-modal__btn {
   min-width: 108px;
   padding: 0.72rem 2rem;
   border: none;
@@ -4551,12 +4808,12 @@ main:has(.figma-sector) {
   transition: background 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
-.class-confirm-modal__btn:hover:not(:disabled) {
+.confirm-modal__btn:hover:not(:disabled) {
   background: #6a0000;
   transform: translateY(-1px);
 }
 
-.class-confirm-modal__btn:disabled {
+.confirm-modal__btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
@@ -5049,6 +5306,19 @@ main:has(.figma-sector) {
     grid-template-columns: repeat(3, 1fr);
   }
 
+  .account-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .account-sidebar {
+    min-height: 520px;
+  }
+
+  .account-cards-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   #classes-page.classes-page--teacher .figma-classes-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
@@ -5071,6 +5341,22 @@ main:has(.figma-sector) {
 @media (max-width: 768px) {
   .figma-cards-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .account-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-sidebar {
+    min-height: 0;
+  }
+
+  .account-sidebar__body {
+    padding: 2rem 1rem 1rem;
+  }
+
+  .account-cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   #classes-page.classes-page--teacher .figma-classes-grid {
@@ -5101,14 +5387,25 @@ main:has(.figma-sector) {
   .figma-cards-grid {
     grid-template-columns: 1fr;
   }
+
+  .account-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .account-cards-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ==========================================================
    FIGMA overrides: Inicio + Auth + Footer
    ========================================================== */
 :root {
-  --figma-red: #b31a1e;
-  --figma-red-dark: #7f1f22;
+  --figma-red: #c31920;
+  --figma-red-dark: #8f1116;
+  --figma-red-deep: #6f0000;
   --figma-bg-gray: #ebebeb;
   --figma-line: #d9d9d9;
 }
@@ -5140,6 +5437,8 @@ main:has(.figma-sector) {
   max-width: 100%;
   background: #fff;
   min-height: calc(100vh - 220px);
+  padding-top: 1.75rem;
+  padding-bottom: 2rem;
 }
 
 .figma-home-page h1,
@@ -5169,6 +5468,15 @@ main:has(.figma-sector) {
   margin-top: 0.9rem;
   display: flex;
   gap: 0.5rem;
+}
+
+.figma-home-auth-actions .figma-home-register-button {
+  background: var(--figma-red-dark);
+  box-shadow: 0 4px 16px rgba(111, 0, 0, 0.26);
+}
+
+.figma-home-auth-actions .figma-home-register-button:hover {
+  background: var(--figma-red-deep);
 }
 
 .figma-home-shortcuts {
@@ -5267,6 +5575,33 @@ main:has(.figma-sector) {
   max-width: 210px;
 }
 
+.figma-home-back-to-top-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.figma-home-back-to-top {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--figma-red);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(129, 0, 0, 0.25);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.figma-home-back-to-top:hover {
+  background: var(--figma-red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(129, 0, 0, 0.32);
+}
+
 .auth-page-wrap {
   display: flex;
   justify-content: center;
@@ -5274,10 +5609,11 @@ main:has(.figma-sector) {
 
 .figma-auth-card {
   width: min(100%, 520px);
+  min-height: 640px;
   border: 1px solid #dadada;
   border-radius: 4px;
   box-shadow: none;
-  padding: 0.9rem;
+  padding: 0.9rem 0.9rem 1.15rem;
   background: #fff;
   background-image: none;
 }
@@ -5285,30 +5621,46 @@ main:has(.figma-sector) {
 .auth-tabs {
   background: var(--figma-red);
   border: none;
+  margin-bottom: 1.65rem;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(125, 25, 36, 0.18);
 }
 
 .auth-tabs a,
 .auth-tabs span {
   color: #fff;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 1rem;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .auth-tabs .active {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--figma-red-dark);
   color: #fff;
   border: none;
 }
 
 .figma-auth-card h2 {
-  margin: 0.55rem 0 0.45rem;
-  font-size: clamp(2rem, 3vw, 3.4rem);
+  margin: 0 0 0.85rem;
+  font-size: clamp(2.35rem, 3.2vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: 0;
 }
 
 .figma-auth-card form {
-  gap: 0.45rem;
+  gap: 0.7rem;
 }
 
 .figma-auth-card label {
   color: #3f3f3f;
+  margin-bottom: 0;
+  font-size: 0.95rem;
 }
 
 .figma-auth-card input,
@@ -5317,7 +5669,9 @@ main:has(.figma-sector) {
   border-radius: 16px;
   border: 1px solid #d5d5d5;
   background: #f7f7f7;
-  min-height: 46px;
+  min-height: 52px;
+  margin-top: 0.35rem;
+  padding: 0.8rem 1rem;
 }
 
 .password-field {
@@ -5351,12 +5705,18 @@ main:has(.figma-sector) {
 
 .ghost-link {
   color: #6f2225;
-  margin-top: 0.35rem;
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  font-weight: 800;
 }
 
 .small-text,
 .small-text a {
   color: #6f2225;
+}
+
+.figma-auth-card .small-text {
+  margin-top: 0.65rem;
 }
 
 .figma-home-page .primary-button,
@@ -5371,6 +5731,12 @@ main:has(.figma-sector) {
   padding: 0.35rem 0.9rem;
 }
 
+.auth-page-wrap .primary-button {
+  min-height: 36px;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(125, 25, 36, 0.24);
+}
+
 .figma-home-page .primary-button:hover,
 .figma-home-page .secondary-button:hover,
 .auth-page-wrap .primary-button:hover,
@@ -5378,8 +5744,17 @@ main:has(.figma-sector) {
   background: var(--figma-red-dark);
 }
 
+.figma-home-page .figma-home-register-button {
+  background: var(--figma-red-dark);
+  box-shadow: 0 4px 16px rgba(111, 0, 0, 0.26);
+}
+
+.figma-home-page .figma-home-register-button:hover {
+  background: var(--figma-red-deep);
+}
+
 .app-footer {
-  margin-top: 1rem;
+  margin-top: 0;
   border-top: 1px solid var(--figma-line);
   padding: 1.15rem 1rem 1.45rem;
   color: #6d6d6d;

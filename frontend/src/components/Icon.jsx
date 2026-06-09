@@ -97,6 +97,8 @@ export const ICONIFY_ICONS = {
 
   userEdit: 'tabler:user-edit',
 
+  userX: 'tabler:user-x',
+
   login: 'tabler:login',
 
   logout: 'tabler:logout-2',
