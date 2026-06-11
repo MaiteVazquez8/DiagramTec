@@ -39,7 +39,7 @@ export default function LoginPage() {
   return (
     <section className="page-container auth-page-wrap">
       <AppToast error={error} onCloseError={() => setError('')} />
-      <article className="form-card auth-card figma-auth-card">
+      <article className="form-card auth-card figma-auth-card figma-login-card">
         <div className="auth-tabs">
           <span className="active">Iniciar sesion</span>
           <Link to="/signup">Registrarse</Link>
