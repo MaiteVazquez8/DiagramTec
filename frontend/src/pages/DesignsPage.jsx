@@ -19,7 +19,7 @@ export default function DesignsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [designs, setDesigns] = useState([]);
-  const [error, setError] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
   const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -27,19 +27,14 @@ export default function DesignsPage() {
 
   const loadDesigns = useCallback(async () => {
     setIsLoadingDesigns(true);
-    setError('');
+    setLoadFailed(false);
     try {
       const response = await api.get('/designs');
       const list = Array.isArray(response.data?.designs) ? response.data.designs : [];
       setDesigns(list.map(normalizeDesign));
-    } catch (err) {
+    } catch {
       setDesigns([]);
-      const status = err.response?.status;
-      if (status === 401) {
-        setError('Tu sesión expiró. Vuelve a iniciar sesión.');
-      } else {
-        setError('No se pudieron cargar los diseños. Comprueba que el servidor esté activo.');
-      }
+      setLoadFailed(true);
     } finally {
       setIsLoadingDesigns(false);
     }
@@ -51,7 +46,7 @@ export default function DesignsPage() {
     }
     if (!authLoading && !user) {
       setDesigns([]);
-      setError('');
+      setLoadFailed(false);
       setIsLoadingDesigns(false);
     }
   }, [user, authLoading, location.key, loadDesigns]);
@@ -75,8 +70,8 @@ export default function DesignsPage() {
       await api.delete(`/designs/${id}`);
       setDesigns((prev) => prev.filter((d) => d.id !== id));
       setContextDesign(null);
-    } catch (err) {
-      setError('No se pudo eliminar el diseño');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -85,8 +80,8 @@ export default function DesignsPage() {
       await api.post(`/designs/${id}/copy`);
       loadDesigns();
       setContextDesign(null);
-    } catch (err) {
-      setError('No se pudo copiar el diseño');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -169,16 +164,13 @@ export default function DesignsPage() {
           </div>
         )}
 
-        {error && (
+        {loadFailed && user ? (
           <div className="figma-designs-error">
-            <p className="error-text">{error}</p>
-            {user ? (
-              <button type="button" className="secondary-button" onClick={loadDesigns}>
-                Reintentar
-              </button>
-            ) : null}
+            <button type="button" className="secondary-button" onClick={loadDesigns}>
+              Reintentar carga de diseños
+            </button>
           </div>
-        )}
+        ) : null}
 
         {!authLoading && user && (
           <div className="figma-cards-grid">

@@ -4,24 +4,22 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import SuperAdminShell from '../components/superadmin/SuperAdminShell.jsx';
 import SuperAdminClassManageRow from '../components/superadmin/SuperAdminClassManageRow.jsx';
-import AppToast from '../components/AppToast.jsx';
 import Icon from '../components/Icon';
+import { useToast } from '../ToastContext.jsx';
 
 export default function SuperAdminClassesPage() {
+  const { showMessage } = useToast();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const loadClasses = async () => {
     setLoading(true);
     try {
       const res = await api.get('/admin/classes');
       setClasses(res.data.classes || []);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudieron cargar las clases');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     } finally {
       setLoading(false);
     }
@@ -30,13 +28,6 @@ export default function SuperAdminClassesPage() {
   useEffect(() => {
     loadClasses();
   }, []);
-
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3500);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -51,10 +42,10 @@ export default function SuperAdminClassesPage() {
     if (!window.confirm('¿Eliminar esta clase y todo su contenido?')) return;
     try {
       await api.delete(`/admin/classes/${id}`);
-      setMessage('Clase eliminada');
+      showMessage('Clase eliminada');
       loadClasses();
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo eliminar la clase');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -97,13 +88,6 @@ export default function SuperAdminClassesPage() {
           </div>
         </header>
 
-        <AppToast
-          message={message}
-          error={error}
-          onCloseMessage={() => setMessage('')}
-          onCloseError={() => setError('')}
-        />
-
         <div className="superadmin-manage__card">
           {loading ? (
             <p className="superadmin-manage__loading">Cargando clases...</p>
@@ -125,7 +109,7 @@ export default function SuperAdminClassesPage() {
                     key={classItem.id}
                     classItem={classItem}
                     onDelete={handleDelete}
-                    onCopyCode={() => setMessage('Código copiado al portapapeles')}
+                    onCopyCode={() => showMessage('Código copiado al portapapeles')}
                   />
                 ))}
               </div>
