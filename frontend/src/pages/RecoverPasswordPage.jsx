@@ -1,40 +1,35 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
-import AppToast from '../components/AppToast.jsx';
+import { useToast } from '../ToastContext.jsx';
 
 export default function RecoverPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showError, showMessage } = useToast();
   const recoverEmail = location.state?.email || localStorage.getItem('recoverEmail') || '';
   const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const handleSendCode = async () => {
-    setError('');
-    setMessage('');
     if (!recoverEmail) {
-      setError('No hay un email para reenviar el código');
+      showError('No hay un email para reenviar el código');
       return;
     }
     try {
       const response = await authApi.post('/token.php', { email: recoverEmail });
-      setMessage(response.data?.message || 'Se envió el código de verificación a su email');
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo reenviar el código.');
+      showMessage(response.data?.message || 'Se envió el código de verificación a su email');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
-    setMessage('');
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      showError('Las contraseñas no coinciden');
       return;
     }
 
@@ -46,23 +41,17 @@ export default function RecoverPasswordPage() {
         password2: confirmPassword,
       });
       const text = response.data?.message || 'Contraseña actualizada correctamente.';
-      setMessage(text);
+      showMessage(text);
       if (text.toLowerCase().includes('actualizada')) {
         setTimeout(() => navigate('/login'), 1300);
       }
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo cambiar la contraseña.');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
   return (
     <section className="page-container auth-page-wrap">
-      <AppToast
-        message={message}
-        error={error}
-        onCloseMessage={() => setMessage('')}
-        onCloseError={() => setError('')}
-      />
       <article className="form-card auth-card figma-auth-card">
         <div className="auth-tabs">
           <Link to="/login">Iniciar sesion</Link>

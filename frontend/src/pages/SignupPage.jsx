@@ -4,28 +4,27 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
-import AppToast from '../components/AppToast.jsx';
+import { useToast } from '../ToastContext.jsx';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showError } = useToast();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('');
-  const [error, setError] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      showError('Las contraseñas no coinciden');
       return;
     }
     if (!role) {
-      setError('Selecciona un rol');
+      showError('Selecciona un rol');
       return;
     }
 
@@ -41,16 +40,15 @@ export default function SignupPage() {
         login(response.data.token);
         navigate('/');
       } else {
-        setError(response.data?.error || 'No se pudo crear la cuenta');
+        showError(response.data?.error || 'No se pudo crear la cuenta');
       }
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo crear la cuenta');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
   return (
     <section className="page-container auth-page-wrap">
-      <AppToast error={error} onCloseError={() => setError('')} />
       <article className="form-card auth-card figma-auth-card figma-signup-card">
         <div className="auth-tabs">
           <Link to="/login">Iniciar sesion</Link>

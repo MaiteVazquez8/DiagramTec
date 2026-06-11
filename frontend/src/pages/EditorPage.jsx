@@ -9,8 +9,8 @@ import api from '../api.js';
 import html2canvas from 'html2canvas';
 
 import Icon from '../components/Icon.jsx';
-import AppToast from '../components/AppToast.jsx';
 import EditorSidebar from '../components/EditorSidebar';
+import { useToast } from '../ToastContext.jsx';
 import EditorToolbar from '../components/EditorToolbar';
 import EditorSubToolbar from '../components/EditorSubToolbar';
 import RenderShape from '../components/RenderShape';
@@ -57,6 +57,7 @@ import {
 
 export default function EditorPage() {
   const { user } = useAuth();
+  const { showError, showMessage } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -70,8 +71,6 @@ export default function EditorPage() {
   const [saveTitle, setSaveTitle] = useState('Mi diagrama');
   const [saveClassId, setSaveClassId] = useState('');
   const [classes, setClasses] = useState([]);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -183,7 +182,7 @@ export default function EditorPage() {
 
   useEffect(() => {
     if (!user && id) {
-      setError('Inicia sesión para abrir diseños guardados');
+      showError('Inicia sesión para abrir diseños guardados');
       navigate('/editor', { replace: true });
       return;
     }
@@ -205,16 +204,9 @@ export default function EditorPage() {
         setNextId(nextShapeIdFromList(content.shapes));
         setHistoryStack(initHistoryWithState(content));
         setTimeout(centerView, 500);
-      }).catch(() => setError('No se pudo cargar el diseño'));
+      }).catch(() => {});
     }
   }, [user, id, centerView, navigate]);
-
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -453,7 +445,7 @@ export default function EditorPage() {
     const result = handleConnectClick(connections, connectSource, shape.id);
     setConnections(result.connections);
     setConnectSource(result.connectSource);
-    if (result.message) setMessage(result.message);
+    if (result.message) showMessage(result.message);
     if (result.created || result.removed) {
       commitHistory(shapes, result.connections);
     }
@@ -624,10 +616,8 @@ export default function EditorPage() {
 
   const handleSave = async () => {
     if (isSaving) return;
-    setMessage('');
-    setError('');
     if (!user) {
-      setError('Inicia sesión para guardar tus diseños en la nube');
+      showError('Inicia sesión para guardar tus diseños en la nube');
       return;
     }
 
@@ -657,10 +647,9 @@ export default function EditorPage() {
         const res = await api.post('/designs', data);
         navigate(`/editor/${res.data.design.id}`, { replace: true });
       }
-      setMessage('Diseño guardado');
+      showMessage('Diseño guardado');
     } catch (err) {
       console.error('Error al guardar:', err);
-      setError(err.response?.data?.error || 'No se pudo guardar el diseño');
     } finally {
       setIsSaving(false);
     }
@@ -668,31 +657,28 @@ export default function EditorPage() {
 
   const handleExportPDF = async () => {
     if (!canvasRef.current) return;
-    setError('');
-    setMessage('Generando PDF...');
+    showMessage('Generando PDF...');
     try {
       const pdfCanvas = await captureDiagramHighRes(canvasRef.current, shapes);
       const pdfData = await downloadDiagramPdf(pdfCanvas, shapes, saveTitle || 'diagrama');
-      setMessage('PDF descargado');
+      showMessage('PDF descargado');
 
       if (id && pdfData) {
         try {
           await api.put(`/designs/${id}`, { pdf_data: pdfData });
         } catch (syncErr) {
           console.warn('PDF descargado; falló guardar copia en servidor:', syncErr);
-          setMessage('PDF descargado (no se guardó la copia en la nube)');
+          showMessage('PDF descargado (no se guardó la copia en la nube)');
         }
       }
     } catch (err) {
       console.error('Error PDF:', err);
-      setMessage('');
-      setError('Error al generar el PDF');
+      showError('Error al generar el PDF');
     }
   };
 
   const handleExport = () => {
     if (!canvasRef.current) return;
-    setMessage('');
     html2canvas(canvasRef.current, { backgroundColor: '#ffffff', scale: 2 }).then((canvas) => {
       const link = document.createElement('a');
       link.download = 'diagrama-dfd.png';
@@ -778,14 +764,6 @@ export default function EditorPage() {
       />
 
       <div className="editor-main-fs figma-editor-main">
-        <AppToast
-          message={message}
-          error={error}
-          onCloseMessage={() => setMessage('')}
-          onCloseError={() => setError('')}
-          containerClassName="editor-toast-container"
-        />
-
         <div className="figma-editor-panel">
           <div className="figma-editor-panel-head">
             <EditorToolbar
@@ -794,8 +772,6 @@ export default function EditorPage() {
               classes={classes}
               saveClassId={saveClassId}
               setSaveClassId={setSaveClassId}
-              message={message}
-              error={error}
               handleSave={handleSave}
               handleClear={handleClear}
               handleExport={handleExport}

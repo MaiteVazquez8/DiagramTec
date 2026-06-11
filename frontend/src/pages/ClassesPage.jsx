@@ -6,18 +6,17 @@ import { useAuth } from '../AuthContext.jsx';
 
 import { PlusIcon, EmptyClassIcon } from '../components/EditorUI.jsx';
 import Icon from '../components/Icon.jsx';
-import AppToast from '../components/AppToast.jsx';
+import { useToast } from '../ToastContext.jsx';
 
 export default function ClassesPage() {
   const { user } = useAuth();
+  const { showMessage } = useToast();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
   const [classes, setClasses] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -25,8 +24,8 @@ export default function ClassesPage() {
     try {
       const response = await api.get('/classes');
       setClasses(response.data.classes);
-    } catch (err) {
-      setError('No se pudieron cargar las clases');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -34,41 +33,30 @@ export default function ClassesPage() {
     loadClasses();
   }, []);
 
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
-
   const handleCreate = async (event) => {
     event.preventDefault();
-    setMessage('');
-    setError('');
     try {
       const response = await api.post('/classes', { title, description });
-      setMessage(`Clase creada. Código: ${response.data.class.code}`);
+      showMessage(`Clase creada. Código: ${response.data.class.code}`);
       setTitle('');
       setDescription('');
       setShowCreateModal(false);
       loadClasses();
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo crear la clase');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
   const handleJoin = async (event) => {
     event.preventDefault();
-    setMessage('');
-    setError('');
     try {
       const response = await api.post('/classes/join', { code: joinCode });
-      setMessage(`Te has unido a la clase: ${response.data.class.title}`);
+      showMessage(`Te has unido a la clase: ${response.data.class.title}`);
       setJoinCode('');
       setShowJoinModal(false);
       loadClasses();
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo unirse a la clase');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -174,13 +162,6 @@ export default function ClassesPage() {
             )}
           </div>
         </header>
-
-        <AppToast
-          message={message}
-          error={error}
-          onCloseMessage={() => setMessage('')}
-          onCloseError={() => setError('')}
-        />
 
         <div className={isTeacher ? 'figma-cards-grid figma-classes-grid' : 'class-list-grid'}>
           {classes.length === 0 ? (
