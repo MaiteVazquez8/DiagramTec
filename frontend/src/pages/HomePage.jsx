@@ -90,7 +90,7 @@ export default function HomePage() {
             </p>
           </div>
           <div className="figma-about-logo-wrap">
-            <img src="/Diagram(3).png" alt="Logo DiagramTec" className="figma-about-logo" />
+            <img src="/logoDT.png" alt="Logo DiagramTec" className="figma-about-logo" />
           </div>
         </div>
       </section>
