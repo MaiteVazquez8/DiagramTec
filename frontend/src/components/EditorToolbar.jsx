@@ -5,7 +5,6 @@ import Icon from './Icon';
 export default function EditorToolbar({
   saveTitle, setSaveTitle,
   classes, saveClassId, setSaveClassId,
-  message, error,
   handleSave, handleClear, handleExport, handleExportPDF,
   isSaving,
   isGuest = false,
