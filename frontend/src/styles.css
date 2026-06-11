@@ -5351,8 +5351,34 @@ main:has(.figma-sector) {
     min-height: 0;
   }
 
+  #account-page .account-layout {
+    min-height: 0;
+  }
+
+  #account-page .account-main {
+    padding: 1.5rem 1rem 2.5rem;
+  }
+
   .account-sidebar__body {
     padding: 2rem 1rem 1rem;
+  }
+
+  .page-container.auth-page-wrap {
+    align-items: flex-start;
+    min-height: auto;
+    padding: 1.25rem 1rem 1.75rem;
+  }
+
+  .figma-login-card,
+  .figma-signup-card {
+    width: min(100%, 390px);
+    min-height: auto !important;
+    padding-bottom: 1rem;
+  }
+
+  .figma-signup-card .form-row {
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
   }
 
   .account-cards-row {
@@ -5412,6 +5438,34 @@ main:has(.figma-sector) {
 
 .main-figma {
   background: #fff;
+  flex: 1 0 auto;
+}
+
+#account-page {
+  padding: 0;
+  min-height: calc(100vh - var(--figma-header-h, 96px));
+}
+
+#account-page .account-layout {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  align-items: stretch;
+  gap: clamp(1.5rem, 4vw, 3.15rem);
+  min-height: calc(100vh - var(--figma-header-h, 96px));
+}
+
+#account-page .account-sidebar {
+  min-height: inherit;
+  height: auto;
+}
+
+#account-page .account-main {
+  padding: 2.5rem max(1rem, calc(50vw - 600px)) 3.5rem 0;
+}
+
+#account-page .account-layout:has(.account-sidebar--collapsed) .account-main {
+  padding-left: max(1.5rem, calc(50vw - 600px));
 }
 
 .app-header.figma-header,
@@ -5573,6 +5627,7 @@ main:has(.figma-sector) {
 .figma-about-logo {
   width: 100%;
   max-width: 210px;
+  object-fit: contain;
 }
 
 .figma-home-back-to-top-wrap {
@@ -5616,6 +5671,14 @@ main:has(.figma-sector) {
   padding: 0.9rem 0.9rem 1.15rem;
   background: #fff;
   background-image: none;
+}
+
+.figma-login-card,
+.figma-signup-card {
+  align-self: flex-start;
+  height: fit-content;
+  min-height: auto !important;
+  padding-bottom: 1.25rem;
 }
 
 .auth-tabs {
@@ -5754,18 +5817,28 @@ main:has(.figma-sector) {
 }
 
 .app-footer {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 960px);
+  justify-content: center;
+  gap: clamp(1.25rem, 4vw, 2.5rem);
   margin-top: 0;
   border-top: 1px solid var(--figma-line);
-  padding: 1.15rem 1rem 1.45rem;
+  padding: 1.15rem clamp(1rem, 4vw, 2rem) 1.45rem;
   color: #6d6d6d;
+  width: 100%;
 }
 
 .footer-content {
-  max-width: 1020px;
-  grid-template-columns: 1.7fr repeat(3, minmax(120px, 1fr));
+  width: 100%;
+  max-width: none;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
   align-items: start;
   gap: 1.5rem;
-  margin: 0 auto;
+  margin: 0;
+}
+
+.footer-brand-section {
+  min-width: 0;
 }
 
 .footer-brand {
@@ -5827,6 +5900,10 @@ main:has(.figma-sector) {
   }
 
   .footer-content {
+    grid-template-columns: 1fr;
+  }
+
+  .app-footer {
     grid-template-columns: 1fr;
   }
 
