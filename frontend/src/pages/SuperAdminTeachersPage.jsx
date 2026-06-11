@@ -4,16 +4,15 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import SuperAdminShell from '../components/superadmin/SuperAdminShell.jsx';
 import SuperAdminUserManageList from '../components/superadmin/SuperAdminUserManageList.jsx';
-import AppToast from '../components/AppToast.jsx';
 import Icon from '../components/Icon';
+import { useToast } from '../ToastContext.jsx';
 
 export default function SuperAdminTeachersPage() {
+  const { showMessage } = useToast();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [savingId, setSavingId] = useState(null);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const loadTeachers = async () => {
     setLoading(true);
@@ -21,9 +20,8 @@ export default function SuperAdminTeachersPage() {
       const res = await api.get('/admin/users');
       const list = (res.data.users || []).filter((u) => u.role === 'teacher');
       setTeachers(list);
-      setError('');
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudieron cargar los profesores');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     } finally {
       setLoading(false);
     }
@@ -32,13 +30,6 @@ export default function SuperAdminTeachersPage() {
   useEffect(() => {
     loadTeachers();
   }, []);
-
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3500);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -58,10 +49,10 @@ export default function SuperAdminTeachersPage() {
         lastName: data.lastName,
         role: 'teacher',
       });
-      setMessage('Profesor actualizado correctamente');
+      showMessage('Profesor actualizado correctamente');
       loadTeachers();
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo actualizar el profesor');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     } finally {
       setSavingId(null);
     }
@@ -71,10 +62,10 @@ export default function SuperAdminTeachersPage() {
     if (!window.confirm('¿Eliminar este profesor?')) return;
     try {
       await api.delete(`/admin/users/${id}`);
-      setMessage('Profesor eliminado');
+      showMessage('Profesor eliminado');
       loadTeachers();
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo eliminar el profesor');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -116,13 +107,6 @@ export default function SuperAdminTeachersPage() {
             <Icon name="search" size={20} className="superadmin-manage__search-icon" />
           </div>
         </header>
-
-        <AppToast
-          message={message}
-          error={error}
-          onCloseMessage={() => setMessage('')}
-          onCloseError={() => setError('')}
-        />
 
         <div className="superadmin-manage__card">
           <SuperAdminUserManageList

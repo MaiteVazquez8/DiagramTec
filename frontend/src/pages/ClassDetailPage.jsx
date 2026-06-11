@@ -10,8 +10,8 @@ import { useAuth } from '../AuthContext.jsx';
 import { SendIcon, TrashIcon } from '../components/EditorUI.jsx';
 import Icon from '../components/Icon.jsx';
 import ClassPost from '../components/ClassPost';
-import AppToast from '../components/AppToast.jsx';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
+import { useToast } from '../ToastContext.jsx';
 
 function sameId(a, b) {
   if (a == null || b == null) return false;
@@ -21,13 +21,12 @@ function sameId(a, b) {
 export default function ClassDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { showError, showMessage } = useToast();
   const navigate = useNavigate();
   const [classInfo, setClassInfo] = useState(null);
   const [designs, setDesigns] = useState([]);
   const [comments, setComments] = useState([]);
   const [userDesigns, setUserDesigns] = useState([]);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -59,8 +58,7 @@ export default function ClassDetailPage() {
     try {
       const res = await api.get(`/classes/${id}`);
       setClassInfo(res.data.class);
-    } catch (err) {
-      setError('No se pudo cargar la información de la clase');
+    } catch {
       return;
     }
 
@@ -68,8 +66,8 @@ export default function ClassDetailPage() {
       const designsRes = await api.get(`/classes/${id}/designs`);
       setDesigns(designsRes.data.designs || []);
       setComments(designsRes.data.comments || []);
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudieron cargar las publicaciones');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -79,8 +77,8 @@ export default function ClassDetailPage() {
       const res = await api.get('/designs');
       const mine = (res.data.designs || []).filter((d) => sameId(d.ownerId, user.id));
       setUserDesigns(mine);
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudieron cargar tus diseños');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -89,20 +87,13 @@ export default function ClassDetailPage() {
     if (user) loadUserDesigns();
   }, [id, user]);
 
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
-
   const handleSelectDesign = (designId) => {
     setSelectedDesignId((prev) => (prev === designId ? null : designId));
   };
 
   const handleModalPublish = async () => {
     if (!selectedDesignId) {
-      setError('Selecciona un diseño para compartir');
+      showError('Selecciona un diseño para compartir');
       return;
     }
     try {
@@ -110,13 +101,13 @@ export default function ClassDetailPage() {
         classId: Number(id),
         description: modalComment.trim() || null,
       });
-      setMessage('Diseño compartido en la clase');
+      showMessage('Diseño compartido en la clase');
       setSelectedDesignId(null);
       setModalComment('');
       setShowUploadModal(false);
       loadClassData();
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo compartir el diseño');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -130,18 +121,18 @@ export default function ClassDetailPage() {
           classId: Number(id),
           description: commentText.trim() || null
         });
-        setMessage('Diseño compartido en la clase');
+        showMessage('Diseño compartido en la clase');
         setSelectedDesignId(null);
       } else {
         // Solo comentario regular
         await api.post(`/classes/${id}/comments`, { content: commentText });
-        setMessage('Mensaje publicado');
+        showMessage('Mensaje publicado');
       }
-      
+
       setCommentText('');
       loadClassData();
-    } catch (err) {
-      setError('No se pudo realizar la publicación');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -153,8 +144,7 @@ export default function ClassDetailPage() {
     try {
       await api.post(`/classes/leave`, { classId: id });
       navigate('/classes');
-    } catch (err) {
-      setError('No se pudo abandonar la clase');
+    } catch {
       setShowLeaveModal(false);
     }
   };
@@ -163,17 +153,17 @@ export default function ClassDetailPage() {
     try {
       await api.post(`/classes/join`, { code: classInfo.code });
       loadClassData();
-    } catch (err) {
-      setError('No se pudo unir a la clase');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
   const handleCopyDesign = async (designId) => {
     try {
       await api.post(`/designs/${designId}/copy`);
-      setMessage('Diseño copiado a tus diseños personales');
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo copiar el diseño');
+      showMessage('Diseño copiado a tus diseños personales');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -214,27 +204,21 @@ export default function ClassDetailPage() {
     try {
       if (type === 'post') {
         await api.put(`/designs/${targetId}`, { classId: null });
-        setMessage('Publicación eliminada de la clase');
+        showMessage('Publicación eliminada de la clase');
       } else if (type === 'comment') {
         await api.delete(`/comments/${targetId}`);
-        setMessage('Comentario eliminado');
+        showMessage('Comentario eliminado');
       } else if (type === 'expel') {
         await api.post(`/classes/${id}/expel`, { userId: targetUserId });
-        setMessage('Estudiante expulsado de la clase');
+        showMessage('Estudiante expulsado de la clase');
       } else if (type === 'class') {
         await api.delete(`/classes/${targetId ?? id}`);
         navigate('/classes');
         return;
       }
       loadClassData();
-    } catch (err) {
-      if (type === 'class') {
-        setError(err.response?.data?.error || 'No se pudo eliminar la clase');
-      } else if (type === 'expel') {
-        setError(err.response?.data?.error || 'No se pudo expulsar al estudiante');
-      } else {
-        setError(`No se pudo eliminar ${type === 'post' ? 'la publicación' : 'el comentario'}`);
-      }
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     } finally {
       setConfirmBusy(false);
       closeConfirm();
@@ -250,7 +234,7 @@ export default function ClassDetailPage() {
     return (
       <section className="figma-sector class-detail-sector">
         <div className="figma-sector-inner">
-          <p className="class-detail-loading">{error || 'Cargando...'}</p>
+          <p className="class-detail-loading">Cargando...</p>
         </div>
       </section>
     );
@@ -346,13 +330,6 @@ export default function ClassDetailPage() {
         </div>
       </article>
 
-      <AppToast
-        message={message}
-        error={error}
-        onCloseMessage={() => setMessage('')}
-        onCloseError={() => setError('')}
-      />
-
       <div className="class-detail-section-head">
         <h2 className="class-section-title">Publicaciones de la clase</h2>
         {canExpelStudents && (
@@ -396,14 +373,7 @@ export default function ClassDetailPage() {
               togglePost={togglePost}
               canExpelStudent={canExpelStudents}
               handleExpel={handleExpelStudent}
-              handleCopy={async (designId) => {
-                try {
-                  await handleCopyDesign(designId);
-                  setMessage('Diseño copiado con éxito a tus diseños personales');
-                } catch (err) {
-                  setError('Error al copiar: ' + (err.response?.data?.error || err.message));
-                }
-              }}
+              handleCopy={handleCopyDesign}
               handleDelete={handleDeletePost}
               handleView={(designId) => navigate(`/editor/${designId}`)}
               currentUser={user}

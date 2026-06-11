@@ -4,11 +4,12 @@
  * - Rutas públicas, protegidas (login) y admin (superadmin)
  * - El editor usa main.main-editor; el resto main.main-figma
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from './AuthContext.jsx';
+import { ToastProvider } from './ToastContext.jsx';
 
 import HomePage from './pages/HomePage.jsx';
 
@@ -89,17 +90,66 @@ function HeaderProfileAvatar() {
 function Header() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const headerRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const isSuperAdminPanel = location.pathname.startsWith('/superadmin');
 
-  const toggleMenu = () => setMenuOpen(!menuOpen);
+  const toggleMenu = () => setMenuOpen((open) => !open);
   const closeMenu = () => setMenuOpen(false);
   const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
   const profileTo = !user ? '/login' : isSuperAdmin ? '/superadmin' : '/account';
   const profileLabel = !user ? 'Iniciar sesión' : isSuperAdmin ? 'Panel superadmin' : 'Mi cuenta';
 
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') closeMenu();
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.body.classList.add('mobile-menu-open');
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.classList.remove('mobile-menu-open');
+    };
+  }, [menuOpen]);
+
+  const navLinks = (
+    <nav className="figma-nav" aria-label={isSuperAdminPanel ? 'Administración' : 'Principal'}>
+      {isSuperAdminPanel ? (
+        <>
+          <NavLink to="/superadmin/alumnos" onClick={closeMenu}>Gestión de alumnos</NavLink>
+          <span className="figma-nav-divider" aria-hidden />
+          <NavLink to="/superadmin/profesores" onClick={closeMenu}>Gestión de profesores</NavLink>
+          <span className="figma-nav-divider" aria-hidden />
+          <NavLink to="/superadmin/clases" onClick={closeMenu}>Gestión de clases</NavLink>
+        </>
+      ) : (
+        <>
+          <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
+          <span className="figma-nav-divider" aria-hidden />
+          <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
+          <span className="figma-nav-divider" aria-hidden />
+          <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink>
+          {(user?.role === 'superadmin' || user?.role === 'admin') && (
+            <>
+              <span className="figma-nav-divider" aria-hidden />
+              <NavLink to="/superadmin" onClick={closeMenu}>Superadmin</NavLink>
+            </>
+          )}
+        </>
+      )}
+    </nav>
+  );
+
   return (
-    <header className="app-header figma-header">
+    <header ref={headerRef} className={`app-header figma-header${menuOpen ? ' figma-header--menu-open' : ''}`}>
       <div className="figma-header-inner">
         <div className="figma-header-logo">
           <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
@@ -109,52 +159,17 @@ function Header() {
 
         <button
           type="button"
-          className="mobile-menu-btn figma-menu-btn"
+          className={`mobile-menu-btn figma-menu-btn${menuOpen ? ' figma-menu-btn--open' : ''}`}
           onClick={toggleMenu}
-          aria-label="Menú móvil"
+          aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
           aria-expanded={menuOpen}
+          aria-controls="figma-header-mobile-nav"
         >
-          <Icon name={menuOpen ? 'close' : 'menu'} size={24} strokeWidth={2.5} />
+          <Icon name={menuOpen ? 'close' : 'menu'} size={22} strokeWidth={2.5} />
         </button>
 
-        <div className={`figma-header-nav-wrap ${menuOpen ? 'open' : ''}`}>
-          <nav className="figma-nav" aria-label={isSuperAdminPanel ? 'Administración' : 'Principal'}>
-            {isSuperAdminPanel ? (
-              <>
-                <NavLink to="/superadmin/alumnos" onClick={closeMenu}>Gestión de alumnos</NavLink>
-                <span className="figma-nav-divider" aria-hidden />
-                <NavLink to="/superadmin/profesores" onClick={closeMenu}>Gestión de profesores</NavLink>
-                <span className="figma-nav-divider" aria-hidden />
-                <NavLink to="/superadmin/clases" onClick={closeMenu}>Gestión de clases</NavLink>
-              </>
-            ) : (
-              <>
-                <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
-                <span className="figma-nav-divider" aria-hidden />
-                <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
-                <span className="figma-nav-divider" aria-hidden />
-                <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink>
-                {(user?.role === 'superadmin' || user?.role === 'admin') && (
-                  <>
-                    <span className="figma-nav-divider" aria-hidden />
-                    <NavLink to="/superadmin" onClick={closeMenu}>Superadmin</NavLink>
-                  </>
-                )}
-              </>
-            )}
-          </nav>
-
-          <div className="figma-header-mobile-extra">
-            {user ? (
-              <button type="button" className="figma-header-logout-mobile" onClick={() => { logout(); closeMenu(); }}>
-                Cerrar sesión
-              </button>
-            ) : (
-              <NavLink className="figma-header-login" to="/login" onClick={closeMenu}>
-                Iniciar sesión
-              </NavLink>
-            )}
-          </div>
+        <div className="figma-header-nav-wrap figma-header-nav-wrap--desktop">
+          {navLinks}
         </div>
 
         <Link
@@ -167,6 +182,36 @@ function Header() {
           <HeaderProfileAvatar />
         </Link>
       </div>
+
+      {menuOpen ? (
+        <div className="figma-header-mobile-menu" role="dialog" aria-modal="true" aria-label="Menú de navegación">
+          <button
+            type="button"
+            className="figma-header-overlay"
+            onClick={closeMenu}
+            aria-label="Cerrar menú"
+            tabIndex={-1}
+          />
+          <div id="figma-header-mobile-nav" className="figma-header-mobile-panel">
+            <div className="figma-header-mobile-panel__nav">
+              {navLinks}
+            </div>
+            {user ? (
+              <button
+                type="button"
+                className="figma-header-logout-mobile"
+                onClick={() => { logout(); closeMenu(); }}
+              >
+                Cerrar sesión
+              </button>
+            ) : (
+              <NavLink className="figma-header-login figma-header-login--mobile" to="/login" onClick={closeMenu}>
+                Iniciar sesión
+              </NavLink>
+            )}
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -245,21 +290,15 @@ function AppShell() {
 
 
 export default function App() {
-
   return (
-
     <AuthProvider>
-
-      <BrowserRouter>
-
-        <AppShell />
-
-      </BrowserRouter>
-
+      <ToastProvider>
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
-
   );
-
 }
 
 

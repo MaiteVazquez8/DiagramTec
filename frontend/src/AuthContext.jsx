@@ -31,7 +31,7 @@ export function AuthProvider({ children }) {
 
     setAuthToken(token);
     setLoading(true);
-    api.get('/auth/me')
+    api.get('/auth/me', { skipErrorToast: true })
       .then((response) => setUser(response.data.user))
       .catch(() => {
         clearSessionState();
