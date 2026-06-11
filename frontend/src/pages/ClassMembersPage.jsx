@@ -7,8 +7,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
-import AppToast from '../components/AppToast.jsx';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
+import { useToast } from '../ToastContext.jsx';
 
 function sameId(a, b) {
   if (a == null || b == null) return false;
@@ -18,11 +18,11 @@ function sameId(a, b) {
 export default function ClassMembersPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { showMessage } = useToast();
   const navigate = useNavigate();
   const [classInfo, setClassInfo] = useState(null);
   const [members, setMembers] = useState([]);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const [showClassMenu, setShowClassMenu] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
     show: false,
@@ -38,30 +38,23 @@ export default function ClassMembersPage() {
   };
 
   const loadData = async () => {
+    setLoading(true);
     try {
       const res = await api.get(`/classes/${id}/members`);
       setClassInfo(res.data.class);
       setMembers(res.data.members || []);
-      setError('');
     } catch (err) {
-      const msg = err.response?.data?.error || 'No se pudieron cargar los miembros';
-      setError(msg);
       if (err.response?.status === 403 || err.response?.status === 401) {
         navigate(`/classes/${id}`, { replace: true });
       }
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     loadData();
   }, [id]);
-
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
 
   const closeConfirm = () => {
     if (confirmBusy) return;
@@ -83,26 +76,22 @@ export default function ClassMembersPage() {
     try {
       if (type === 'expel') {
         await api.post(`/classes/${id}/expel`, { userId: targetUserId });
-        setMessage('Estudiante expulsado de la clase');
+        showMessage('Estudiante expulsado de la clase');
         loadData();
       } else if (type === 'deleteClass') {
         await api.delete(`/classes/${id}`);
         navigate('/classes');
         return;
       }
-    } catch (err) {
-      if (type === 'deleteClass') {
-        setError(err.response?.data?.error || 'No se pudo eliminar la clase');
-      } else {
-        setError(err.response?.data?.error || 'No se pudo expulsar al estudiante');
-      }
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     } finally {
       setConfirmBusy(false);
       closeConfirm();
     }
   };
 
-  if (!classInfo && !error) {
+  if (loading && !classInfo) {
     return (
       <section className="figma-sector class-detail-sector class-members-sector">
         <div className="figma-sector-inner">
@@ -164,13 +153,6 @@ export default function ClassMembersPage() {
             )}
           </div>
         </article>
-
-        <AppToast
-          message={message}
-          error={error}
-          onCloseMessage={() => setMessage('')}
-          onCloseError={() => setError('')}
-        />
 
         <div className="class-members-section-head">
           <div className="class-members-section-head__title">
