@@ -1,3 +1,4 @@
+/** Cálculo de puntos de anclaje y segmentos SVG entre dos formas. */
 import {
   ellipseBorderScale,
   getShapeOutlineVertices,
@@ -147,9 +148,25 @@ export function getConnectionLine(from, to) {
  * @param {Map<string, import('../models/shape.js').Shape>} shapesById
  * @returns {ConnectionLine | null}
  */
+/**
+ * @param {Map<string|number, import('../models/shape.js').Shape>} shapesById
+ * @param {string|number} id
+ */
+function resolveShapeFromMap(shapesById, id) {
+  if (id == null) return undefined;
+  const direct = shapesById.get(id);
+  if (direct) return direct;
+  const asNumber = Number(id);
+  if (!Number.isNaN(asNumber)) {
+    const byNumber = shapesById.get(asNumber);
+    if (byNumber) return byNumber;
+  }
+  return shapesById.get(String(id));
+}
+
 export function getConnectionLineFromMap(connection, shapesById) {
-  const from = shapesById.get(connection.from);
-  const to = shapesById.get(connection.to);
+  const from = resolveShapeFromMap(shapesById, connection.from);
+  const to = resolveShapeFromMap(shapesById, connection.to);
   if (!from || !to) return null;
   return getConnectionLine(from, to);
 }
