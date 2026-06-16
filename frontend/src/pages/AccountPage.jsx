@@ -5,6 +5,7 @@ import { useAuth } from '../AuthContext.jsx';
 import ConfirmModal from '../components/ConfirmModal.jsx';
 import Icon from '../components/Icon.jsx';
 import ProfileSilhouette from '../components/ProfileSilhouette.jsx';
+import { AccountPageSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 export default function AccountPage() {
   const { user, logout } = useAuth();
@@ -59,6 +60,14 @@ export default function AccountPage() {
   }, [user, loadPreviews]);
 
   const placeholders = Array.from({ length: 5 });
+
+  if (isLoadingPreviews) {
+    return (
+      <section className="figma-sector" id="account-page">
+        <AccountPageSkeleton />
+      </section>
+    );
+  }
 
   const renderDesignCard = (design, index) => (
     <article
@@ -193,7 +202,7 @@ export default function AccountPage() {
               <h1>Mis diseños</h1>
               <Link to="/designs" className="account-link">Ver todo &gt;</Link>
             </header>
-            <div className="account-cards-row" aria-busy={isLoadingPreviews}>
+            <div className="account-cards-row">
               {designCards}
             </div>
           </section>
@@ -203,7 +212,7 @@ export default function AccountPage() {
               <h1>Mis clases</h1>
               <Link to="/classes" className="account-link">Ver todo &gt;</Link>
             </header>
-            <div className="account-cards-row" aria-busy={isLoadingPreviews}>
+            <div className="account-cards-row">
               {classCards}
             </div>
           </section>
