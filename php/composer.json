@@ -1,6 +1,7 @@
 {
     "require": {
         "firebase/php-jwt": "^7.0",
-        "phpmailer/phpmailer": "^7.0"
+        "phpmailer/phpmailer": "^7.0",
+        "google/auth": "^1.0"
     }
 }

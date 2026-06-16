@@ -33,6 +33,7 @@ async function startServer() {
   try {
     db = await openDb();
     app.locals.db = db;
+    initializePassport(db);
     console.log('Database connected');
   } catch (err) {
     console.error('Database connection failed:', err);
