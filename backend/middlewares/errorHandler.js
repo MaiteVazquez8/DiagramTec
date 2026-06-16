@@ -34,6 +34,15 @@ function errorHandler(err, req, res, next) {
   } else if (err.message === 'TITLE_AND_CONTENT_REQUIRED') {
     statusCode = 400;
     message = 'Título y contenido son obligatorios';
+  } else if (err.message === 'MAX_DESIGNS_REACHED') {
+    statusCode = 403;
+    message = 'Has alcanzado el límite de 20 diagramas. Elimina algunos para crear nuevos.';
+  } else if (err.message === 'CANNOT_EXPEL_OWNER') {
+    statusCode = 400;
+    message = 'No puedes expulsar al dueño de la clase';
+  } else if (err.message === 'CANNOT_EXPEL_NON_STUDENT') {
+    statusCode = 400;
+    message = 'Solo puedes expulsar estudiantes';
   } else if (err.statusCode) {
     statusCode = err.statusCode;
     message = err.message;
