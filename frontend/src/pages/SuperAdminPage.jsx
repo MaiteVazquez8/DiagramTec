@@ -9,6 +9,7 @@ import {
   SuperAdminClassTile,
   previewItems,
 } from '../components/superadmin/SuperAdminTiles';
+import { SuperAdminDashboardSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 export default function SuperAdminPage() {
   const navigate = useNavigate();
@@ -38,9 +39,9 @@ export default function SuperAdminPage() {
 
   if (loading) {
     return (
-      <div className="superadmin-dashboard figma-dot-pattern">
-        <p className="superadmin-dashboard__loading">Cargando panel de administración...</p>
-      </div>
+      <SuperAdminShell>
+        <SuperAdminDashboardSkeleton />
+      </SuperAdminShell>
     );
   }
 

@@ -7,6 +7,7 @@ import { useAuth } from '../AuthContext.jsx';
 import { PlusIcon, EmptyClassIcon } from '../components/EditorUI.jsx';
 import Icon from '../components/Icon.jsx';
 import { useToast } from '../ToastContext.jsx';
+import { ClassesPageSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 export default function ClassesPage() {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export default function ClassesPage() {
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
   const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -21,11 +23,14 @@ export default function ClassesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadClasses = async () => {
+    setLoading(true);
     try {
       const response = await api.get('/classes');
       setClasses(response.data.classes);
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -163,6 +168,9 @@ export default function ClassesPage() {
           </div>
         </header>
 
+        {loading ? (
+          <ClassesPageSkeleton teacher={isTeacher} />
+        ) : (
         <div className={isTeacher ? 'figma-cards-grid figma-classes-grid' : 'class-list-grid'}>
           {classes.length === 0 ? (
             <div className="figma-empty-panel figma-dot-pattern">
@@ -196,6 +204,7 @@ export default function ClassesPage() {
             classes.map((classItem, index) => renderClassCard(classItem, index))
           )}
         </div>
+        )}
 
         {showCreateModal && isTeacher && (
           <div
