@@ -1,3 +1,4 @@
+/** Miniatura de una forma en la paleta del sidebar. */
 import Icon from '../../components/Icon.jsx';
 import RenderShape from '../../components/RenderShape.jsx';
 import { createShape } from '../models/shape.js';
@@ -11,7 +12,7 @@ export default function ShapePreview({ type }) {
   if (type === SHAPE_TYPES.CONNECT) {
     return (
       <div className="connect-preview">
-        <Icon name="connect" size={40} strokeWidth={3} style={{ color: '#000' }} />
+        <Icon name="connect" size={28} strokeWidth={2.5} style={{ color: '#000' }} />
       </div>
     );
   }

@@ -1,23 +1,21 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authApi from '../authApi.js';
+import { useToast } from '../ToastContext.jsx';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const { showError, showMessage } = useToast();
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
-    setMessage('');
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      showError('Las contraseñas no coinciden');
       return;
     }
 
@@ -29,12 +27,12 @@ export default function ResetPasswordPage() {
         password2: confirmPassword,
       });
       const msg = response.data?.message;
-      setMessage(msg || 'Contraseña actualizada correctamente.');
+      showMessage(msg || 'Contraseña actualizada correctamente.');
       if (msg && msg.toLowerCase().includes('actualizada')) {
         setTimeout(() => navigate('/login'), 2000);
       }
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo cambiar la contraseña.');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
@@ -84,8 +82,6 @@ export default function ResetPasswordPage() {
               placeholder="Confirmar contraseña"
             />
           </label>
-          {message ? <p className="success-text">{message}</p> : null}
-          {error ? <p className="error-text">{error}</p> : null}
           <button className="primary-button full-width" type="submit">Cambiar contraseña</button>
         </form>
         <p className="small-text">

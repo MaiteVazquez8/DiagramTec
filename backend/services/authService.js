@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { findByEmail, createUser, findById, updateUser } = require('../repositories/userRepository');
+const { findByEmail, createUser, findById, updateUser, deleteUser } = require('../repositories/userRepository');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -33,9 +33,14 @@ async function updateProfile(db, id, data) {
   return await updateUser(db, id, data.firstName, data.lastName, data.email);
 }
 
+async function deleteAccount(db, id) {
+  return await deleteUser(db, id);
+}
+
 module.exports = { 
     register, 
     login, 
     getMe, 
-    updateProfile 
+    updateProfile,
+    deleteAccount 
 };

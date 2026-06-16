@@ -65,6 +65,19 @@ async function findMembersForClass(db, classId, userId) {
   return rows;
 }
 
+async function findStudentMembersByClass(db, classId) {
+  const [rows] = await db.execute(`
+    SELECT u.id, u.role, u.firstName, u.lastName,
+      CONCAT(u.firstName, ' ', u.lastName) AS fullName,
+      cm.joinedAt
+    FROM class_members cm
+    INNER JOIN users u ON u.id = cm.userId
+    WHERE cm.classId = ? AND u.role = 'student'
+    ORDER BY u.lastName ASC, u.firstName ASC
+  `, [classId]);
+  return rows;
+}
+
 async function joinClass(db, classId, userId) {
   await db.execute('INSERT INTO class_members (classId, userId) VALUES (?, ?)', [classId, userId]);
 }
@@ -76,7 +89,7 @@ async function leaveClass(db, classId, userId) {
 async function findCommentsByClassId(db, classId) {
   const [rows] = await db.execute(`
     SELECT cm.id, cm.content, cm.createdAt,
-      CONCAT(u.firstName, ' ', u.lastName) AS authorName, u.id AS authorId
+      CONCAT(u.firstName, ' ', u.lastName) AS authorName, u.id AS authorId, u.role AS authorRole
     FROM comments cm LEFT JOIN users u ON u.id = cm.userId
     WHERE cm.classId = ? ORDER BY cm.createdAt ASC
   `, [classId]);
@@ -99,11 +112,22 @@ async function insertClassComment(db, classId, userId, content) {
 async function findDesignsByClass(db, classId) {
   const [rows] = await db.execute(`
     SELECT d.id, d.title, d.ownerId, d.classId, d.createdAt, d.isCopy, d.originalId, d.image, d.pdf_data, d.description,
-      CONCAT(u.firstName, ' ', u.lastName) AS ownerName
+      CONCAT(u.firstName, ' ', u.lastName) AS ownerName, u.role AS ownerRole
     FROM designs d LEFT JOIN users u ON u.id = d.ownerId
     WHERE d.classId = ? ORDER BY d.createdAt DESC
   `, [classId]);
   return rows;
+}
+
+async function findUserRole(db, userId) {
+  const [rows] = await db.execute('SELECT id, role FROM users WHERE id = ?', [userId]);
+  return rows[0] || null;
+}
+
+async function expelMemberFromClass(db, classId, userId) {
+  await db.execute('DELETE FROM class_members WHERE classId = ? AND userId = ?', [classId, userId]);
+  await db.execute('UPDATE designs SET classId = NULL WHERE classId = ? AND ownerId = ?', [classId, userId]);
+  await db.execute('DELETE FROM comments WHERE classId = ? AND userId = ?', [classId, userId]);
 }
 
 module.exports = {
@@ -114,9 +138,12 @@ module.exports = {
   createClass,
   deleteClass,
   findMembersForClass,
+  findStudentMembersByClass,
   joinClass,
   leaveClass,
   findCommentsByClassId,
   insertClassComment,
-  findDesignsByClass
+  findDesignsByClass,
+  findUserRole,
+  expelMemberFromClass
 };

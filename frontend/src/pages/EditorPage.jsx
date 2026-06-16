@@ -1,3 +1,7 @@
+/**
+ * Editor de diagramas de flujo (rutas /editor y /editor/:id).
+ * Gestiona formas, conexiones, zoom/pan, historial, guardado y exportación PDF/PNG.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
@@ -6,7 +10,9 @@ import html2canvas from 'html2canvas';
 
 import Icon from '../components/Icon.jsx';
 import EditorSidebar from '../components/EditorSidebar';
+import { useToast } from '../ToastContext.jsx';
 import EditorToolbar from '../components/EditorToolbar';
+import EditorSubToolbar from '../components/EditorSubToolbar';
 import RenderShape from '../components/RenderShape';
 
 import {
@@ -17,9 +23,8 @@ import {
   PALETTE_DRAG_TYPE_KEY,
   createShape,
   duplicateShape,
-  shapesToMap,
-  setShapeFontSize,
   bringShapeToFront,
+  shapesToMap,
   parseDiagramContent,
   serializeDiagram,
   emptyDiagramState,
@@ -33,15 +38,17 @@ import {
   deleteShapeFromDiagram,
   addShapeToDiagram,
   handleConnectClick,
+  removeConnection,
   getConnectionLineFromMap,
   screenToCanvas,
   computeCenterPan,
+  computePanForZoomChange,
   clientDeltaToCanvas,
   stepZoomIn,
   stepZoomOut,
   captureDiagramPreview,
   captureDiagramHighRes,
-  canvasToJpegDataUrl,
+  canvasToPngDataUrl,
   buildInlinePdfDataUrl,
   downloadDiagramPdf,
   getDiagramBounds,
@@ -50,6 +57,7 @@ import {
 
 export default function EditorPage() {
   const { user } = useAuth();
+  const { showError, showMessage } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -59,20 +67,26 @@ export default function EditorPage() {
   const [connectMode, setConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const [saveTitle, setSaveTitle] = useState('Mi diagrama');
   const [saveClassId, setSaveClassId] = useState('');
   const [classes, setClasses] = useState([]);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [historyStack, setHistoryStack] = useState({ entries: [], index: -1 });
   const [isSaving, setIsSaving] = useState(false);
+  const [paletteTouchDrag, setPaletteTouchDrag] = useState(null);
+  const [paletteDragOverCanvas, setPaletteDragOverCanvas] = useState(false);
 
   const canvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
+  const paletteDragSessionRef = useRef(null);
+  const shapeConnectHandledByTouchRef = useRef(false);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const [clipboardShape, setClipboardShape] = useState(null);
 
   const diagramState = useMemo(
     () => ({ shapes, connections }),
@@ -117,18 +131,43 @@ export default function EditorPage() {
       setTimeout(centerView, 50);
       return;
     }
-    setPan(computeCenterPan(clientWidth, clientHeight, zoom));
-  }, [zoom]);
+    setPan(computeCenterPan(clientWidth, clientHeight, zoomRef.current));
+  }, []);
 
-  const zoomIn = () => setZoom(stepZoomIn);
-  const zoomOut = () => setZoom(stepZoomOut);
+  const applyZoom = useCallback((getNextZoom, focalX, focalY) => {
+    setZoom((currentZoom) => {
+      const nextZoom = getNextZoom(currentZoom);
+      setPan((currentPan) =>
+        computePanForZoomChange(currentPan, currentZoom, nextZoom, focalX, focalY)
+      );
+      return nextZoom;
+    });
+  }, []);
+
+  const getZoomFocalPoint = () => {
+    if (!canvasWrapperRef.current) return { x: 0, y: 0 };
+    const { clientWidth, clientHeight } = canvasWrapperRef.current;
+    return { x: clientWidth / 2, y: clientHeight / 2 };
+  };
+
+  const zoomIn = () => {
+    const { x, y } = getZoomFocalPoint();
+    applyZoom(stepZoomIn, x, y);
+  };
+
+  const zoomOut = () => {
+    const { x, y } = getZoomFocalPoint();
+    applyZoom(stepZoomOut, x, y);
+  };
 
   const zoomReset = () => {
-    setZoom(1);
-    if (canvasWrapperRef.current) {
-      const { clientWidth, clientHeight } = canvasWrapperRef.current;
-      setPan(computeCenterPan(clientWidth, clientHeight, 1));
+    if (!canvasWrapperRef.current) {
+      setZoom(1);
+      return;
     }
+    const { clientWidth, clientHeight } = canvasWrapperRef.current;
+    setZoom(1);
+    setPan(computeCenterPan(clientWidth, clientHeight, 1));
   };
 
   useEffect(() => {
@@ -143,7 +182,7 @@ export default function EditorPage() {
 
   useEffect(() => {
     if (!user && id) {
-      setError('Inicia sesión para abrir diseños guardados');
+      showError('Inicia sesión para abrir diseños guardados');
       navigate('/editor', { replace: true });
       return;
     }
@@ -165,16 +204,9 @@ export default function EditorPage() {
         setNextId(nextShapeIdFromList(content.shapes));
         setHistoryStack(initHistoryWithState(content));
         setTimeout(centerView, 500);
-      }).catch(() => setError('No se pudo cargar el diseño'));
+      }).catch(() => {});
     }
   }, [user, id, centerView, navigate]);
-
-  useEffect(() => {
-    if (message || error) {
-      const t = setTimeout(() => { setMessage(''); setError(''); }, 3000);
-      return () => clearTimeout(t);
-    }
-  }, [message, error]);
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -182,8 +214,22 @@ export default function EditorPage() {
     const handleWheel = (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        setZoom((z) => (e.deltaY < 0 ? stepZoomIn(z) : stepZoomOut(z)));
+        const rect = wrapper.getBoundingClientRect();
+        const focalX = e.clientX - rect.left;
+        const focalY = e.clientY - rect.top;
+        const step = e.deltaY < 0 ? stepZoomIn : stepZoomOut;
+        setZoom((z) => {
+          const next = step(z);
+          setPan((p) => computePanForZoomChange(p, z, next, focalX, focalY));
+          return next;
+        });
+        return;
       }
+      e.preventDefault();
+      setPan((p) => ({
+        x: p.x - e.deltaX,
+        y: p.y - e.deltaY,
+      }));
     };
     wrapper.addEventListener('wheel', handleWheel, { passive: false });
     return () => wrapper.removeEventListener('wheel', handleWheel);
@@ -196,13 +242,17 @@ export default function EditorPage() {
         if (e.key === 'z') { e.preventDefault(); undo(); }
         if (e.key === 'y') { e.preventDefault(); redo(); }
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        handleDeleteShape(selectedId);
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedConnectionId) {
+          handleDeleteConnection(selectedConnectionId);
+        } else if (selectedId) {
+          handleDeleteShape(selectedId);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, historyStack, shapes, connections]);
+  }, [selectedId, selectedConnectionId, historyStack, shapes, connections]);
 
   const handleDeleteShape = (shapeId) => {
     const next = deleteShapeFromDiagram(diagramState, shapeId);
@@ -220,18 +270,53 @@ export default function EditorPage() {
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
     setSelectedId(newShape.id);
+    setNextId((v) => Math.max(v, newShape.id + 1));
+  };
+
+  const handleCopySelected = () => {
+    if (!selectedId) return;
+    const original = shapesById.get(selectedId);
+    if (original) setClipboardShape({ ...original });
+  };
+
+  const handlePasteClipboard = () => {
+    if (!clipboardShape) return;
+    const newShape = duplicateShape(clipboardShape, { x: 24, y: 24 }, nextId);
+    const nextShapes = [...shapes, newShape];
+    setShapes(nextShapes);
+    commitHistory(nextShapes, connections);
+    setSelectedId(newShape.id);
+    setNextId((v) => Math.max(v, newShape.id + 1));
+  };
+
+  const handleDeleteConnection = (connectionId) => {
+    const nextConnections = removeConnection(connections, connectionId);
+    setConnections(nextConnections);
+    commitHistory(shapes, nextConnections);
+    if (selectedConnectionId === connectionId) setSelectedConnectionId(null);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedConnectionId) {
+      handleDeleteConnection(selectedConnectionId);
+    } else if (selectedId) {
+      handleDeleteShape(selectedId);
+    }
+  };
+
+  const selectConnection = (event, connectionId) => {
+    if (connectMode) return;
+    event.stopPropagation();
+    setSelectedConnectionId(connectionId);
+    setSelectedId(null);
+    setConnectSource(null);
   };
 
   const handleBringToFront = (shapeId) => {
     const nextShapes = bringShapeToFront(shapes, shapeId);
+    if (nextShapes === shapes) return;
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
-  };
-
-  const handleFontSizeChange = (event, shapeId) => {
-    event.stopPropagation();
-    const newSize = parseInt(event.target.value, 10);
-    setShapes(setShapeFontSize(shapes, shapeId, newSize));
   };
 
   const placeShapeAt = (type, clientX, clientY) => {
@@ -251,18 +336,99 @@ export default function EditorPage() {
     placeShapeAt(type, event.clientX, event.clientY);
   };
 
-  const handleDragStart = (event, type) => {
-    event.dataTransfer.setData(PALETTE_DRAG_TYPE_KEY, type);
-    event.dataTransfer.effectAllowed = 'copy';
+  const PALETTE_DRAG_THRESHOLD = 6;
+
+  const endPaletteDragSession = useCallback(() => {
+    const session = paletteDragSessionRef.current;
+    if (!session) return;
+    window.removeEventListener('touchmove', session.onMove);
+    window.removeEventListener('touchend', session.onEnd);
+    window.removeEventListener('touchcancel', session.onEnd);
+    window.removeEventListener('mousemove', session.onMove);
+    window.removeEventListener('mouseup', session.onEnd);
+    paletteDragSessionRef.current = null;
+    setPaletteTouchDrag(null);
+    setPaletteDragOverCanvas(false);
+  }, []);
+
+  useEffect(() => () => endPaletteDragSession(), [endPaletteDragSession]);
+
+  const handlePaletteDragStart = (event, type, onPlaced) => {
+    if (type === SHAPE_TYPES.CONNECT) return;
+
+    const isTouch = event.type === 'touchstart';
+    const startPoint = isTouch ? event.touches?.[0] : event;
+    if (!startPoint) return;
+
+    if (!isTouch && event.button !== 0) return;
+
+    event.stopPropagation();
+    if (!isTouch) event.preventDefault();
+
+    endPaletteDragSession();
+
+    const startX = startPoint.clientX;
+    const startY = startPoint.clientY;
+    let dragging = false;
+
+    const isOverCanvas = (clientX, clientY) => {
+      const canvas = canvasWrapperRef.current;
+      if (!canvas) return false;
+      const target = document.elementFromPoint(clientX, clientY);
+      return target && (canvas === target || canvas.contains(target));
+    };
+
+    const onMove = (moveEvent) => {
+      if (!paletteDragSessionRef.current) return;
+
+      const point = isTouch
+        ? moveEvent.touches[0]
+        : moveEvent;
+      if (!point) return;
+
+      if (isTouch && moveEvent.cancelable) moveEvent.preventDefault();
+
+      const dx = point.clientX - startX;
+      const dy = point.clientY - startY;
+
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < PALETTE_DRAG_THRESHOLD) return;
+        dragging = true;
+      }
+
+      setPaletteTouchDrag({ type, x: point.clientX, y: point.clientY });
+      setPaletteDragOverCanvas(isOverCanvas(point.clientX, point.clientY));
+    };
+
+    const onEnd = (endEvent) => {
+      const placedType = paletteDragSessionRef.current?.type;
+      const wasDragging = dragging;
+      endPaletteDragSession();
+
+      if (!wasDragging || !placedType) return;
+
+      const endPoint = isTouch ? endEvent.changedTouches[0] : endEvent;
+      if (!endPoint) return;
+
+      if (isOverCanvas(endPoint.clientX, endPoint.clientY)) {
+        placeShapeAt(placedType, endPoint.clientX, endPoint.clientY);
+        onPlaced?.();
+      }
+    };
+
+    paletteDragSessionRef.current = { type, onMove, onEnd };
+    if (isTouch) {
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+      window.addEventListener('touchcancel', onEnd);
+    } else {
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
+    }
   };
 
-  const handleTouchEnd = (event, type) => {
-    const touch = event.changedTouches[0];
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    const canvas = canvasWrapperRef.current;
-    if (canvas && (canvas === target || canvas.contains(target))) {
-      placeShapeAt(type, touch.clientX, touch.clientY);
-    }
+  const handlePaletteTapPlace = (type) => {
+    placeShapeAt(type, window.innerWidth / 2, window.innerHeight / 2);
   };
 
   const handlePaletteClick = (type) => {
@@ -272,22 +438,48 @@ export default function EditorPage() {
     }
   };
 
-  const handleShapeClick = (event, shape) => {
+  const handleShapeConnect = (event, shape) => {
     if (!connectMode) return;
     event.stopPropagation();
-    event.preventDefault();
+    if (event.cancelable) event.preventDefault();
     const result = handleConnectClick(connections, connectSource, shape.id);
     setConnections(result.connections);
     setConnectSource(result.connectSource);
-    if (result.connections.length !== connections.length) {
+    if (result.message) showMessage(result.message);
+    if (result.created || result.removed) {
       commitHistory(shapes, result.connections);
     }
+  };
+
+  const handleShapeClick = (event, shape) => {
+    if (!connectMode) return;
+    if (shapeConnectHandledByTouchRef.current) {
+      shapeConnectHandledByTouchRef.current = false;
+      return;
+    }
+    handleShapeConnect(event, shape);
+  };
+
+  const handleShapeTouchStart = (event, shape) => {
+    if (connectMode) {
+      event.stopPropagation();
+      return;
+    }
+    handleTouchStartShape(event, shape);
+  };
+
+  const handleShapeTouchEndConnect = (event, shape) => {
+    if (!connectMode) return;
+    if (event.target.closest('.resize-handle')) return;
+    shapeConnectHandledByTouchRef.current = true;
+    handleShapeConnect(event, shape);
   };
 
   const handleMouseDown = (event, shape) => {
     if (connectMode || event.target.closest('.resize-handle')) return;
     event.stopPropagation();
     setSelectedId(shape.id);
+    setSelectedConnectionId(null);
     const startX = event.clientX;
     const startY = event.clientY;
     const initial = { ...shape };
@@ -313,11 +505,12 @@ export default function EditorPage() {
   };
 
   const handleTouchStartShape = (event, shape) => {
-    if (connectMode || event.target.closest('.resize-handle') || event.target.closest('.shape-floating-toolbar')) return;
+    if (connectMode || event.target.closest('.resize-handle')) return;
     if (event.target.closest('.editable-text')) return;
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
     setSelectedId(shape.id);
+    setSelectedConnectionId(null);
     const touch = event.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
@@ -423,10 +616,8 @@ export default function EditorPage() {
 
   const handleSave = async () => {
     if (isSaving) return;
-    setMessage('');
-    setError('');
     if (!user) {
-      setError('Inicia sesión para guardar tus diseños en la nube');
+      showError('Inicia sesión para guardar tus diseños en la nube');
       return;
     }
 
@@ -438,8 +629,8 @@ export default function EditorPage() {
       if (canvasRef.current) {
         const bounds = getDiagramBounds(shapes);
         const previewCanvas = await captureDiagramPreview(canvasRef.current, shapes);
-        imageData = canvasToJpegDataUrl(previewCanvas);
-        pdfDataString = buildInlinePdfDataUrl(previewCanvas, bounds.width, bounds.height);
+        imageData = canvasToPngDataUrl(previewCanvas);
+        pdfDataString = await buildInlinePdfDataUrl(previewCanvas, bounds.width, bounds.height);
       }
 
       const data = {
@@ -456,10 +647,9 @@ export default function EditorPage() {
         const res = await api.post('/designs', data);
         navigate(`/editor/${res.data.design.id}`, { replace: true });
       }
-      setMessage('Diseño guardado (con PDF generado)');
+      showMessage('Diseño guardado');
     } catch (err) {
       console.error('Error al guardar:', err);
-      setError(err.response?.data?.error || 'No se pudo guardar el diseño');
     } finally {
       setIsSaving(false);
     }
@@ -467,31 +657,28 @@ export default function EditorPage() {
 
   const handleExportPDF = async () => {
     if (!canvasRef.current) return;
-    setError('');
-    setMessage('Generando PDF...');
+    showMessage('Generando PDF...');
     try {
       const pdfCanvas = await captureDiagramHighRes(canvasRef.current, shapes);
-      const pdfData = downloadDiagramPdf(pdfCanvas, shapes, saveTitle || 'diagrama');
-      setMessage('PDF descargado');
+      const pdfData = await downloadDiagramPdf(pdfCanvas, shapes, saveTitle || 'diagrama');
+      showMessage('PDF descargado');
 
       if (id && pdfData) {
         try {
           await api.put(`/designs/${id}`, { pdf_data: pdfData });
         } catch (syncErr) {
           console.warn('PDF descargado; falló guardar copia en servidor:', syncErr);
-          setMessage('PDF descargado (no se guardó la copia en la nube)');
+          showMessage('PDF descargado (no se guardó la copia en la nube)');
         }
       }
     } catch (err) {
       console.error('Error PDF:', err);
-      setMessage('');
-      setError('Error al generar el PDF');
+      showError('Error al generar el PDF');
     }
   };
 
   const handleExport = () => {
     if (!canvasRef.current) return;
-    setMessage('');
     html2canvas(canvasRef.current, { backgroundColor: '#ffffff', scale: 2 }).then((canvas) => {
       const link = document.createElement('a');
       link.download = 'diagrama-dfd.png';
@@ -506,9 +693,17 @@ export default function EditorPage() {
     || target.classList.contains('canvas-bg')
     || target.classList.contains('canvas-hint');
 
+  const shouldClearCanvasSelection = (target) => {
+    if (!(target instanceof Element)) return false;
+    if (target.closest('.shape-element')) return false;
+    if (target.closest('.connection-group')) return false;
+    return true;
+  };
+
   const handleCanvasMouseDown = (e) => {
     if (!isCanvasBackgroundTarget(e.target)) return;
     setSelectedId(null);
+    setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
     const startX = e.clientX - pan.x;
@@ -526,10 +721,11 @@ export default function EditorPage() {
   };
 
   const handleCanvasTouchStart = (e) => {
-    if (connectMode || e.touches.length !== 1) return;
+    if (connectMode) return;
+    if (e.touches.length !== 1) return;
     if (!isCanvasBackgroundTarget(e.target)) return;
-    if (e.cancelable) e.preventDefault();
     setSelectedId(null);
+    setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
     const touch = e.touches[0];
@@ -553,50 +749,72 @@ export default function EditorPage() {
   };
 
   return (
-    <div className="editor-fullscreen figma-editor" id="editor-page">
+    <div
+      className={`editor-fullscreen figma-editor${paletteTouchDrag ? ' is-palette-dragging' : ''}`}
+      id="editor-page"
+    >
       <EditorSidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
-        handleDragStart={handleDragStart}
-        handleTouchEnd={handleTouchEnd}
+        onPaletteDragStart={handlePaletteDragStart}
+        onPaletteTapPlace={handlePaletteTapPlace}
         renderPreview={(type) => <ShapePreview type={type} />}
         handlePaletteClick={handlePaletteClick}
         connectMode={connectMode}
       />
 
-      <div className="editor-main-fs">
-        <div className="editor-toast-container">
-          {message && <div className="floating-toast success">{message}</div>}
-          {error && <div className="floating-toast error">{error}</div>}
-        </div>
+      <div className="editor-main-fs figma-editor-main">
+        <div className="figma-editor-panel">
+          <div className="figma-editor-panel-head">
+            <EditorToolbar
+              saveTitle={saveTitle}
+              setSaveTitle={setSaveTitle}
+              classes={classes}
+              saveClassId={saveClassId}
+              setSaveClassId={setSaveClassId}
+              handleSave={handleSave}
+              handleClear={handleClear}
+              handleExport={handleExport}
+              handleExportPDF={handleExportPDF}
+              isSaving={isSaving}
+              isGuest={!user}
+            />
+          </div>
 
-        <EditorToolbar
-          saveTitle={saveTitle}
-          setSaveTitle={setSaveTitle}
-          classes={classes}
-          saveClassId={saveClassId}
-          setSaveClassId={setSaveClassId}
-          message={message}
-          error={error}
-          handleSave={handleSave}
-          handleClear={handleClear}
-          handleExport={handleExport}
-          handleExportPDF={handleExportPDF}
-          zoom={zoom}
-          zoomIn={zoomIn}
-          zoomOut={zoomOut}
-          zoomReset={zoomReset}
-          sidebarOpen={sidebarOpen}
-          isSaving={isSaving}
-          isGuest={!user}
-        />
+          <EditorSubToolbar
+            zoom={zoom}
+            zoomIn={zoomIn}
+            zoomOut={zoomOut}
+            zoomReset={zoomReset}
+            handleClear={handleClear}
+            undo={undo}
+            redo={redo}
+            canUndo={canUndo(historyStack)}
+            canRedo={canRedo(historyStack)}
+            isSaving={isSaving}
+            onBringToFront={() => {
+              if (!selectedId) return;
+              handleBringToFront(selectedId);
+            }}
+            onPaste={handlePasteClipboard}
+            onDelete={handleDeleteSelected}
+            canBringToFront={!!selectedId}
+            canPaste={!!clipboardShape}
+            canDelete={!!selectedId || !!selectedConnectionId}
+          />
 
+          <div className="figma-editor-canvas-area">
         <div
-          className={`editor-canvas-fs ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''}`}
+          className={`editor-canvas-fs figma-canvas-panel ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''} ${paletteTouchDrag ? 'palette-touch-active' : ''} ${paletteDragOverCanvas ? 'palette-drop-target' : ''}`}
           ref={canvasWrapperRef}
           onDrop={handleDrop}
           onDragOver={(event) => event.preventDefault()}
-          onClick={() => { setSelectedId(null); setConnectSource(null); }}
+          onClick={(event) => {
+            if (!shouldClearCanvasSelection(event.target)) return;
+            setSelectedId(null);
+            setSelectedConnectionId(null);
+            setConnectSource(null);
+          }}
           onMouseDown={handleCanvasMouseDown}
           onTouchStart={handleCanvasTouchStart}
         >
@@ -611,19 +829,41 @@ export default function EditorPage() {
               position: 'relative',
             }}
           >
-            <svg id="connections-layer">
+            <svg
+              id="connections-layer"
+              className="connection-layer"
+              width={CANVAS_SIZE.width}
+              height={CANVAS_SIZE.height}
+              viewBox={`0 0 ${CANVAS_SIZE.width} ${CANVAS_SIZE.height}`}
+              aria-hidden="true"
+            >
               {connections.map((connection) => {
                 const line = getConnectionLineFromMap(connection, shapesById);
                 if (!line) return null;
+                const isSelected = selectedConnectionId === connection.id;
                 return (
-                  <line
+                  <g
                     key={connection.id}
-                    x1={line.x1}
-                    y1={line.y1}
-                    x2={line.x2}
-                    y2={line.y2}
-                    className="connection-line"
-                  />
+                    className={`connection-group${isSelected ? ' selected' : ''}`}
+                    onClick={(event) => selectConnection(event, connection.id)}
+                    onMouseDown={(event) => selectConnection(event, connection.id)}
+                    onTouchStart={(event) => selectConnection(event, connection.id)}
+                  >
+                    <line
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      className="connection-line-hit"
+                    />
+                    <line
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      className="connection-line"
+                    />
+                  </g>
                 );
               })}
             </svg>
@@ -639,47 +879,41 @@ export default function EditorPage() {
                 className={`shape-element ${selectedId === shape.id ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
                 style={{ left: shape.x, top: shape.y, width: shape.width, height: shape.height }}
                 onMouseDown={(event) => handleMouseDown(event, shape)}
-                onTouchStart={(event) => handleTouchStartShape(event, shape)}
+                onTouchStart={(event) => handleShapeTouchStart(event, shape)}
+                onTouchEnd={(event) => handleShapeTouchEndConnect(event, shape)}
                 onClick={(event) => handleShapeClick(event, shape)}
               >
                 <RenderShape shape={shape} />
                 {selectedId === shape.id && (
-                  <>
-                    <div
-                      className="shape-floating-toolbar"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button type="button" className="toolbar-tool-btn" onClick={() => handleDuplicateShape(shape.id)} title="Duplicar"><Icon name="copy" /></button>
-                      <button type="button" className="toolbar-tool-btn" onClick={() => handleBringToFront(shape.id)} title="Traer al frente"><Icon name="layers" /></button>
-                      <button type="button" className="toolbar-tool-btn" onClick={() => handleDeleteShape(shape.id)} title="Eliminar"><Icon name="trash" /></button>
-                      <div className="toolbar-divider" />
-                      <button type="button" className="toolbar-tool-btn" onClick={undo} disabled={!canUndo(historyStack)} title="Deshacer (Ctrl+Z)"><Icon name="undo" /></button>
-                      <button type="button" className="toolbar-tool-btn" onClick={redo} disabled={!canRedo(historyStack)} title="Rehacer (Ctrl+Y)"><Icon name="redo" /></button>
-                      <div className="toolbar-divider" />
-                      <select className="font-size-select" value={shape.fontSize || 16} onChange={(e) => handleFontSizeChange(e, shape.id)} title="Tamaño de texto">
-                        <option value="12">12px</option>
-                        <option value="14">14px</option>
-                        <option value="16">16px</option>
-                        <option value="20">20px</option>
-                        <option value="24">24px</option>
-                        <option value="32">32px</option>
-                      </select>
-                    </div>
-                    <div
-                      className="resize-handle"
-                      onMouseDown={(e) => handleResizeMouseDown(e, shape)}
-                      onTouchStart={(e) => handleResizeTouchStart(e, shape)}
-                      title="Redimensionar"
-                    />
-                  </>
+                  <div
+                    className="resize-handle"
+                    onMouseDown={(e) => handleResizeMouseDown(e, shape)}
+                    onTouchStart={(e) => handleResizeTouchStart(e, shape)}
+                    title="Redimensionar"
+                  />
                 )}
               </div>
             ))}
           </div>
         </div>
+        </div>
+        </div>
       </div>
+
+      {paletteTouchDrag && (
+        <div
+          className="palette-touch-drag-ghost"
+          style={{
+            left: paletteTouchDrag.x,
+            top: paletteTouchDrag.y,
+          }}
+          aria-hidden
+        >
+          <div className="palette-touch-drag-ghost-inner">
+            <ShapePreview type={paletteTouchDrag.type} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

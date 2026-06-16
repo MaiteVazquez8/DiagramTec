@@ -1,3 +1,6 @@
+/**
+ * Captura del lienzo como imagen (preview PNG transparente y alta resolución para PDF).
+ */
 import html2canvas from 'html2canvas';
 import { getDiagramBounds, captureRegionFromBounds } from '../math/bounds.js';
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
@@ -7,8 +10,19 @@ import { EXPORT_DEFAULTS } from '../constants/canvas.js';
  * @param {Document} clonedDoc
  */
 export function resetZoomLayerInClone(clonedDoc) {
-  const el = clonedDoc.querySelector('.canvas-zoom-layer');
-  if (el) el.style.transform = 'none';
+  const zoomLayer = clonedDoc.querySelector('.canvas-zoom-layer');
+  if (zoomLayer) {
+    zoomLayer.style.transform = 'none';
+    zoomLayer.style.background = 'transparent';
+  }
+
+  clonedDoc.querySelector('.canvas-bg')?.remove();
+
+  const wrapper = clonedDoc.querySelector('.editor-canvas-fs');
+  if (wrapper) {
+    wrapper.style.background = 'transparent';
+    wrapper.style.backgroundImage = 'none';
+  }
 }
 
 /**
@@ -22,8 +36,13 @@ export async function captureDiagramPreview(canvasElement, shapes, options = {})
   });
   const region = captureRegionFromBounds(bounds, { padding: options.padding });
 
+  const backgroundColor =
+    options.backgroundColor !== undefined
+      ? options.backgroundColor
+      : EXPORT_DEFAULTS.previewBackground;
+
   return html2canvas(canvasElement, {
-    backgroundColor: options.backgroundColor ?? EXPORT_DEFAULTS.previewBackground,
+    backgroundColor,
     scale: options.scale ?? EXPORT_DEFAULTS.previewScale,
     logging: false,
     useCORS: true,
@@ -45,8 +64,6 @@ export async function captureDiagramHighRes(canvasElement, shapes, options = {})
   const padding = options.padding ?? EXPORT_DEFAULTS.pdfPadding;
   const bounds = getDiagramBounds(shapes, {
     padding,
-    fallbackWidth: 2000,
-    fallbackHeight: 2000,
   });
   const region = captureRegionFromBounds(bounds, { padding });
 

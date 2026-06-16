@@ -21,4 +21,9 @@ async function updateUser(db, id, firstName, lastName, email) {
   return findById(db, id);
 }
 
-module.exports = { findByEmail, createUser, findById, updateUser };
+async function deleteUser(db, id) {
+  const [result] = await db.execute('DELETE FROM users WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
+module.exports = { findByEmail, createUser, findById, updateUser, deleteUser };

@@ -1,12 +1,25 @@
+/**
+ * Cliente HTTP para el backend Node (diseños, clases, comentarios, admin).
+ * Proxy Vite: /api → servidor en desarrollo.
+ * El token JWT se inyecta con setAuthToken desde AuthContext.
+ */
 import axios from 'axios';
+import { notifyApiError } from './utils/toastBridge.js';
 
-// Backend Node (vite proxy /api → http://127.0.0.1:4002)
 const api = axios.create({
   baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    notifyApiError(error);
+    return Promise.reject(error);
+  },
+);
 
 export function setAuthToken(token) {
   if (token) {
