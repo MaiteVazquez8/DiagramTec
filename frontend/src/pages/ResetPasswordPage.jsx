@@ -1,24 +1,21 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authApi from '../authApi.js';
-import AppToast from '../components/AppToast.jsx';
+import { useToast } from '../ToastContext.jsx';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const { showError, showMessage } = useToast();
   const [email, setEmail] = useState('');
   const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setError('');
-    setMessage('');
 
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
+      showError('Las contraseñas no coinciden');
       return;
     }
 
@@ -30,23 +27,17 @@ export default function ResetPasswordPage() {
         password2: confirmPassword,
       });
       const msg = response.data?.message;
-      setMessage(msg || 'Contraseña actualizada correctamente.');
+      showMessage(msg || 'Contraseña actualizada correctamente.');
       if (msg && msg.toLowerCase().includes('actualizada')) {
         setTimeout(() => navigate('/login'), 2000);
       }
-    } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo cambiar la contraseña.');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
     }
   };
 
   return (
     <section className="page-container auth-layout">
-      <AppToast
-        message={message}
-        error={error}
-        onCloseMessage={() => setMessage('')}
-        onCloseError={() => setError('')}
-      />
       <article className="form-card auth-card">
         <h2>Restablecer contraseña</h2>
         <p>Introduce tu correo, el token recibido y la nueva contraseña.</p>
