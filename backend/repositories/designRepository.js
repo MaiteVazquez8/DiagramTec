@@ -1,3 +1,8 @@
+async function countDesignsByOwner(db, ownerId) {
+  const [rows] = await db.execute('SELECT COUNT(*) AS count FROM designs WHERE ownerId = ?', [ownerId]);
+  return rows[0].count;
+}
+
 async function findDesignsByOwner(db, ownerId) {
   const [rows] = await db.execute(`
     SELECT d.id, d.title, d.ownerId, d.classId, d.createdAt, d.isCopy, d.originalId, d.image, d.pdf_data, d.description,
@@ -65,6 +70,7 @@ async function copyDesign(db, id, ownerId) {
 }
 
 module.exports = {
+  countDesignsByOwner,
   findDesignsByOwner,
   findDesignById,
   createDesign,

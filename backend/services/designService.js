@@ -1,6 +1,8 @@
 const designRepository = require('../repositories/designRepository');
 const classRepository = require('../repositories/classRepository');
 
+const MAX_DESIGNS_PER_USER = 20;
+
 async function listDesigns(db, userId) {
   return await designRepository.findDesignsByOwner(db, userId);
 }
@@ -21,6 +23,12 @@ async function getDesign(db, id, user) {
 
 async function createDesign(db, userId, data) {
   if (!data.title || !data.content) throw new Error('TITLE_AND_CONTENT_REQUIRED');
+  const count = await designRepository.countDesignsByOwner(db, userId);
+  if (count >= MAX_DESIGNS_PER_USER) {
+    const err = new Error('MAX_DESIGNS_REACHED');
+    err.statusCode = 403;
+    throw err;
+  }
   const content = typeof data.content === 'string' ? data.content : JSON.stringify(data.content);
   return await designRepository.createDesign(db, {
     title: data.title,
@@ -66,6 +74,12 @@ async function deleteDesign(db, id, userId, userRole) {
 async function copyDesign(db, id, userId) {
   const design = await designRepository.findDesignById(db, id);
   if (!design) throw new Error('DESIGN_NOT_FOUND');
+  const count = await designRepository.countDesignsByOwner(db, userId);
+  if (count >= MAX_DESIGNS_PER_USER) {
+    const err = new Error('MAX_DESIGNS_REACHED');
+    err.statusCode = 403;
+    throw err;
+  }
   return await designRepository.copyDesign(db, id, userId);
 }
 
