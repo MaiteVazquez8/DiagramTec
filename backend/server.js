@@ -33,6 +33,7 @@ async function startServer() {
   try {
     db = await openDb();
     app.locals.db = db;
+    initializePassport(db);
     console.log('Database connected');
   } catch (err) {
     console.error('Database connection failed:', err);
@@ -77,40 +78,14 @@ function resolvePhpExecutable() {
 }
 
 function startPhpServer() {
-  try {
-    const phpExecutable = resolvePhpExecutable();
-    const phpRoot = path.join(__dirname, '..', 'php');
-    const php = spawn(phpExecutable, ['-S', 'localhost:8000', '-t', phpRoot], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    php.on('error', (err) => {
-      console.error('Failed to start PHP server:', err.message);
-    });
-
-    php.stdout.on('data', (data) => console.log(`[php] ${data.toString().trim()}`));
-    php.stderr.on('data', (data) => console.error(`[php][err] ${data.toString().trim()}`));
-    php.on('close', (code) => console.log(`PHP server exited with code ${code}`));
-
-    process.on('exit', () => php.kill());
-    process.on('SIGINT', () => {
-      php.kill();
-      process.exit();
-    });
-
-    console.log('PHP built-in server started at http://localhost:8000');
-  } catch (err) {
-    console.error('Failed to start PHP server:', err);
-  }
-
-function startPhpServer() {
   if (PHP_BACKEND_URL) {
     console.log(`Using external PHP backend at ${PHP_BACKEND_URL}`);
     return;
   }
 
   try {
-    const php = spawn(PHP_EXECUTABLE, ['-S', `${PHP_HOST}:${PHP_PORT}`, '-t', PHP_ROOT], {
+    const phpExecutable = resolvePhpExecutable() || PHP_EXECUTABLE;
+    const php = spawn(phpExecutable, ['-S', `${PHP_HOST}:${PHP_PORT}`, '-t', PHP_ROOT], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
