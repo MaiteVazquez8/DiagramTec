@@ -2208,13 +2208,23 @@ textarea {
   width: 0 !important;
   padding: 0 !important;
   background: transparent !important;
-  min-height: auto !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
 }
 
 .account-sidebar--collapsed .account-sidebar__body,
 .account-sidebar--collapsed .account-sidebar__actions,
 .account-sidebar--collapsed .account-sidebar__footer {
   display: none;
+}
+
+.account-sidebar--collapsed .account-sidebar__collapse {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  right: auto;
+  transform: translateY(-50%);
 }
 
 .account-sidebar--collapsed .account-sidebar__collapse .icon {
@@ -2425,7 +2435,7 @@ textarea {
   background-image: radial-gradient(circle, #d4d4d4 1.2px, transparent 1.2px);
   background-size: 16px 16px;
   border-radius: 12px;
-  border: 1.5px solid #e4caa5;
+  border: 1.5px solid #000000;
   padding: 2rem;
   box-shadow: 0 2px 8px rgba(27, 23, 23, 0.08);
 }
@@ -2453,7 +2463,7 @@ textarea {
 
 .edit-profile-form input {
   width: 100%;
-  border: 1.5px solid #e4caa5;
+  border: 1.5px solid #000000;
   border-radius: 8px;
   padding: 0.625rem 0.875rem;
   background: #ffffff;
@@ -2469,8 +2479,8 @@ textarea {
 
 .edit-profile-form input:focus {
   outline: none;
-  border-color: #8d1f2b;
-  box-shadow: 0 0 0 3px rgba(141, 31, 43, 0.15);
+  border-color: #000000;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.15);
 }
 
 .edit-profile-form .form-row {
