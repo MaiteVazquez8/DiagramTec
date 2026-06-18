@@ -9,6 +9,7 @@ import { useAuth } from '../AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
 import { useToast } from '../ToastContext.jsx';
+import { ClassMembersSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 function sameId(a, b) {
   if (a == null || b == null) return false;
@@ -92,13 +93,7 @@ export default function ClassMembersPage() {
   };
 
   if (loading && !classInfo) {
-    return (
-      <section className="figma-sector class-detail-sector class-members-sector">
-        <div className="figma-sector-inner">
-          <p className="class-detail-loading">Cargando...</p>
-        </div>
-      </section>
-    );
+    return <ClassMembersSkeleton />;
   }
 
   const isTeacher = user?.role === 'teacher';

@@ -6,6 +6,7 @@ import SuperAdminShell from '../components/superadmin/SuperAdminShell.jsx';
 import SuperAdminClassManageRow from '../components/superadmin/SuperAdminClassManageRow.jsx';
 import Icon from '../components/Icon';
 import { useToast } from '../ToastContext.jsx';
+import { SuperAdminClassesManageSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 export default function SuperAdminClassesPage() {
   const { showMessage } = useToast();
@@ -90,7 +91,7 @@ export default function SuperAdminClassesPage() {
 
         <div className="superadmin-manage__card">
           {loading ? (
-            <p className="superadmin-manage__loading">Cargando clases...</p>
+            <SuperAdminClassesManageSkeleton />
           ) : filtered.length === 0 ? (
             <p className="superadmin-manage__empty">{emptyMessage}</p>
           ) : (

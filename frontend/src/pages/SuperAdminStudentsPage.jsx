@@ -111,7 +111,6 @@ export default function SuperAdminStudentsPage() {
         <div className="superadmin-manage__card">
           <SuperAdminUserManageList
             loading={loading}
-            loadingText="Cargando alumnos..."
             emptyMessage={emptyMessage}
             users={filtered}
             lockRole="student"
