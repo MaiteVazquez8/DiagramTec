@@ -10,6 +10,18 @@ function errorHandler(err, req, res, next) {
   } else if (err.message === 'INVALID_CREDENTIALS') {
     statusCode = 401;
     message = 'Credenciales inválidas';
+  } else if (err.message === 'EMAIL_NOT_FOUND') {
+    statusCode = 404;
+    message = 'El correo no existe. Ingresa un correo registrado.';
+  } else if (err.message === 'INVALID_TOKEN') {
+    statusCode = 400;
+    message = 'Correo o token inválido';
+  } else if (err.message === 'PASSWORD_MISMATCH') {
+    statusCode = 400;
+    message = 'Las contraseñas no coinciden';
+  } else if (err.message === 'MAIL_FAILED') {
+    statusCode = 500;
+    message = 'No se pudo enviar el correo. Revisa la configuración de email.';
   } else if (err.message === 'TITLE_REQUIRED') {
     statusCode = 400;
     message = 'El nombre de la clase es obligatorio';

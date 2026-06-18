@@ -26,4 +26,27 @@ async function deleteUser(db, id) {
   return result.affectedRows > 0;
 }
 
-module.exports = { findByEmail, createUser, findById, updateUser, deleteUser };
+async function setUserToken(db, userId, token) {
+  await db.execute('UPDATE users SET token = ? WHERE id = ?', [token, userId]);
+}
+
+async function findByEmailAndToken(db, email, token) {
+  const [rows] = await db.execute('SELECT * FROM users WHERE email = ? AND token = ?', [email.toLowerCase(), token]);
+  return rows[0] || null;
+}
+
+async function updatePassword(db, userId, passwordHash, token) {
+  await db.execute('UPDATE users SET passwordHash = ?, token = ? WHERE id = ?', [passwordHash, token, userId]);
+  return true;
+}
+
+module.exports = {
+  findByEmail,
+  createUser,
+  findById,
+  updateUser,
+  deleteUser,
+  setUserToken,
+  findByEmailAndToken,
+  updatePassword,
+};

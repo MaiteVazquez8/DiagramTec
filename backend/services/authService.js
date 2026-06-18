@@ -1,6 +1,16 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { findByEmail, createUser, findById, updateUser, deleteUser } = require('../repositories/userRepository');
+const {
+  findByEmail,
+  createUser,
+  findById,
+  updateUser,
+  deleteUser,
+  setUserToken,
+  findByEmailAndToken,
+  updatePassword,
+} = require('../repositories/userRepository');
+const { sendMail } = require('./mailService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -37,10 +47,50 @@ async function deleteAccount(db, id) {
   return await deleteUser(db, id);
 }
 
-module.exports = { 
-    register, 
-    login, 
-    getMe, 
-    updateProfile,
-    deleteAccount 
+function generateRecoveryCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function requestRecoveryCode(db, email) {
+  const user = await findByEmail(db, email);
+  if (!user) throw new Error('EMAIL_NOT_FOUND');
+
+  const token = generateRecoveryCode();
+  await setUserToken(db, user.id, token);
+
+  const sent = await sendMail(
+    user.email,
+    'Recuperación de contraseña',
+    `<h2>Recuperación de contraseña</h2>
+     <p>Solicitaste cambiar tu contraseña.</p>
+     <p>Tu código de recuperación es:</p>
+     <h1>${token}</h1>
+     <p>Este código es de un solo uso.</p>`,
+  );
+
+  if (!sent) throw new Error('MAIL_FAILED');
+  return { message: 'Se envió un código al correo.' };
+}
+
+async function resetPassword(db, email, token, password, password2) {
+  if (password !== password2) throw new Error('PASSWORD_MISMATCH');
+
+  const user = await findByEmailAndToken(db, email, token);
+  if (!user) throw new Error('INVALID_TOKEN');
+
+  const hash = await bcrypt.hash(password, 10);
+  const newToken = generateRecoveryCode();
+  await updatePassword(db, user.id, hash, newToken);
+
+  return { message: 'Contraseña actualizada correctamente.' };
+}
+
+module.exports = {
+  register,
+  login,
+  getMe,
+  updateProfile,
+  deleteAccount,
+  requestRecoveryCode,
+  resetPassword,
 };

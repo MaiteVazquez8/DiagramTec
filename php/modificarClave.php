@@ -1,5 +1,59 @@
 <?php
 
+require_once __DIR__ . '/lib/cors.php';
+
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+    include __DIR__ . '/conexion.php';
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $email = strtolower(trim($body['email'] ?? ''));
+    $token = trim((string) ($body['token'] ?? ''));
+    $userPassword = $body['password'] ?? '';
+    $userPassword2 = $body['password2'] ?? '';
+
+    if ($email === '' || $token === '' || $userPassword === '' || $userPassword2 === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Complete todos los campos'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($userPassword !== $userPassword2) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Las contraseñas no coinciden'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare('SELECT * FROM users WHERE email = ? AND token = ?');
+    $stmt->bind_param('ss', $email, $token);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    if (!$user) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Correo o token inválido'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $hash = password_hash($userPassword, PASSWORD_BCRYPT);
+    $nuevoToken = (string) random_int(100000, 999999);
+
+    $update = $mysql->prepare('UPDATE users SET passwordHash = ?, token = ? WHERE id = ?');
+    $update->bind_param('ssi', $hash, $nuevoToken, $user['id']);
+
+    if (!$update->execute()) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error al actualizar contraseña'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    echo json_encode(['message' => 'Contraseña actualizada correctamente'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 include('conexion.php');
 
 $message = "";

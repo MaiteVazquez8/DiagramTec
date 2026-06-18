@@ -52,10 +52,32 @@ async function deleteAccount(req, res) {
   res.status(204).send();
 }
 
-module.exports = { 
-    register, 
-    login, 
-    me, 
-    updateProfile,
-    deleteAccount 
+async function requestRecoveryCode(req, res) {
+  const db = req.app.locals.db;
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Ingresa un correo válido.' });
+  }
+  const result = await authService.requestRecoveryCode(db, email);
+  res.json(result);
+}
+
+async function resetPassword(req, res) {
+  const db = req.app.locals.db;
+  const { email, token, password, password2 } = req.body;
+  if (!email || !token || !password || !password2) {
+    return res.status(400).json({ error: 'Complete todos los campos' });
+  }
+  const result = await authService.resetPassword(db, email, token, password, password2);
+  res.json(result);
+}
+
+module.exports = {
+  register,
+  login,
+  me,
+  updateProfile,
+  deleteAccount,
+  requestRecoveryCode,
+  resetPassword,
 };
