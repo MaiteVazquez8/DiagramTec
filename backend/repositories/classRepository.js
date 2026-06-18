@@ -5,14 +5,12 @@ async function findClassesForUser(db, userId) {
       1 AS joined
     FROM classes c
     LEFT JOIN users u ON u.id = c.ownerId
-    INNER JOIN class_members cm ON cm.classId = c.id AND cm.userId = ?
-    UNION
-    SELECT c.id, c.title, c.description, c.ownerId, c.code,
-      CONCAT(u.firstName, ' ', u.lastName) AS ownerName,
-      0 AS joined
-    FROM classes c
-    LEFT JOIN users u ON u.id = c.ownerId
     WHERE c.ownerId = ?
+       OR EXISTS (
+         SELECT 1 FROM class_members cm
+         WHERE cm.classId = c.id AND cm.userId = ?
+       )
+    ORDER BY c.createdAt DESC
   `, [userId, userId]);
   return rows;
 }

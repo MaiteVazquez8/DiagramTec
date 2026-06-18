@@ -1,7 +1,7 @@
 /** Inicio de sesión vía authApi (PHP). Redirige al guardar token en AuthContext. */
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import api from '../api.js';
+import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { useToast } from '../ToastContext.jsx';
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await authApi.post('/login.php', { email, password });
       if (response.data?.token) {
         login(response.data.token);
         navigate(redirectTo);

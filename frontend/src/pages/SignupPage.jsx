@@ -1,7 +1,7 @@
 /** Registro de usuario nuevo vía authApi (PHP). */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../api.js';
+import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { useToast } from '../ToastContext.jsx';
@@ -29,7 +29,7 @@ export default function SignupPage() {
     }
 
     try {
-      const response = await api.post('/auth/register', {
+      const response = await authApi.post('/registro.php', {
         firstName,
         lastName,
         email,

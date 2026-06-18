@@ -1,0 +1,19 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # PHP y archivos estáticos reales — no reescribir
+  RewriteRule ^php/ - [L]
+  RewriteRule ^assets/ - [L]
+
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# Hostinger: activar extensiones PHP si el panel lo permite
+# (también puedes activar pdo_pgsql en hPanel → PHP Configuration)
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+</IfModule>

@@ -30,9 +30,9 @@ if (
         exit;
     }
 
-    $token = random_int(100000, 999999);
-    $update = $mysql->prepare("UPDATE users SET token = ? WHERE id = ?");
-    $update->bind_param('ii', $token, $user['id']);
+    $token = (string) random_int(100000, 999999);
+    $update = $mysql->prepare('UPDATE users SET token = ? WHERE id = ?');
+    $update->bind_param('si', $token, $user['id']);
 
     if (!$update->execute()) {
         http_response_code(500);

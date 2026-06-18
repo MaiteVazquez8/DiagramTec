@@ -167,7 +167,7 @@ function handleGoogleCallback()
     }
 
     // Buscar usuario existente
-    $stmt = $mysql->prepare('SELECT id, firstName, lastName, email, role FROM users WHERE email = ? OR googleId = ?');
+    $stmt = $mysql->prepare('SELECT id, firstName, lastName, email, role, googleId FROM users WHERE email = ? OR googleId = ?');
     $stmt->bind_param('ss', $email, $googleId);
     $stmt->execute();
     $existingUser = $stmt->get_result()->fetch_assoc();

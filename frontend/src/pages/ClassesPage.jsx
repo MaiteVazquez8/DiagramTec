@@ -19,6 +19,7 @@ export default function ClassesPage() {
   const [joinCode, setJoinCode] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const loadClasses = async () => {
     try {
@@ -35,6 +36,8 @@ export default function ClassesPage() {
 
   const handleCreate = async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const response = await api.post('/classes', { title, description });
       showMessage(`Clase creada. Código: ${response.data.class.code}`);
@@ -44,6 +47,8 @@ export default function ClassesPage() {
       loadClasses();
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -247,8 +252,8 @@ export default function ClassesPage() {
                   </label>
                 </div>
                 <div className="modal-footer">
-                  <button className="primary-button" type="submit" id="btn-create-class">
-                    Crear
+                  <button className="primary-button" type="submit" id="btn-create-class" disabled={isSubmitting}>
+                    {isSubmitting ? 'Creando...' : 'Crear'}
                   </button>
                 </div>
               </form>

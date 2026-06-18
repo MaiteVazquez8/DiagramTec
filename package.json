@@ -1,0 +1,7 @@
+{
+  "name": "diagramtec",
+  "private": true,
+  "scripts": {
+    "build:hostinger": "node scripts/build-hostinger.mjs"
+  }
+}

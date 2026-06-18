@@ -1,21 +1,18 @@
 <?php
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-
 require_once __DIR__ . '/lib/config.php';
+require_once __DIR__ . '/lib/pdo_shim.php';
 
-$host = "localhost";
-$user = "root";
-$db_password = "";
-$database = "tecdiagram";
-$port = 3306;
-
-
-$mysql = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT);
-
-if ($mysql->connect_error) {
-    die('Error de conexión: ' . $mysql->connect_error);
+$databaseUrl = getenv('DATABASE_URL');
+if (!$databaseUrl) {
+    die('Error de conexión: DATABASE_URL no configurada. Añádela en backend/.env (Supabase → Settings → Database).');
 }
 
-$mysql->set_charset('utf8mb4');
+try {
+    $mysql = PgConnection::fromDatabaseUrl($databaseUrl);
+} catch (Throwable $e) {
+    die('Error de conexión: ' . $e->getMessage());
+}
