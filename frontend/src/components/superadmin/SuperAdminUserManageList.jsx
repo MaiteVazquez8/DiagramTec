@@ -1,9 +1,9 @@
 /** Listado Figma: cabecera de columnas + filas en tarjetas. */
 import SuperAdminUserManageRow from './SuperAdminUserManageRow.jsx';
+import { SuperAdminManageSkeleton } from '../skeletons/PageSkeletons.jsx';
 
 export default function SuperAdminUserManageList({
   loading,
-  loadingText,
   emptyMessage,
   users,
   lockRole,
@@ -13,7 +13,7 @@ export default function SuperAdminUserManageList({
   deleteLabel,
 }) {
   if (loading) {
-    return <p className="superadmin-manage__loading">{loadingText}</p>;
+    return <SuperAdminManageSkeleton />;
   }
 
   if (users.length === 0) {
