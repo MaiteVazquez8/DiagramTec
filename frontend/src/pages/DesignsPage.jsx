@@ -5,6 +5,7 @@ import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
 import Icon from '../components/Icon.jsx';
+import { CardsGridSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 function normalizeDesign(raw) {
   return {
@@ -140,9 +141,7 @@ export default function DesignsPage() {
         </header>
 
         {authLoading && (
-          <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
-            <p className="figma-loading-text">Cargando tu sesión…</p>
-          </div>
+          <CardsGridSkeleton count={6} />
         )}
 
         {!authLoading && !user && (
@@ -175,9 +174,7 @@ export default function DesignsPage() {
         {!authLoading && user && (
           <div className="figma-cards-grid">
             {isLoadingDesigns ? (
-              <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
-                <p className="figma-loading-text">Cargando tus diseños…</p>
-              </div>
+              <CardsGridSkeleton count={6} />
             ) : filteredDesigns.length === 0 ? (
               <div className="figma-empty-panel figma-dot-pattern">
                 <Icon name="empty" size={64} strokeWidth={1} />

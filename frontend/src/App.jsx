@@ -49,6 +49,7 @@ import Footer from './components/Footer.jsx';
 
 import Icon from './components/Icon.jsx';
 import ProfileSilhouette from './components/ProfileSilhouette.jsx';
+import { RouteGuardSkeleton } from './components/skeletons/PageSkeletons.jsx';
 
 
 
@@ -57,7 +58,7 @@ function AdminRoute({ children }) {
 
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="page-container">Cargando...</div>;
+  if (loading) return <RouteGuardSkeleton />;
 
   if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
     return <Navigate to="/" replace />;
@@ -74,7 +75,7 @@ function ProtectedRoute({ children }) {
 
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="page-container">Cargando...</div>;
+  if (loading) return <RouteGuardSkeleton />;
 
   return user ? children : <Navigate to="/login" replace />;
 
