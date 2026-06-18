@@ -12,6 +12,7 @@ import Icon from '../components/Icon.jsx';
 import ClassPost from '../components/ClassPost';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
 import { useToast } from '../ToastContext.jsx';
+import { ClassDetailSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 function sameId(a, b) {
   if (a == null || b == null) return false;
@@ -24,6 +25,7 @@ export default function ClassDetailPage() {
   const { showError, showMessage } = useToast();
   const navigate = useNavigate();
   const [classInfo, setClassInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [designs, setDesigns] = useState([]);
   const [comments, setComments] = useState([]);
   const [userDesigns, setUserDesigns] = useState([]);
@@ -55,10 +57,12 @@ export default function ClassDetailPage() {
   };
 
   const loadClassData = async () => {
+    setLoading(true);
     try {
       const res = await api.get(`/classes/${id}`);
       setClassInfo(res.data.class);
     } catch {
+      setLoading(false);
       return;
     }
 
@@ -68,6 +72,8 @@ export default function ClassDetailPage() {
       setComments(designsRes.data.comments || []);
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -230,14 +236,12 @@ export default function ClassDetailPage() {
     return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  if (loading) {
+    return <ClassDetailSkeleton />;
+  }
+
   if (!classInfo) {
-    return (
-      <section className="figma-sector class-detail-sector">
-        <div className="figma-sector-inner">
-          <p className="class-detail-loading">Cargando...</p>
-        </div>
-      </section>
-    );
+    return null;
   }
 
   const isTeacher = user?.role === 'teacher';
