@@ -23,7 +23,7 @@ import {
   PALETTE_DRAG_TYPE_KEY,
   createShape,
   duplicateShape,
-  bringShapeToFront,
+  bringShapesToFront,
   shapesToMap,
   parseDiagramContent,
   serializeDiagram,
@@ -66,7 +66,7 @@ export default function EditorPage() {
   const [nextId, setNextId] = useState(1);
   const [connectMode, setConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const [saveTitle, setSaveTitle] = useState('Mi diagrama');
   const [saveClassId, setSaveClassId] = useState('');
@@ -86,7 +86,10 @@ export default function EditorPage() {
   const shapeConnectHandledByTouchRef = useRef(false);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
-  const [clipboardShape, setClipboardShape] = useState(null);
+  const [clipboardShapes, setClipboardShapes] = useState([]);
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const hasShapeSelection = selectedIds.length > 0;
 
   const diagramState = useMemo(
     () => ({ shapes, connections }),
@@ -241,52 +244,75 @@ export default function EditorPage() {
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') { e.preventDefault(); undo(); }
         if (e.key === 'y') { e.preventDefault(); redo(); }
+        if (e.key === 'c') { e.preventDefault(); handleCopySelected(); }
+        if (e.key === 'v') { e.preventDefault(); handlePasteClipboard(); }
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedConnectionId) {
           handleDeleteConnection(selectedConnectionId);
-        } else if (selectedId) {
-          handleDeleteShape(selectedId);
+        } else if (selectedIds.length > 0) {
+          handleDeleteSelectedShapes();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, selectedConnectionId, historyStack, shapes, connections]);
+  }, [selectedIds, selectedConnectionId, historyStack, shapes, connections]);
 
-  const handleDeleteShape = (shapeId) => {
-    const next = deleteShapeFromDiagram(diagramState, shapeId);
-    setShapes(next.shapes);
-    setConnections(next.connections);
-    commitHistory(next.shapes, next.connections);
-    if (selectedId === shapeId) setSelectedId(null);
-  };
-
-  const handleDuplicateShape = (shapeId) => {
-    const original = shapesById.get(shapeId);
-    if (!original) return;
-    const newShape = duplicateShape(original);
-    const nextShapes = [...shapes, newShape];
-    setShapes(nextShapes);
-    commitHistory(nextShapes, connections);
-    setSelectedId(newShape.id);
-    setNextId((v) => Math.max(v, newShape.id + 1));
+  const handleDeleteSelectedShapes = () => {
+    if (selectedIds.length === 0) return;
+    let nextState = diagramState;
+    for (const shapeId of selectedIds) {
+      nextState = deleteShapeFromDiagram(nextState, shapeId);
+    }
+    setShapes(nextState.shapes);
+    setConnections(nextState.connections);
+    commitHistory(nextState.shapes, nextState.connections);
+    setSelectedIds([]);
   };
 
   const handleCopySelected = () => {
-    if (!selectedId) return;
-    const original = shapesById.get(selectedId);
-    if (original) setClipboardShape({ ...original });
+    if (selectedIds.length === 0) return;
+    const copied = selectedIds
+      .map((id) => shapesById.get(id))
+      .filter(Boolean)
+      .map((shape) => ({ ...shape }));
+    if (copied.length > 0) setClipboardShapes(copied);
   };
 
   const handlePasteClipboard = () => {
-    if (!clipboardShape) return;
-    const newShape = duplicateShape(clipboardShape, { x: 24, y: 24 }, nextId);
-    const nextShapes = [...shapes, newShape];
+    if (clipboardShapes.length === 0) return;
+    let idCounter = nextId;
+    const pasted = clipboardShapes.map((shape) =>
+      duplicateShape(shape, { x: 24, y: 24 }, idCounter++),
+    );
+    const nextShapes = [...shapes, ...pasted];
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
-    setSelectedId(newShape.id);
-    setNextId((v) => Math.max(v, newShape.id + 1));
+    setSelectedIds(pasted.map((shape) => shape.id));
+    setNextId((v) => Math.max(v, idCounter));
+  };
+
+  /** Copia las formas seleccionadas y las pega desplazadas; si hay portapapeles, pega ese. */
+  const handleCopyPaste = () => {
+    if (selectedIds.length > 0) {
+      let idCounter = nextId;
+      const pasted = selectedIds
+        .map((id) => shapesById.get(id))
+        .filter(Boolean)
+        .map((original) => duplicateShape(original, { x: 24, y: 24 }, idCounter++));
+      if (pasted.length === 0) return;
+      setClipboardShapes(
+        selectedIds.map((id) => shapesById.get(id)).filter(Boolean).map((shape) => ({ ...shape })),
+      );
+      const nextShapes = [...shapes, ...pasted];
+      setShapes(nextShapes);
+      commitHistory(nextShapes, connections);
+      setSelectedIds(pasted.map((shape) => shape.id));
+      setNextId((v) => Math.max(v, idCounter));
+      return;
+    }
+    handlePasteClipboard();
   };
 
   const handleDeleteConnection = (connectionId) => {
@@ -299,8 +325,8 @@ export default function EditorPage() {
   const handleDeleteSelected = () => {
     if (selectedConnectionId) {
       handleDeleteConnection(selectedConnectionId);
-    } else if (selectedId) {
-      handleDeleteShape(selectedId);
+    } else if (selectedIds.length > 0) {
+      handleDeleteSelectedShapes();
     }
   };
 
@@ -308,12 +334,13 @@ export default function EditorPage() {
     if (connectMode) return;
     event.stopPropagation();
     setSelectedConnectionId(connectionId);
-    setSelectedId(null);
+    setSelectedIds([]);
     setConnectSource(null);
   };
 
-  const handleBringToFront = (shapeId) => {
-    const nextShapes = bringShapeToFront(shapes, shapeId);
+  const handleBringToFront = () => {
+    if (selectedIds.length === 0) return;
+    const nextShapes = bringShapesToFront(shapes, selectedIds);
     if (nextShapes === shapes) return;
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
@@ -478,21 +505,38 @@ export default function EditorPage() {
   const handleMouseDown = (event, shape) => {
     if (connectMode || event.target.closest('.resize-handle')) return;
     event.stopPropagation();
-    setSelectedId(shape.id);
+
+    const isMultiToggle = event.ctrlKey || event.metaKey;
+
+    if (isMultiToggle) {
+      setSelectedIds((prev) =>
+        prev.includes(shape.id) ? prev.filter((id) => id !== shape.id) : [...prev, shape.id],
+      );
+      setSelectedConnectionId(null);
+      return;
+    }
+
+    const idsToMove = selectedIdSet.has(shape.id) ? [...selectedIds] : [shape.id];
+    if (!selectedIdSet.has(shape.id)) {
+      setSelectedIds([shape.id]);
+    }
     setSelectedConnectionId(null);
+
     const startX = event.clientX;
     const startY = event.clientY;
-    const initial = { ...shape };
+    const initialPositions = new Map(
+      idsToMove.map((id) => [id, { ...(shapesById.get(id) || {}) }]),
+    );
 
     const onMouseMove = (moveEvent) => {
       const dx = clientDeltaToCanvas(moveEvent.clientX - startX, zoom);
       const dy = clientDeltaToCanvas(moveEvent.clientY - startY, zoom);
       setShapes((current) =>
-        current.map((item) =>
-          item.id === shape.id
-            ? { ...item, x: initial.x + dx, y: initial.y + dy }
-            : item
-        )
+        current.map((item) => {
+          const initial = initialPositions.get(item.id);
+          if (!initial) return item;
+          return { ...item, x: initial.x + dx, y: initial.y + dy };
+        }),
       );
     };
     const onMouseUp = () => {
@@ -509,7 +553,7 @@ export default function EditorPage() {
     if (event.target.closest('.editable-text')) return;
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
-    setSelectedId(shape.id);
+    setSelectedIds([shape.id]);
     setSelectedConnectionId(null);
     const touch = event.touches[0];
     const startX = touch.clientX;
@@ -523,8 +567,8 @@ export default function EditorPage() {
       const dy = clientDeltaToCanvas(moveTouch.clientY - startY, zoom);
       setShapes((current) =>
         current.map((item) =>
-          item.id === shape.id ? { ...item, x: initial.x + dx, y: initial.y + dy } : item
-        )
+          item.id === shape.id ? { ...item, x: initial.x + dx, y: initial.y + dy } : item,
+        ),
       );
     };
     const cleanup = () => {
@@ -609,7 +653,7 @@ export default function EditorPage() {
     const empty = emptyDiagramState();
     setShapes(empty.shapes);
     setConnections(empty.connections);
-    setSelectedId(null);
+    setSelectedIds([]);
     setConnectSource(null);
     centerView();
   };
@@ -702,7 +746,7 @@ export default function EditorPage() {
 
   const handleCanvasMouseDown = (e) => {
     if (!isCanvasBackgroundTarget(e.target)) return;
-    setSelectedId(null);
+    setSelectedIds([]);
     setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
@@ -724,7 +768,7 @@ export default function EditorPage() {
     if (connectMode) return;
     if (e.touches.length !== 1) return;
     if (!isCanvasBackgroundTarget(e.target)) return;
-    setSelectedId(null);
+    setSelectedIds([]);
     setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
@@ -792,15 +836,12 @@ export default function EditorPage() {
             canUndo={canUndo(historyStack)}
             canRedo={canRedo(historyStack)}
             isSaving={isSaving}
-            onBringToFront={() => {
-              if (!selectedId) return;
-              handleBringToFront(selectedId);
-            }}
-            onPaste={handlePasteClipboard}
+            onBringToFront={handleBringToFront}
+            onCopyPaste={handleCopyPaste}
             onDelete={handleDeleteSelected}
-            canBringToFront={!!selectedId}
-            canPaste={!!clipboardShape}
-            canDelete={!!selectedId || !!selectedConnectionId}
+            canBringToFront={hasShapeSelection}
+            canCopyPaste={hasShapeSelection || clipboardShapes.length > 0}
+            canDelete={hasShapeSelection || !!selectedConnectionId}
           />
 
           <div className="figma-editor-canvas-area">
@@ -811,7 +852,7 @@ export default function EditorPage() {
           onDragOver={(event) => event.preventDefault()}
           onClick={(event) => {
             if (!shouldClearCanvasSelection(event.target)) return;
-            setSelectedId(null);
+            setSelectedIds([]);
             setSelectedConnectionId(null);
             setConnectSource(null);
           }}
@@ -876,7 +917,7 @@ export default function EditorPage() {
             {shapes.map((shape) => (
               <div
                 key={shape.id}
-                className={`shape-element ${selectedId === shape.id ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
+                className={`shape-element ${selectedIdSet.has(shape.id) ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
                 style={{ left: shape.x, top: shape.y, width: shape.width, height: shape.height }}
                 onMouseDown={(event) => handleMouseDown(event, shape)}
                 onTouchStart={(event) => handleShapeTouchStart(event, shape)}
@@ -884,7 +925,7 @@ export default function EditorPage() {
                 onClick={(event) => handleShapeClick(event, shape)}
               >
                 <RenderShape shape={shape} />
-                {selectedId === shape.id && (
+                {selectedIds.length === 1 && selectedIdSet.has(shape.id) && (
                   <div
                     className="resize-handle"
                     onMouseDown={(e) => handleResizeMouseDown(e, shape)}
