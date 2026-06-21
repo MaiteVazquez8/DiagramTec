@@ -1,8 +1,9 @@
-/** Modelo de forma: crear, duplicar, redimensionar, títulos por defecto. */
+/** Modelo de forma: crear, duplicar, redimensionar, títulos y tamaños por defecto. */
 import { SHAPE_TYPES } from '../constants/palette.js';
 import { SHAPE_SIZE_LIMITS } from '../constants/canvas.js';
 
 /**
+ * Estructura de una figura en el lienzo.
  * @typedef {Object} Shape
  * @property {string|number} id
  * @property {string} type
@@ -14,6 +15,7 @@ import { SHAPE_SIZE_LIMITS } from '../constants/canvas.js';
  * @property {number} [fontSize]
  */
 
+// Texto inicial que muestra cada tipo de figura al crearse
 const DEFAULT_TITLES = {
   [SHAPE_TYPES.START]: 'inicio',
   [SHAPE_TYPES.END]: 'FINAL',
@@ -25,6 +27,7 @@ const DEFAULT_TITLES = {
   [SHAPE_TYPES.IF]: 'IF',
 };
 
+// Dimensiones iniciales según el tipo (IF, FOR y WHILE son más grandes)
 const DEFAULT_SIZES = {
   [SHAPE_TYPES.IF]: { width: 220, height: 180 },
   [SHAPE_TYPES.FOR]: { width: 220, height: 120 },
@@ -32,15 +35,16 @@ const DEFAULT_SIZES = {
   default: { width: 140, height: 90 },
 };
 
-/** Proporciones del IF: evita triángulo aplastado o demasiado ancho */
+/** Límites de proporción del bloque IF para evitar triángulos aplastados o demasiado anchos. */
 export const IF_SIZE_LIMITS = {
   minWidth: 160,
   minHeight: 120,
-  maxWidthRatio: 2.2,
-  minWidthRatio: 0.65,
+  maxWidthRatio: 2.2,  // Relación ancho/alto máxima
+  minWidthRatio: 0.65, // Relación ancho/alto mínima
 };
 
 /**
+ * Ajusta ancho y alto del bloque IF respetando mínimos y proporciones válidas.
  * @param {number} width
  * @param {number} height
  * @returns {{ width: number, height: number }}
@@ -49,9 +53,11 @@ export function clampIfDimensions(width, height) {
   let w = Math.max(IF_SIZE_LIMITS.minWidth, width);
   let h = Math.max(IF_SIZE_LIMITS.minHeight, height);
   const ratio = w / h;
+  // Demasiado ancho: reduce el ancho manteniendo la altura
   if (ratio > IF_SIZE_LIMITS.maxWidthRatio) {
     w = Math.round(h * IF_SIZE_LIMITS.maxWidthRatio);
   }
+  // Demasiado estrecho: aumenta la altura
   if (ratio < IF_SIZE_LIMITS.minWidthRatio) {
     h = Math.round(w / IF_SIZE_LIMITS.minWidthRatio);
   }
@@ -59,6 +65,7 @@ export function clampIfDimensions(width, height) {
 }
 
 /**
+ * Aplica límites de tamaño según el tipo de figura (IF usa reglas especiales).
  * @param {Shape} shape
  * @param {number} width
  * @param {number} height
@@ -68,6 +75,7 @@ export function clampShapeDimensions(shape, width, height) {
   if (shape.type === SHAPE_TYPES.IF) {
     return clampIfDimensions(width, height);
   }
+  // Figuras genéricas: solo respetan mínimos globales
   return {
     width: Math.max(SHAPE_SIZE_LIMITS.minWidth, width),
     height: Math.max(SHAPE_SIZE_LIMITS.minHeight, height),
@@ -75,6 +83,7 @@ export function clampShapeDimensions(shape, width, height) {
 }
 
 /**
+ * Devuelve el título por defecto para un tipo de figura.
  * @param {string} type
  * @returns {string}
  */
@@ -83,6 +92,7 @@ export function getDefaultTitle(type) {
 }
 
 /**
+ * Devuelve las dimensiones iniciales para un tipo de figura.
  * @param {string} type
  * @returns {{ width: number, height: number }}
  */
@@ -91,7 +101,7 @@ export function getDefaultSize(type) {
 }
 
 /**
- * Crea una figura nueva en el lienzo.
+ * Crea una figura nueva en el lienzo con posición, tamaño y título por defecto.
  * @param {string} type
  * @param {number} x
  * @param {number} y
@@ -101,7 +111,7 @@ export function getDefaultSize(type) {
 export function createShape(type, x, y, id) {
   const size = getDefaultSize(type);
   return {
-    id: id ?? Date.now().toString(),
+    id: id ?? Date.now().toString(), // ID único basado en timestamp si no se provee
     type,
     title: getDefaultTitle(type),
     x,
@@ -113,6 +123,7 @@ export function createShape(type, x, y, id) {
 }
 
 /**
+ * Duplica una figura existente con desplazamiento opcional y nuevo ID.
  * @param {Shape} shape
  * @param {{ x?: number, y?: number }} [offset]
  * @param {string|number} [newId]
@@ -128,6 +139,7 @@ export function duplicateShape(shape, offset = { x: 30, y: 30 }, newId) {
 }
 
 /**
+ * Desplaza una figura sumando dx/dy a su posición actual (inmutable).
  * @param {Shape} shape
  * @param {number} dx
  * @param {number} dy
@@ -138,6 +150,7 @@ export function translateShape(shape, dx, dy) {
 }
 
 /**
+ * Redimensiona una figura aplicando límites según su tipo.
  * @param {Shape} shape
  * @param {number} width
  * @param {number} height
@@ -149,6 +162,7 @@ export function resizeShape(shape, width, height) {
 }
 
 /**
+ * Actualiza el tamaño de fuente de una figura específica en el array de shapes.
  * @param {Shape[]} shapes
  * @param {string|number} shapeId
  * @param {number} fontSize
@@ -161,6 +175,7 @@ export function setShapeFontSize(shapes, shapeId, fontSize) {
 }
 
 /**
+ * Mueve una figura al final del array para que se dibuje encima de las demás (z-index).
  * @param {Shape[]} shapes
  * @param {string|number} shapeId
  * @returns {Shape[]}
@@ -172,6 +187,8 @@ export function bringShapeToFront(shapes, shapeId) {
 }
 
 /**
+ * Indexa figuras por ID en un Map (soporta string, number y conversión numérica).
+ * Útil para resolver conexiones cuando los IDs pueden ser string o number.
  * @param {Shape[]} shapes
  * @returns {Map<string|number, Shape>}
  */

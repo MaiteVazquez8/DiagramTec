@@ -6,6 +6,7 @@ import { useAuth } from '../AuthContext.jsx';
 
 import Icon from '../components/Icon.jsx';
 
+// Normaliza campos del diseño para la UI
 function normalizeDesign(raw) {
   return {
     ...raw,
@@ -25,6 +26,7 @@ export default function DesignsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextDesign, setContextDesign] = useState(null);
 
+  // Carga la biblioteca de diseños del usuario autenticado
   const loadDesigns = useCallback(async () => {
     setIsLoadingDesigns(true);
     setLoadFailed(false);
@@ -40,6 +42,7 @@ export default function DesignsPage() {
     }
   }, []);
 
+  // Recarga al cambiar usuario, sesión o navegación
   useEffect(() => {
     if (!authLoading && user) {
       loadDesigns();
@@ -51,6 +54,7 @@ export default function DesignsPage() {
     }
   }, [user, authLoading, location.key, loadDesigns]);
 
+  // Refresca al volver a la pestaña del navegador
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && user) {
@@ -65,6 +69,7 @@ export default function DesignsPage() {
     d.title.toLowerCase().includes(search.toLowerCase())
   );
 
+  // Elimina un diseño del servidor y del estado local
   const handleDelete = async (id) => {
     try {
       await api.delete(`/designs/${id}`);
@@ -75,6 +80,7 @@ export default function DesignsPage() {
     }
   };
 
+  // Duplica un diseño vía API y recarga la lista
   const handleCopy = async (id) => {
     try {
       await api.post(`/designs/${id}/copy`);
@@ -93,6 +99,7 @@ export default function DesignsPage() {
   return (
     <section className="figma-sector" id="designs-page">
       <div className="figma-sector-inner">
+        {/* Cabecera con búsqueda y botón crear diseño */}
         <header className="figma-sector-hero">
           <h1>Mis diseños</h1>
           <div className="figma-sector-toolbar">
@@ -139,12 +146,14 @@ export default function DesignsPage() {
           </div>
         </header>
 
+        {/* Estado: cargando sesión */}
         {authLoading && (
           <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
             <p className="figma-loading-text">Cargando tu sesión…</p>
           </div>
         )}
 
+        {/* Estado: usuario invitado sin biblioteca */}
         {!authLoading && !user && (
           <div className="figma-empty-panel figma-dot-pattern">
             <Icon name="image" size={64} strokeWidth={1} />
@@ -164,6 +173,7 @@ export default function DesignsPage() {
           </div>
         )}
 
+        {/* Error de carga con botón reintentar */}
         {loadFailed && user ? (
           <div className="figma-designs-error">
             <button type="button" className="secondary-button" onClick={loadDesigns}>
@@ -172,6 +182,7 @@ export default function DesignsPage() {
           </div>
         ) : null}
 
+        {/* Grilla de diseños del usuario autenticado */}
         {!authLoading && user && (
           <div className="figma-cards-grid">
             {isLoadingDesigns ? (
@@ -229,6 +240,7 @@ export default function DesignsPage() {
           </div>
         )}
 
+        {/* Modal contextual: editar, eliminar, exportar, copiar */}
         {contextDesign && (
           <div
             className="design-context-overlay"

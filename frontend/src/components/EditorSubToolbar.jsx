@@ -1,6 +1,10 @@
-/** Subtoolbar: traer al frente, pegar, eliminar forma o conexión seleccionada. */
+/** Subtoolbar: copiar, pegar, eliminar, deshacer/rehacer, zoom y limpiar lienzo. */
 import Icon from './Icon';
 
+/**
+ * Barra secundaria del editor (debajo de la toolbar principal).
+ * Recibe estado de zoom, historial undo/redo y permisos de clipboard del padre.
+ */
 export default function EditorSubToolbar({
   zoom,
   zoomIn,
@@ -21,6 +25,7 @@ export default function EditorSubToolbar({
 }) {
   return (
     <div className="editor-subtoolbar figma-editor-subtoolbar">
+      {/* Grupo de edición: clipboard e historial */}
       <div className="figma-subtoolbar-group figma-subtoolbar-edit">
         <button
           type="button"
@@ -69,11 +74,13 @@ export default function EditorSubToolbar({
         </button>
       </div>
 
+      {/* Pie: controles de zoom y botón limpiar lienzo */}
       <div className="figma-subtoolbar-footer">
         <div className="figma-zoom-group" role="group" aria-label="Zoom">
           <button type="button" className="figma-zoom-group-btn" onClick={zoomIn} title="Acercar" id="btn-sub-zoom-in">
             <Icon name="plus" size={17} />
           </button>
+          {/* Clic en el porcentaje restablece zoom al 100% */}
           <button type="button" className="figma-zoom-group-label" onClick={zoomReset} id="btn-sub-zoom-reset">
             {Math.round(zoom * 100)}%
           </button>

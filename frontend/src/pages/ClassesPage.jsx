@@ -13,6 +13,7 @@ export default function ClassesPage() {
   const { showMessage } = useToast();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'teacher';
+  // Listado de clases y formularios de crear/unirse
   const [classes, setClasses] = useState([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -21,6 +22,7 @@ export default function ClassesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Obtiene las clases del usuario desde el API
   const loadClasses = async () => {
     try {
       const response = await api.get('/classes');
@@ -34,6 +36,7 @@ export default function ClassesPage() {
     loadClasses();
   }, []);
 
+  // Crea una nueva clase (solo profesores)
   const handleCreate = async (event) => {
     event.preventDefault();
     if (isSubmitting) return;
@@ -52,6 +55,7 @@ export default function ClassesPage() {
     }
   };
 
+  // Une al estudiante a una clase mediante código
   const handleJoin = async (event) => {
     event.preventDefault();
     try {
@@ -69,6 +73,7 @@ export default function ClassesPage() {
     navigate(`/classes/${classId}`);
   };
 
+  // Renderiza tarjeta según rol (profesor vs estudiante)
   const renderClassCard = (classItem, index) => {
     if (isTeacher) {
       return (
@@ -142,6 +147,7 @@ export default function ClassesPage() {
       id="classes-page"
     >
       <div className="figma-sector-inner">
+        {/* Cabecera con botón crear (profesor) o unirse (estudiante) */}
         <header className="figma-sector-hero">
           <h1>Mis clases</h1>
           <div className="figma-sector-toolbar">
@@ -168,6 +174,7 @@ export default function ClassesPage() {
           </div>
         </header>
 
+        {/* Grilla de clases o panel vacío */}
         <div className={isTeacher ? 'figma-cards-grid figma-classes-grid' : 'class-list-grid'}>
           {classes.length === 0 ? (
             <div className="figma-empty-panel figma-dot-pattern">
@@ -202,6 +209,7 @@ export default function ClassesPage() {
           )}
         </div>
 
+        {/* Modal de creación de clase (profesores) */}
         {showCreateModal && isTeacher && (
           <div
             className="modal-overlay figma-modal-overlay"
@@ -261,6 +269,7 @@ export default function ClassesPage() {
           </div>
         )}
 
+        {/* Modal de unirse por código (estudiantes) */}
         {showJoinModal && !isTeacher && (
           <div
             className="modal-overlay figma-modal-overlay"

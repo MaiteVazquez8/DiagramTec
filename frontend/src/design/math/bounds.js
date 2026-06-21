@@ -1,12 +1,14 @@
-/** Rectángulo envolvente del diagrama para recortar capturas html2canvas. */
+/** Rectángulo envolvente del diagrama para recortar capturas con html2canvas. */
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
 
 /**
+ * Límites del diagrama con padding y dimensiones calculadas.
  * @typedef {{ minX: number, minY: number, maxX: number, maxY: number, width: number, height: number }} DiagramBounds
  */
 
 /**
- * Caja envolvente de todas las figuras.
+ * Calcula la caja envolvente de todas las figuras con margen de padding.
+ * Si no hay figuras, devuelve dimensiones mínimas de fallback.
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {{ padding?: number, fallbackWidth?: number, fallbackHeight?: number }} [options]
  * @returns {DiagramBounds}
@@ -16,6 +18,7 @@ export function getDiagramBounds(shapes, options = {}) {
   const fallbackWidth = options.fallbackWidth ?? EXPORT_DEFAULTS.minCaptureWidth;
   const fallbackHeight = options.fallbackHeight ?? EXPORT_DEFAULTS.minCaptureHeight;
 
+  // Diagrama vacío: usar tamaño mínimo de captura
   if (!shapes.length) {
     return {
       minX: 0,
@@ -27,11 +30,13 @@ export function getDiagramBounds(shapes, options = {}) {
     };
   }
 
+  // Extremos de todas las figuras
   const minX = Math.min(...shapes.map((s) => s.x));
   const minY = Math.min(...shapes.map((s) => s.y));
   const maxX = Math.max(...shapes.map((s) => s.x + s.width));
   const maxY = Math.max(...shapes.map((s) => s.y + s.height));
 
+  // Incluir padding y respetar mínimos de captura
   const width = Math.max(fallbackWidth, maxX - minX + padding * 2);
   const height = Math.max(fallbackHeight, maxY - minY + padding * 2);
 
@@ -39,15 +44,15 @@ export function getDiagramBounds(shapes, options = {}) {
 }
 
 /**
- * Opciones para html2canvas según bounds.
+ * Convierte DiagramBounds en región { x, y, width, height } para html2canvas.
  * @param {DiagramBounds} bounds
  * @param {{ padding?: number }} [options]
  */
 export function captureRegionFromBounds(bounds, options = {}) {
   const padding = options.padding ?? EXPORT_DEFAULTS.padding;
   return {
-    x: bounds.minX - padding,
-    y: bounds.minY - padding,
+    x: bounds.minX - padding,   // Origen X con margen izquierdo
+    y: bounds.minY - padding,   // Origen Y con margen superior
     width: bounds.width,
     height: bounds.height,
   };

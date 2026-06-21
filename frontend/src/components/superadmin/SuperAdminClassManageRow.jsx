@@ -3,10 +3,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../Icon.jsx';
 
+/**
+ * Fila de gestión de una clase: título, dueño, código, alumnos y eliminar.
+ * @param {object} classItem - Clase con id, title, code, ownerName, studentCount
+ * @param {Function} onDelete - Elimina la clase por id
+ * @param {Function} [onCopyCode] - Callback opcional tras copiar código al portapapeles
+ */
 export default function SuperAdminClassManageRow({ classItem, onDelete, onCopyCode }) {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
 
+  /** Copia el código de invitación al portapapeles y muestra feedback 2s */
   const handleCopy = async () => {
     if (!classItem.code) return;
     try {
@@ -15,12 +22,13 @@ export default function SuperAdminClassManageRow({ classItem, onDelete, onCopyCo
       onCopyCode?.();
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      /* ignore */
+      /* ignore: clipboard puede fallar por permisos del navegador */
     }
   };
 
   return (
     <div className="superadmin-class-row superadmin-class-row--card" role="row">
+      {/* Título clickeable: navega al detalle de la clase */}
       <div className="superadmin-class-row__cell superadmin-class-row__cell--title" role="cell">
         <button
           type="button"
@@ -39,6 +47,7 @@ export default function SuperAdminClassManageRow({ classItem, onDelete, onCopyCo
         </div>
       </div>
 
+      {/* Código de clase con botón copiar */}
       <div className="superadmin-class-row__cell" role="cell">
         <div className="superadmin-class-row__pill superadmin-class-row__pill--code">
           <span className="superadmin-class-row__code-text">{classItem.code || '—'}</span>

@@ -3,6 +3,7 @@ import Icon from './Icon.jsx';
 import ProfileSilhouette from './ProfileSilhouette.jsx';
 import { useAuth } from '../AuthContext.jsx';
 
+/** Convierte el rol interno (API) a etiqueta legible en español. */
 function roleLabel(role) {
   if (role === 'superadmin') return 'Superadmin';
   if (role === 'teacher') return 'Profesor';
@@ -10,6 +11,11 @@ function roleLabel(role) {
   return role || '';
 }
 
+/**
+ * Barra lateral del panel superadmin con datos del usuario logueado.
+ * @param {boolean} collapsed - Si true, muestra versión compacta
+ * @param {Function} onToggleCollapse - Alterna el estado collapsed
+ */
 export default function SuperAdminSidebar({ collapsed, onToggleCollapse }) {
   const { user, logout } = useAuth();
   const fullName = user
@@ -21,6 +27,7 @@ export default function SuperAdminSidebar({ collapsed, onToggleCollapse }) {
       className={`superadmin-sidebar${collapsed ? ' superadmin-sidebar--collapsed' : ''}`}
       aria-label="Panel lateral"
     >
+      {/* Botón para expandir/contraer el sidebar */}
       <button
         type="button"
         className="superadmin-sidebar__collapse"
@@ -31,6 +38,7 @@ export default function SuperAdminSidebar({ collapsed, onToggleCollapse }) {
         <Icon name="chevronRight" size={14} strokeWidth={2.5} />
       </button>
 
+      {/* Bloque de perfil: avatar, nombre, email y rol */}
       <div className="superadmin-sidebar__body">
         <div className="superadmin-sidebar__profile">
           <div className="superadmin-sidebar__avatar-ring">
@@ -42,6 +50,7 @@ export default function SuperAdminSidebar({ collapsed, onToggleCollapse }) {
         </div>
       </div>
 
+      {/* Pie: cierre de sesión vía AuthContext */}
       <div className="superadmin-sidebar__footer">
         <button type="button" className="superadmin-sidebar__logout" onClick={logout}>
           <span className="superadmin-sidebar__logout-icon" aria-hidden>

@@ -10,6 +10,7 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { showError } = useToast();
+  // Campos del formulario de registro
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,6 +18,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('');
 
+  // Valida datos locales y crea la cuenta en el backend PHP
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (password !== confirmPassword) {
@@ -50,6 +52,7 @@ export default function SignupPage() {
   return (
     <section className="page-container auth-page-wrap">
       <article className="form-card auth-card figma-auth-card figma-signup-card">
+        {/* Pestañas de navegación entre login y registro */}
         <div className="auth-tabs">
           <Link to="/login">Iniciar sesion</Link>
           <span className="active">Registrarse</span>

@@ -11,10 +11,13 @@ export default function LoginPage() {
   const location = useLocation();
   const { login } = useAuth();
   const { showError } = useToast();
+  // Ruta a la que volver tras login (por defecto /designs)
   const redirectTo = location.state?.from || '/designs';
+  // Estado del formulario
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // Envía credenciales al backend PHP y guarda el token si es válido
   const handleSubmit = async (event) => {
     event.preventDefault();
     try {
@@ -33,6 +36,7 @@ export default function LoginPage() {
   return (
     <section className="page-container auth-page-wrap">
       <article className="form-card auth-card figma-auth-card figma-login-card">
+        {/* Pestañas de navegación entre login y registro */}
         <div className="auth-tabs">
           <span className="active">Iniciar sesion</span>
           <Link to="/signup">Registrarse</Link>
@@ -49,6 +53,7 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña..."
           />
+          {/* Guarda el email en localStorage para el flujo de recuperación */}
           <button
             className="ghost-link"
             type="button"

@@ -14,6 +14,7 @@ export default function SuperAdminStudentsPage() {
   const [search, setSearch] = useState('');
   const [savingId, setSavingId] = useState(null);
 
+  // Obtiene usuarios y filtra solo estudiantes
   const loadStudents = async () => {
     setLoading(true);
     try {
@@ -31,6 +32,7 @@ export default function SuperAdminStudentsPage() {
     loadStudents();
   }, []);
 
+  // Búsqueda por email o nombre
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return students;
@@ -40,6 +42,7 @@ export default function SuperAdminStudentsPage() {
     });
   }, [students, search]);
 
+  // Actualiza datos del alumno vía PUT admin
   const handleSave = async (data) => {
     setSavingId(data.id);
     try {
@@ -58,6 +61,7 @@ export default function SuperAdminStudentsPage() {
     }
   };
 
+  // Elimina alumno tras confirmación
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar este alumno?')) return;
     try {
@@ -88,6 +92,7 @@ export default function SuperAdminStudentsPage() {
   return (
     <SuperAdminShell>
       <div className="superadmin-manage superadmin-manage--students">
+        {/* Cabecera con buscador */}
         <header className="superadmin-manage__head">
           <div className="superadmin-manage__title-wrap">
             <span className="superadmin-manage__title-icon" aria-hidden>
@@ -108,6 +113,7 @@ export default function SuperAdminStudentsPage() {
           </div>
         </header>
 
+        {/* Lista editable de alumnos */}
         <div className="superadmin-manage__card">
           <SuperAdminUserManageList
             loading={loading}

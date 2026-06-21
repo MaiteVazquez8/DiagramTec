@@ -1,7 +1,7 @@
 /**
- * Contexto global de sesión: user, token, login, logout, loading.
- * Token en localStorage (clave: tecdiagram_token).
- * Sincroniza login/logout entre pestañas con el evento storage.
+ * Contexto global de sesión: usuario autenticado, token JWT y acciones login/logout.
+ * Persiste el token en localStorage (clave: tecdiagram_token).
+ * Sincroniza login/logout entre pestañas mediante el evento storage.
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api, { setAuthToken } from './api.js';
@@ -10,11 +10,18 @@ const AUTH_TOKEN_KEY = 'tecdiagram_token';
 
 const AuthContext = createContext();
 
+/**
+ * Proveedor que envuelve la app y expone el estado de autenticación.
+ */
 export function AuthProvider({ children }) {
+  // Usuario devuelto por GET /auth/me (null si no hay sesión)
   const [user, setUser] = useState(null);
+  // true mientras se valida el token al cargar o al cambiar de pestaña
   const [loading, setLoading] = useState(true);
+  // Inicializa desde localStorage para restaurar sesión al recargar
   const [token, setToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY) || '');
 
+  // Limpia memoria, cabecera Authorization y marca carga como terminada
   const clearSessionState = useCallback(() => {
     setToken('');
     setUser(null);
@@ -22,7 +29,7 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // Validar token y cargar usuario
+  // Al cambiar el token: validarlo contra el backend y cargar el perfil
   useEffect(() => {
     if (!token) {
       clearSessionState();
@@ -31,9 +38,11 @@ export function AuthProvider({ children }) {
 
     setAuthToken(token);
     setLoading(true);
+    // skipErrorToast evita toast duplicado si el token expiró al abrir la app
     api.get('/auth/me', { skipErrorToast: true })
       .then((response) => setUser(response.data.user))
       .catch(() => {
+        // Token inválido o expirado: borrar persistencia y resetear estado
         clearSessionState();
         localStorage.removeItem(AUTH_TOKEN_KEY);
       })
@@ -51,6 +60,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      // Dispara el efecto anterior para revalidar el nuevo token
       setToken(nextToken);
     };
 
@@ -58,11 +68,13 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('storage', onStorage);
   }, [clearSessionState]);
 
+  // Guarda token en localStorage y actualiza estado (el efecto carga el usuario)
   const login = (newToken) => {
     localStorage.setItem(AUTH_TOKEN_KEY, newToken);
     setToken(newToken);
   };
 
+  // Elimina token persistido y limpia sesión en memoria
   const logout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     clearSessionState();
@@ -75,6 +87,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+/** Hook para consumir el contexto de autenticación desde cualquier componente. */
 export function useAuth() {
   return useContext(AuthContext);
 }

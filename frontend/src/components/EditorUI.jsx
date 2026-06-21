@@ -3,7 +3,8 @@
  * Preferir <Icon name="..." /> directamente en código nuevo.
  */
 import Icon from './Icon.jsx';
-/* ── SVG Icons ── */
+
+/* ── Componentes de icono preconfigurados (compatibilidad con código legacy) ── */
 export const SearchIcon = () => <Icon name="search" />;
 export const PlusIcon = () => <Icon name="plus" />;
 export const ImageIcon = () => <Icon name="image" size={48} strokeWidth={1.2} />;
@@ -30,5 +31,5 @@ export const ArrowIcon = () => <Icon name="chevronRight" size={20} />;
 export const BookIcon = () => <Icon name="book" size={22} />;
 export const EmptyClassIcon = () => <Icon name="emptyClass" size={56} strokeWidth={1} />;
 
-/* Paleta: definida en la librería design (re-export para compatibilidad) */
+/* Re-export de constantes de paleta para no romper imports antiguos */
 export { palette, SHAPE_TYPES, PALETTE_DRAG_TYPE_KEY } from '../design/constants/palette.js';

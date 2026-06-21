@@ -1,6 +1,11 @@
 /** Atajos de mensaje para confirmaciones en clases; usa ConfirmModal por debajo. */
 import ConfirmModal from './ConfirmModal.jsx';
 
+/**
+ * Genera el mensaje JSX según el tipo de confirmación en contexto de clases.
+ * @param {'expel'|'deletePost'|'deleteClass'|'deleteComment'} variant
+ * @param {string} [highlightName=''] - Nombre a resaltar (p. ej. alumno a expulsar)
+ */
 export function getClassConfirmMessage(variant, highlightName = '') {
   if (variant === 'expel') {
     return (
@@ -23,6 +28,15 @@ export function getClassConfirmMessage(variant, highlightName = '') {
   return null;
 }
 
+/**
+ * Modal de confirmación especializado para acciones en páginas de clase.
+ * @param {boolean} open - Visibilidad del modal
+ * @param {string} variant - Tipo de acción (ver getClassConfirmMessage)
+ * @param {string} [highlightName] - Nombre destacado en el mensaje
+ * @param {Function} onClose - Cierra sin confirmar
+ * @param {Function} onConfirm - Ejecuta la acción confirmada
+ * @param {boolean} [busy=false] - Bloquea botones durante la petición
+ */
 export default function ClassConfirmModal({
   open,
   variant,
@@ -32,6 +46,7 @@ export default function ClassConfirmModal({
   busy = false,
 }) {
   const message = getClassConfirmMessage(variant, highlightName);
+  // Variante desconocida: no muestra modal
   if (!message) return null;
 
   return (

@@ -14,6 +14,7 @@ export default function SuperAdminTeachersPage() {
   const [search, setSearch] = useState('');
   const [savingId, setSavingId] = useState(null);
 
+  // Obtiene usuarios y filtra solo profesores
   const loadTeachers = async () => {
     setLoading(true);
     try {
@@ -31,6 +32,7 @@ export default function SuperAdminTeachersPage() {
     loadTeachers();
   }, []);
 
+  // Búsqueda por email o nombre
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return teachers;
@@ -40,6 +42,7 @@ export default function SuperAdminTeachersPage() {
     });
   }, [teachers, search]);
 
+  // Actualiza datos del profesor vía PUT admin
   const handleSave = async (data) => {
     setSavingId(data.id);
     try {
@@ -58,6 +61,7 @@ export default function SuperAdminTeachersPage() {
     }
   };
 
+  // Elimina profesor tras confirmación
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar este profesor?')) return;
     try {
@@ -88,6 +92,7 @@ export default function SuperAdminTeachersPage() {
   return (
     <SuperAdminShell>
       <div className="superadmin-manage superadmin-manage--teachers">
+        {/* Cabecera con buscador */}
         <header className="superadmin-manage__head">
           <div className="superadmin-manage__title-wrap">
             <span className="superadmin-manage__title-icon" aria-hidden>
@@ -108,6 +113,7 @@ export default function SuperAdminTeachersPage() {
           </div>
         </header>
 
+        {/* Lista editable de profesores */}
         <div className="superadmin-manage__card">
           <SuperAdminUserManageList
             loading={loading}

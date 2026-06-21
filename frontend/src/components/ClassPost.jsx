@@ -2,11 +2,16 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from './Icon';
 
+/** Compara IDs numéricos tolerando string/number de la API. */
 function sameId(a, b) {
   if (a == null || b == null) return false;
   return Number(a) === Number(b);
 }
 
+/**
+ * Tarjeta de un diseño publicado dentro de una clase.
+ * Muestra autor, fecha, preview, menú contextual y acciones rápidas.
+ */
 export default function ClassPost({
   design,
   isCollapsed,
@@ -22,9 +27,11 @@ export default function ClassPost({
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
 
+  // Permisos derivados del usuario actual y del dueño del diseño
   const isOwner = sameId(design.ownerId, currentUser?.id);
   const isAdmin = currentUser?.role === 'superadmin';
   const canDelete = isAdmin || isOwner;
+  // Publicación de alumno ajeno al dueño de la clase (candidata a expulsión)
   const isStudentPost =
     design.ownerRole === 'student'
     && !sameId(design.ownerId, design.classOwnerId);
@@ -38,6 +45,7 @@ export default function ClassPost({
 
   const bodyText = design.description?.trim() || design.title;
 
+  /** Descarga el PDF embebido en base64 si existe en design.pdf_data */
   const handleDownloadPdf = () => {
     if (!design.pdf_data) return;
     const link = document.createElement('a');
@@ -46,6 +54,7 @@ export default function ClassPost({
     link.click();
   };
 
+  // Cierra el menú popover al hacer clic fuera
   useEffect(() => {
     if (!showMenu) return;
     const onDocClick = (e) => {
@@ -59,6 +68,7 @@ export default function ClassPost({
 
   return (
     <article className={`figma-class-post${isCollapsed ? ' is-collapsed' : ''}`} id={`post-${design.id}`}>
+      {/* Cabecera: avatar, autor, fecha y controles expandir/menú */}
       <header className="figma-class-post__head">
         <div className="figma-class-post__avatar" aria-hidden>
           {getInitials(design.ownerName)}
@@ -135,6 +145,7 @@ export default function ClassPost({
         </div>
       </header>
 
+      {/* Cuerpo expandible: descripción, preview y acciones */}
       {!isCollapsed && (
         <div className="figma-class-post__body">
           {bodyText && <p className="figma-class-post__description">{bodyText}</p>}

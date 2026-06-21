@@ -4,11 +4,15 @@ import {
   StartEndShape, InputShape, PrintShape, ForShape, WhileShape, IfShape, ProcessShape 
 } from './DiagramShapes.jsx';
 
-// funcion para renderizar la figura correcta segun su tipo
+/**
+ * Factory de renderizado: elige el componente visual según shape.type.
+ * @param {{ shape: object }} props - shape contiene type, title, fontSize, etc.
+ */
 export default function RenderShape({ shape }) {
-  // definimos el tamaño de fuente segun la propiedad de la figura
+  // Contexto de estilo compartido para el tamaño de fuente del texto editable
   const fsContext = { fontSize: `${shape.fontSize || 16}px` };
-  // selector para retornar el componente grafico correspondiente
+
+  // Switch por tipo de forma del diagrama de flujo
   switch (shape.type) {
     case 'start':
     case 'end':
@@ -24,6 +28,7 @@ export default function RenderShape({ shape }) {
     case 'if':
       return <IfShape shape={shape} fsContext={fsContext} />;
     default:
+      // Cualquier otro tipo cae en proceso genérico (rectángulo)
       return <ProcessShape shape={shape} fsContext={fsContext} />;
   }
 }
