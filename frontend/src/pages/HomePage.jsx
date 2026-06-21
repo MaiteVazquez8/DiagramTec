@@ -4,11 +4,15 @@ import { useAuth } from '../AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 
 export default function HomePage() {
+  // Usuario autenticado (null si es invitado)
   const { user } = useAuth();
+
+  // Desplaza suavemente al inicio de la página
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Accesos rápidos del hero hacia las secciones principales
   const heroActions = [
     { to: '/editor', label: 'Crear diseño' },
     { to: '/editor', label: 'Cómo empezar' },
@@ -19,6 +23,7 @@ export default function HomePage() {
 
   return (
     <section className="page-container figma-home-page">
+      {/* Hero principal con bienvenida y botones de auth solo para invitados */}
       <article className="figma-home-hero">
         <h1>Bienvenido a DiagramTec</h1>
         <p>
@@ -31,6 +36,7 @@ export default function HomePage() {
         </div>
       </article>
 
+      {/* Tarjetas de acceso rápido */}
       <div className="figma-home-shortcuts">
         {heroActions.map((action) => (
           <article className="figma-mini-card" key={action.label}>
@@ -42,6 +48,7 @@ export default function HomePage() {
         ))}
       </div>
 
+      {/* Bloque informativo: guía de inicio */}
       <section className="figma-home-block">
         <h2>Cómo empezar</h2>
         <p>
@@ -53,6 +60,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Bloque informativo: sobre el proyecto y el equipo */}
       <section className="figma-home-block">
         <h2>DiagramTec</h2>
         <div className="figma-about-grid">
@@ -95,6 +103,7 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Botón flotante para volver arriba */}
       <div className="figma-home-back-to-top-wrap">
         <button
           className="figma-home-back-to-top"

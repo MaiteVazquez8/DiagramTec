@@ -1,12 +1,14 @@
 /**
- * Captura del lienzo como imagen (preview PNG transparente y alta resolución para PDF).
+ * Captura del lienzo como imagen usando html2canvas.
+ * Preview PNG transparente y alta resolución para PDF.
  */
 import html2canvas from 'html2canvas';
 import { getDiagramBounds, captureRegionFromBounds } from '../math/bounds.js';
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
 
 /**
- * Quita transform de zoom en el clon de html2canvas.
+ * Normaliza el clon DOM que html2canvas crea antes de rasterizar:
+ * quita transform de zoom, fondo de cuadrícula y deja fondo transparente.
  * @param {Document} clonedDoc
  */
 export function resetZoomLayerInClone(clonedDoc) {
@@ -16,6 +18,7 @@ export function resetZoomLayerInClone(clonedDoc) {
     zoomLayer.style.background = 'transparent';
   }
 
+  // Eliminar fondo de cuadrícula del clon
   clonedDoc.querySelector('.canvas-bg')?.remove();
 
   const wrapper = clonedDoc.querySelector('.editor-canvas-fs');
@@ -26,6 +29,8 @@ export function resetZoomLayerInClone(clonedDoc) {
 }
 
 /**
+ * Captura de baja escala para vista previa (PNG transparente por defecto).
+ * Recorta al área del contenido del diagrama con padding.
  * @param {HTMLElement} canvasElement
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {import('html2canvas').Options & { padding?: number }} [options]
@@ -56,6 +61,7 @@ export async function captureDiagramPreview(canvasElement, shapes, options = {})
 }
 
 /**
+ * Captura de alta resolución para exportación PDF (fondo blanco, escala mayor).
  * @param {HTMLElement} canvasElement
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {import('html2canvas').Options & { padding?: number }} [options]
@@ -82,6 +88,7 @@ export async function captureDiagramHighRes(canvasElement, shapes, options = {})
 }
 
 /**
+ * Convierte un canvas HTML a data URL JPEG con calidad configurable.
  * @param {HTMLCanvasElement} canvas
  * @param {number} [quality]
  */
@@ -90,6 +97,7 @@ export function canvasToJpegDataUrl(canvas, quality = EXPORT_DEFAULTS.jpegQualit
 }
 
 /**
+ * Convierte un canvas HTML a data URL PNG sin compresión con pérdida.
  * @param {HTMLCanvasElement} canvas
  */
 export function canvasToPngDataUrl(canvas) {

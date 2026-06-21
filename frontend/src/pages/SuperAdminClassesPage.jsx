@@ -13,6 +13,7 @@ export default function SuperAdminClassesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  // Carga todas las clases del sistema (endpoint admin)
   const loadClasses = async () => {
     setLoading(true);
     try {
@@ -29,6 +30,7 @@ export default function SuperAdminClassesPage() {
     loadClasses();
   }, []);
 
+  // Filtra clases por título, profesor o código
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return classes;
@@ -38,6 +40,7 @@ export default function SuperAdminClassesPage() {
     });
   }, [classes, search]);
 
+  // Elimina una clase tras confirmación del navegador
   const handleDelete = async (id) => {
     if (!window.confirm('¿Eliminar esta clase y todo su contenido?')) return;
     try {
@@ -68,6 +71,7 @@ export default function SuperAdminClassesPage() {
   return (
     <SuperAdminShell>
       <div className="superadmin-manage superadmin-manage--classes">
+        {/* Cabecera con título y buscador */}
         <header className="superadmin-manage__head">
           <div className="superadmin-manage__title-wrap">
             <span className="superadmin-manage__title-icon" aria-hidden>
@@ -88,6 +92,7 @@ export default function SuperAdminClassesPage() {
           </div>
         </header>
 
+        {/* Tabla de clases o estados vacío/cargando */}
         <div className="superadmin-manage__card">
           {loading ? (
             <p className="superadmin-manage__loading">Cargando clases...</p>

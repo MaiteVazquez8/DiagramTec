@@ -10,6 +10,7 @@ import Icon from '../components/Icon.jsx';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
 import { useToast } from '../ToastContext.jsx';
 
+// Compara IDs numéricos aunque vengan como string
 function sameId(a, b) {
   if (a == null || b == null) return false;
   return Number(a) === Number(b);
@@ -37,6 +38,7 @@ export default function ClassMembersPage() {
     return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // Carga datos de la clase y lista de miembros
   const loadData = async () => {
     setLoading(true);
     try {
@@ -44,6 +46,7 @@ export default function ClassMembersPage() {
       setClassInfo(res.data.class);
       setMembers(res.data.members || []);
     } catch (err) {
+      // Redirige al detalle si no tiene permisos
       if (err.response?.status === 403 || err.response?.status === 401) {
         navigate(`/classes/${id}`, { replace: true });
       }
@@ -70,6 +73,7 @@ export default function ClassMembersPage() {
     setConfirmModal({ show: true, type: 'deleteClass', userId: null, name: '' });
   };
 
+  // Ejecuta expulsión o eliminación de clase según el tipo del modal
   const confirmAction = async () => {
     const { type, userId: targetUserId } = confirmModal;
     setConfirmBusy(true);
@@ -101,6 +105,7 @@ export default function ClassMembersPage() {
     );
   }
 
+  // Permisos derivados del rol y propiedad de la clase
   const isTeacher = user?.role === 'teacher';
   const isClassOwner = sameId(user?.id, classInfo?.ownerId);
   const canSeeCode = isTeacher || isClassOwner || user?.role === 'superadmin';
@@ -112,6 +117,7 @@ export default function ClassMembersPage() {
   return (
     <section className="figma-sector class-detail-sector class-members-sector" id="class-members-page">
       <div className="figma-sector-inner">
+        {/* Banner con título, profesor y código de clase */}
         <article className="class-detail-banner figma-dot-pattern">
           <div className="class-detail-banner__bookmark" aria-hidden>
             <Icon name="bookmark" size={22} />
@@ -154,6 +160,7 @@ export default function ClassMembersPage() {
           </div>
         </article>
 
+        {/* Cabecera de sección con enlace de vuelta al feed */}
         <div className="class-members-section-head">
           <div className="class-members-section-head__title">
             <span className="class-members-section-head__title-icon" aria-hidden>
@@ -172,6 +179,7 @@ export default function ClassMembersPage() {
         </div>
         <hr className="class-detail-section-rule" />
 
+        {/* Lista de estudiantes con botón expulsar */}
         <ul className="class-members-list">
           {members.length === 0 ? (
             <li className="class-members-empty figma-dot-pattern">

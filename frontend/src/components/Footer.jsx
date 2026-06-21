@@ -1,8 +1,11 @@
+/** Pie de página global: logo, redes sociales, enlaces a Inicio, Clases y Editor. */
 import { Link } from 'react-router-dom';
 
+/** Componente de pie de página reutilizable en todas las páginas públicas. */
 export default function Footer() {
   return (
     <footer className="app-footer">
+      {/* Sección de marca: logo y enlaces a redes sociales con iconos SVG inline */}
       <div className="footer-brand-section">
         <div className="footer-brand">
           <img src="/Diagram(3).png" alt="DiagramTec" className="footer-logo" />
@@ -23,6 +26,7 @@ export default function Footer() {
         </div>
       </div>
 
+      {/* Columnas de enlaces: ayuda, navegación interna y redes */}
       <div className="footer-content">
         <div className="footer-section footer-separator">
           <h3>Ayuda</h3>
@@ -38,6 +42,7 @@ export default function Footer() {
         <div className="footer-section">
           <h3>Links</h3>
           <ul>
+            {/* Link internos de React Router (SPA, sin recarga) */}
             <li><Link to="/">Inicio</Link></li>
             <li><Link to="/classes">Mis clases</Link></li>
             <li><Link to="/editor">Agregar diseño</Link></li>

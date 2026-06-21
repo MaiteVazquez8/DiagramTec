@@ -3,16 +3,27 @@ import { useState, useEffect } from 'react';
 import Icon from '../Icon.jsx';
 import ProfileSilhouette from '../ProfileSilhouette.jsx';
 
+/** Opciones del selector de rol cuando no está bloqueado. */
 const ROLE_OPTIONS = [
   { value: 'student', label: 'Alumno' },
   { value: 'teacher', label: 'Profesor' },
 ];
 
+/** Etiquetas de rol fijo cuando lockRole impide cambiar el select. */
 const LOCKED_ROLE_LABELS = {
   student: 'Alumno',
   teacher: 'Profesor',
 };
 
+/**
+ * Fila de tabla con inputs editables para un usuario.
+ * @param {object} user - Usuario de la API
+ * @param {'student'|'teacher'|null} lockRole - Si se define, el rol no es editable
+ * @param {Function} onSave - Recibe payload { id, email, firstName, lastName, role }
+ * @param {Function} onDelete - Recibe user.id
+ * @param {boolean} saving - Deshabilita botón Modificar mientras guarda
+ * @param {string} [deleteLabel='Eliminar usuario'] - aria-label del botón eliminar
+ */
 export default function SuperAdminUserManageRow({
   user,
   lockRole,
@@ -21,11 +32,13 @@ export default function SuperAdminUserManageRow({
   saving,
   deleteLabel = 'Eliminar usuario',
 }) {
+  // Estado local de los campos editables (sincronizado con user vía useEffect)
   const [email, setEmail] = useState(user.email || '');
   const [firstName, setFirstName] = useState(user.firstName || '');
   const [lastName, setLastName] = useState(user.lastName || '');
   const [role, setRole] = useState(user.role || 'student');
 
+  // Resetea el formulario si cambia el usuario (p. ej. tras recargar lista)
   useEffect(() => {
     setEmail(user.email || '');
     setFirstName(user.firstName || '');
@@ -33,6 +46,7 @@ export default function SuperAdminUserManageRow({
     setRole(user.role || 'student');
   }, [user]);
 
+  /** Envía los valores trimmeados al padre; respeta lockRole si existe. */
   const handleSave = () => {
     onSave({
       id: user.id,
@@ -77,6 +91,7 @@ export default function SuperAdminUserManageRow({
       </div>
       <div className="superadmin-manage__cell" role="cell">
         {lockRole ? (
+          /* Vista de solo lectura del rol en pantallas de alumnos o profesores */
           <div className="superadmin-manage__select superadmin-manage__select--locked">
             {LOCKED_ROLE_LABELS[lockRole] || lockRole}
           </div>

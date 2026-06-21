@@ -20,6 +20,7 @@ export default function SuperAdminPage() {
     fetchData();
   }, []);
 
+  // Carga usuarios y clases en paralelo desde endpoints admin
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -65,6 +66,7 @@ export default function SuperAdminPage() {
   return (
     <SuperAdminShell>
       <main className="superadmin-dashboard__main" id="superadmin-page">
+        {/* Vista previa de alumnos */}
         <SuperAdminSection
           id="alumnos"
           title="Alumnos"
@@ -82,6 +84,7 @@ export default function SuperAdminPage() {
           ))}
         </SuperAdminSection>
 
+        {/* Vista previa de profesores */}
         <SuperAdminSection
           id="profesores"
           title="Profesores"
@@ -99,6 +102,7 @@ export default function SuperAdminPage() {
           ))}
         </SuperAdminSection>
 
+        {/* Vista previa de clases */}
         <SuperAdminSection
           id="clases"
           title="Clases"

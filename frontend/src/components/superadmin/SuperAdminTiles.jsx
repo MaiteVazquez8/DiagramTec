@@ -2,17 +2,25 @@
 import Icon from '../Icon.jsx';
 import ProfileSilhouette from '../ProfileSilhouette.jsx';
 
+/** Cantidad máxima de ítems mostrados en la vista previa del dashboard. */
 const PREVIEW_LIMIT = 6;
 
+/** Devuelve solo los primeros N ítems para la grilla de preview. */
 export function previewItems(items) {
   return items.slice(0, PREVIEW_LIMIT);
 }
 
+/** Etiqueta visible: nombre completo o email como fallback. */
 function personLabel(user) {
   const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
   return name || user.email || 'Usuario';
 }
 
+/**
+ * Tarjeta clickeable de un usuario (alumno o profesor).
+ * @param {object} user - Datos del usuario desde la API
+ * @param {Function} onClick - Navega o abre detalle al hacer clic
+ */
 export function SuperAdminPersonTile({ user, onClick }) {
   return (
     <button type="button" className="superadmin-tile" onClick={onClick}>
@@ -26,6 +34,11 @@ export function SuperAdminPersonTile({ user, onClick }) {
   );
 }
 
+/**
+ * Tarjeta clickeable de una clase.
+ * @param {object} classItem - Datos de la clase (title, id, etc.)
+ * @param {Function} onClick - Handler de navegación al detalle
+ */
 export function SuperAdminClassTile({ classItem, onClick }) {
   return (
     <button type="button" className="superadmin-tile superadmin-tile--class" onClick={onClick}>
@@ -39,6 +52,15 @@ export function SuperAdminClassTile({ classItem, onClick }) {
   );
 }
 
+/**
+ * Sección del dashboard con título, enlace "Ver todo" y grilla de tarjetas.
+ * @param {string} id - id del section (anclas / scroll)
+ * @param {string} title - Título de la sección
+ * @param {string} verTodoHref - href del enlace "Ver todo"
+ * @param {Function} [onVerTodo] - Handler opcional al clicar "Ver todo"
+ * @param {string} emptyMessage - Mensaje si no hay ítems
+ * @param {boolean} isEmpty - Oculta grilla y muestra emptyMessage
+ */
 export function SuperAdminSection({
   id,
   title,

@@ -2,6 +2,10 @@
 import { Link } from 'react-router-dom';
 import Icon from './Icon';
 
+/**
+ * Barra de herramientas principal del editor de diagramas.
+ * Props de estado y handlers vienen del contenedor padre (EditorPage).
+ */
 export default function EditorToolbar({
   saveTitle, setSaveTitle,
   classes, saveClassId, setSaveClassId,
@@ -9,9 +13,9 @@ export default function EditorToolbar({
   isSaving,
   isGuest = false,
 }) {
-  // componente de la barra de herramientas del editor
   return (
     <div className="editor-toolbar-fs figma-editor-toolbar">
+      {/* Zona izquierda: input editable con el título del diagrama */}
       <div className="toolbar-left-fs">
         <input
           type="text"
@@ -23,9 +27,11 @@ export default function EditorToolbar({
         />
       </div>
 
+      {/* Zona derecha: acciones de guardado y exportación */}
       <div className="toolbar-right-fs">
         <div className="toolbar-actions-group figma-toolbar-actions">
           {isGuest ? (
+            /* Invitado: redirige al login conservando la ruta /editor en state */
             <Link
               className="btn btn-primary figma-btn-save"
               to="/login"
@@ -36,6 +42,7 @@ export default function EditorToolbar({
               <Icon name="save" size={18} /> Guardar
             </Link>
           ) : (
+            /* Usuario autenticado: guarda en la API; deshabilitado mientras isSaving */
             <button type="button" className="btn btn-primary figma-btn-save" onClick={handleSave} disabled={isSaving} id="btn-save">
               <Icon name="save" size={18} /> {isSaving ? 'Guardando...' : 'Guardar'}
             </button>

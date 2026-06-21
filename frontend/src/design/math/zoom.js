@@ -1,7 +1,8 @@
-/** Conversión pantalla↔lienzo, pasos de zoom y cálculo de pan. */
+/** Conversión pantalla↔lienzo, pasos de zoom y cálculo de pan (desplazamiento). */
 import { CANVAS_CENTER_OFFSET, ZOOM_LIMITS } from '../constants/canvas.js';
 
 /**
+ * Restringe el valor de zoom dentro de los límites mínimo y máximo.
  * @param {number} zoom
  * @returns {number}
  */
@@ -10,6 +11,7 @@ export function clampZoom(zoom) {
 }
 
 /**
+ * Aumenta el zoom un paso y lo acota a los límites permitidos.
  * @param {number} zoom
  * @returns {number}
  */
@@ -18,6 +20,7 @@ export function stepZoomIn(zoom) {
 }
 
 /**
+ * Disminuye el zoom un paso y lo acota a los límites permitidos.
  * @param {number} zoom
  * @returns {number}
  */
@@ -26,7 +29,8 @@ export function stepZoomOut(zoom) {
 }
 
 /**
- * Convierte coordenadas de pantalla a coordenadas del lienzo (sin pan).
+ * Convierte coordenadas del ratón (clientX/clientY) a coordenadas del lienzo.
+ * Tiene en cuenta el rect del canvas, el zoom y un offset opcional.
  * @param {number} clientX
  * @param {number} clientY
  * @param {DOMRect} canvasRect
@@ -42,7 +46,7 @@ export function screenToCanvas(clientX, clientY, canvasRect, zoom, offset = { x:
 }
 
 /**
- * Param para centrar el origen del lienzo en el viewport.
+ * Calcula el pan (desplazamiento) para centrar el origen del lienzo en el viewport.
  * @param {number} viewportWidth
  * @param {number} viewportHeight
  * @param {number} [zoom]
@@ -62,7 +66,8 @@ export function computeCenterPan(
 }
 
 /**
- * Ajusta el pan al cambiar zoom para que el mismo punto del lienzo quede bajo el foco en pantalla.
+ * Ajusta el pan al cambiar zoom para que el mismo punto del lienzo
+ * permanezca bajo el cursor/foco en pantalla (zoom hacia el punto focal).
  * focalX/focalY son relativos al viewport del contenedor del canvas.
  * @param {{ x: number, y: number }} pan
  * @param {number} zoom
@@ -79,8 +84,8 @@ export function computePanForZoomChange(pan, zoom, nextZoom, focalX, focalY) {
 }
 
 /**
- * Delta de movimiento en espacio del lienzo.
- * @param {number} deltaClient
+ * Convierte un delta de movimiento en píxeles de pantalla a unidades del lienzo.
+ * @param {number} deltaClient  Delta en píxeles de pantalla
  * @param {number} zoom
  */
 export function clientDeltaToCanvas(deltaClient, zoom) {

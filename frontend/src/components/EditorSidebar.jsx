@@ -5,6 +5,10 @@ import Icon from './Icon';
 
 import { palette } from '../design';
 
+/**
+ * Panel lateral con la paleta de formas del diagrama.
+ * Soporta drag (desktop), tap-to-place (touch) y modo conectar.
+ */
 export default function EditorSidebar({
   sidebarOpen,
   setSidebarOpen,
@@ -14,14 +18,17 @@ export default function EditorSidebar({
   handlePaletteClick,
   connectMode,
 }) {
+  // Evita doble colocación: drag + click en el mismo gesto
   const palettePlacedRef = useRef(false);
 
+  /** Marca que la forma ya se colocó (p. ej. tras un drag exitoso). */
   const markPlaced = () => {
     palettePlacedRef.current = true;
   };
 
   return (
     <aside className={`editor-sidebar-fs figma-editor-sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
+      {/* Toggle para mostrar/ocultar el panel lateral */}
       <button
         type="button"
         className="sidebar-toggle-btn"
@@ -48,9 +55,11 @@ export default function EditorSidebar({
               <span className="shape-label">{item.label}</span>
 
               {item.type === 'connect' ? (
+                /* Herramienta "conectar": activa/desactiva modo de enlace entre formas */
                 <div
                   className={`shape-wrapper connect-action ${connectMode ? 'active' : ''}`}
                   onClick={() => {
+                    // En touch, el click lo maneja onTouchEnd para evitar doble disparo
                     if (window.matchMedia('(pointer: coarse)').matches) return;
                     handlePaletteClick(item.type);
                   }}
@@ -64,15 +73,18 @@ export default function EditorSidebar({
                   {renderPreview(item.type)}
                 </div>
               ) : (
+                /* Formas arrastrables: mouse/touch drag o tap en dispositivos táctiles */
                 <div
                   className="shape-wrapper drag-source"
                   onMouseDown={(event) => onPaletteDragStart(event, item.type, markPlaced)}
                   onTouchStart={(event) => onPaletteDragStart(event, item.type, markPlaced)}
                   onClick={() => {
+                    // Ignora click si acaba de colocarse por drag
                     if (palettePlacedRef.current) {
                       palettePlacedRef.current = false;
                       return;
                     }
+                    // En pantallas táctiles: un tap coloca la forma en el lienzo
                     if (window.matchMedia('(pointer: coarse)').matches) {
                       onPaletteTapPlace(item.type);
                       palettePlacedRef.current = true;
