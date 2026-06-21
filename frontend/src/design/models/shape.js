@@ -166,9 +166,21 @@ export function setShapeFontSize(shapes, shapeId, fontSize) {
  * @returns {Shape[]}
  */
 export function bringShapeToFront(shapes, shapeId) {
-  const target = shapes.find((s) => s.id === shapeId);
-  if (!target) return shapes;
-  return [...shapes.filter((s) => s.id !== shapeId), target];
+  return bringShapesToFront(shapes, [shapeId]);
+}
+
+/**
+ * @param {Shape[]} shapes
+ * @param {(string|number)[]} shapeIds
+ * @returns {Shape[]}
+ */
+export function bringShapesToFront(shapes, shapeIds) {
+  if (!shapeIds?.length) return shapes;
+  const idSet = new Set(shapeIds);
+  const picked = shapes.filter((s) => idSet.has(s.id));
+  const rest = shapes.filter((s) => !idSet.has(s.id));
+  if (picked.length === 0) return shapes;
+  return [...rest, ...picked];
 }
 
 /**

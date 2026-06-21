@@ -59,6 +59,7 @@ export {
   resizeShape,
   setShapeFontSize,
   bringShapeToFront,
+  bringShapesToFront,
   shapesToMap,
   getDefaultTitle,
   getDefaultSize,
