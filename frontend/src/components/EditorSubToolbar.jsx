@@ -1,4 +1,4 @@
-/** Subtoolbar: traer al frente, pegar, eliminar forma o conexión seleccionada. */
+/** Subtoolbar: traer al frente, copiar/pegar, eliminar forma o conexión seleccionada. */
 import Icon from './Icon';
 
 export default function EditorSubToolbar({
@@ -12,11 +12,11 @@ export default function EditorSubToolbar({
   canUndo,
   canRedo,
   isSaving,
-  onCopy,
-  onPaste,
+  onBringToFront,
+  onCopyPaste,
   onDelete,
-  canCopy,
-  canPaste,
+  canBringToFront,
+  canCopyPaste,
   canDelete,
 }) {
   return (
@@ -25,18 +25,18 @@ export default function EditorSubToolbar({
         <button
           type="button"
           className="figma-subtool-btn figma-subtool-btn--circle"
-          title="Copiar"
-          onClick={onCopy}
-          disabled={!canCopy || isSaving}
+          title="Traer al frente"
+          onClick={onBringToFront}
+          disabled={!canBringToFront || isSaving}
         >
-          <Icon name="copy" size={19} />
+          <Icon name="bringToFront" size={19} />
         </button>
         <button
           type="button"
           className="figma-subtool-btn figma-subtool-btn--circle"
-          title="Pegar"
-          onClick={onPaste}
-          disabled={!canPaste || isSaving}
+          title="Copiar y pegar"
+          onClick={onCopyPaste}
+          disabled={!canCopyPaste || isSaving}
         >
           <Icon name="paste" size={19} />
         </button>

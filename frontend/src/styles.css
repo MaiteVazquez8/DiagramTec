@@ -7203,3 +7203,152 @@ body.mobile-menu-open {
     display: none;
   }
 }
+
+/* ── UI kit (componentes reutilizables) ── */
+.ui-fade-in {
+  animation: fadeIn 0.35s ease both;
+}
+
+.ui-slide-up {
+  animation: slideUp 0.4s ease both;
+}
+
+.ui-spinner {
+  display: inline-block;
+  border: 2px solid rgba(141, 31, 43, 0.2);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: ui-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+.ui-spinner--inline {
+  margin-right: 0.35rem;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ui-btn--loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.88;
+}
+
+.ui-btn--loading .ui-btn__label {
+  opacity: 0.85;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.danger-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ui-field--error .ui-input,
+.ui-field--error .ui-textarea,
+.ui-field--error .ui-select {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(161, 39, 47, 0.12);
+}
+
+.ui-field__error {
+  font-size: 0.78rem;
+  color: var(--danger);
+}
+
+.ui-input,
+.ui-textarea,
+.ui-select {
+  width: 100%;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  background: #fff;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.ui-input:focus,
+.ui-textarea:focus,
+.ui-select:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(141, 31, 43, 0.12);
+}
+
+.ui-textarea {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+.ui-card--interactive {
+  cursor: pointer;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.ui-card--interactive:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.ui-card--interactive:hover {
+  transform: translateY(-2px);
+}
+
+.ui-empty-state {
+  animation: fadeInScale 0.45s ease both;
+}
+
+.ui-modal-overlay {
+  animation: ui-overlay-in 0.22s ease both;
+}
+
+.ui-modal {
+  animation: fadeInScale 0.28s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
+@keyframes ui-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.ui-page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 3rem 1.5rem;
+  color: var(--ink-soft);
+  min-height: 200px;
+}
+
+.ui-page-loader p {
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.figma-cards-grid > .ui-card,
+.figma-cards-grid > .figma-card,
+.class-list-grid > .ui-card,
+.class-list-grid > .class-list-card {
+  animation: slideUp 0.45s ease both;
+}
+

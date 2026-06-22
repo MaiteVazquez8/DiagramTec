@@ -1,10 +1,11 @@
 /** Registro de usuario nuevo vía authApi (PHP). */
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../api.js';
+import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { useToast } from '../ToastContext.jsx';
+import { Button, Input, Select } from '../components/ui/index.js';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -28,15 +30,16 @@ export default function SignupPage() {
       return;
     }
 
+    setLoading(true);
     try {
-      const response = await api.post('/auth/register', {
+      const response = await authApi.post('/registro.php', {
         firstName,
         lastName,
         email,
         password,
         role,
       });
-      if (response.data && response.data.token) {
+      if (response.data?.token) {
         login(response.data.token);
         navigate('/');
       } else {
@@ -44,12 +47,14 @@ export default function SignupPage() {
       }
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <section className="page-container auth-page-wrap">
-      <article className="form-card auth-card figma-auth-card figma-signup-card">
+    <section className="page-container auth-page-wrap ui-fade-in">
+      <article className="form-card auth-card figma-auth-card figma-signup-card ui-slide-up">
         <div className="auth-tabs">
           <Link to="/login">Iniciar sesion</Link>
           <span className="active">Registrarse</span>
@@ -57,19 +62,29 @@ export default function SignupPage() {
         <h2>Crear cuenta</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-row">
-            <label>
-              Nombre
-              <input placeholder="Tu nombre..." value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-            </label>
-            <label>
-              Apellido
-              <input placeholder="Tu apellido..." value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-            </label>
+            <Input
+              label="Nombre"
+              placeholder="Tu nombre..."
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+            <Input
+              label="Apellido"
+              placeholder="Tu apellido..."
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
           </div>
-          <label>
-            Email
-            <input type="email" placeholder="Tu email..." value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="Tu email..."
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
           <div className="form-row">
             <PasswordInput
               label="Contraseña"
@@ -84,15 +99,16 @@ export default function SignupPage() {
               placeholder="Tu contraseña..."
             />
           </div>
-          <label>
-            Rol
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="" disabled>Rol</option>
-              <option value="student">Estudiante</option>
-              <option value="teacher">Profesor</option>
-            </select>
-          </label>
-          <button className="primary-button full-width" type="submit">Registrarse</button>
+          <Select label="Rol" value={role} onChange={(e) => setRole(e.target.value)} required>
+            <option value="" disabled>
+              Rol
+            </option>
+            <option value="student">Estudiante</option>
+            <option value="teacher">Profesor</option>
+          </Select>
+          <Button variant="primary" fullWidth type="submit" loading={loading}>
+            Registrarse
+          </Button>
         </form>
         <p className="small-text">
           ¿Tenes una cuenta? <Link to="/login">Iniciar sesion</Link>
