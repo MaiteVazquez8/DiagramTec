@@ -1,17 +1,15 @@
 require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
 const { spawn } = require('child_process');
-
 const fs = require('fs');
-
-
 const path = require('path');
 const { openDb } = require('./db');
 const { authMiddleware, adminMiddleware } = require('./middlewares/auth');
 const errorHandler = require('./middlewares/errorHandler');
+
 const app = express();
+
 const PORT = process.env.PORT || 4002;
 const PHP_BACKEND_URL = process.env.PHP_BACKEND_URL || '';
 const PHP_EXECUTABLE = process.env.PHP_EXECUTABLE || 'php';
@@ -33,7 +31,6 @@ async function startServer() {
   try {
     db = await openDb();
     app.locals.db = db;
-    initializePassport(db);
     console.log('Database connected');
   } catch (err) {
     console.error('Database connection failed:', err);
