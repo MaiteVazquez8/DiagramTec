@@ -8,6 +8,8 @@ require_once __DIR__ . '/lib/config.php';
 require_once __DIR__ . '/conexion.php';
 require_once __DIR__ . '/jwt.php';
 
+session_start();
+
 // Cargar variables de entorno de PHP/.env
 $envPath = __DIR__ . '/.env';
 if (is_readable($envPath)) {
