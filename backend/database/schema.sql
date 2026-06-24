@@ -1,14 +1,15 @@
-
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   firstName VARCHAR(255) NOT NULL,
   lastName VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
-  passwordHash VARCHAR(255) NOT NULL,
+  passwordHash VARCHAR(255),
+  googleId VARCHAR(255) UNIQUE,
   role VARCHAR(32) NOT NULL DEFAULT 'student',
   createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_email (email),
-  INDEX idx_role (role)
+  INDEX idx_role (role),
+  INDEX idx_googleId (googleId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS classes (
