@@ -1,9 +1,10 @@
 /** Inicio de sesión vía authApi (PHP). Redirige al guardar token en AuthContext. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input } from '../components/ui/index.js';
 
@@ -16,6 +17,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Tras OAuth de Google, PHP redirige aquí con ?token=...
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (!token) return;
+    login(token);
+    navigate(redirectTo, { replace: true });
+  }, [location.search, login, navigate, redirectTo]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -43,6 +53,13 @@ export default function LoginPage() {
           <Link to="/signup">Registrarse</Link>
         </div>
         <h2>Ingreso de usuario</h2>
+
+        <GoogleLoginButton />
+
+        <p className="auth-divider" role="separator">
+          <span>o</span>
+        </p>
+
         <form onSubmit={handleSubmit}>
           <Input
             label="Email"
