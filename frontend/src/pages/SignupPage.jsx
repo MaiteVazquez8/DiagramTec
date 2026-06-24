@@ -1,14 +1,16 @@
 /** Registro de usuario nuevo vía authApi (PHP). */
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input, Select } from '../components/ui/index.js';
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const { showError } = useToast();
   const [firstName, setFirstName] = useState('');
@@ -18,6 +20,14 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (!token) return;
+    login(token);
+    navigate('/', { replace: true });
+  }, [location.search, login, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -60,6 +70,13 @@ export default function SignupPage() {
           <span className="active">Registrarse</span>
         </div>
         <h2>Crear cuenta</h2>
+
+        <GoogleLoginButton label="Registrarse con Google" />
+
+        <p className="auth-divider" role="separator">
+          <span>o</span>
+        </p>
+
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <Input
