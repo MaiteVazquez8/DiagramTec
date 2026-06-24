@@ -142,6 +142,8 @@ export const ICONIFY_ICONS = {
   bookmark: 'tabler:bookmark',
 
   emptyClass: 'tabler:users',
+
+  google: 'mdi:google',
   usersGroup: 'tabler:users-group',
 
   filePlus: 'tabler:file-plus',
