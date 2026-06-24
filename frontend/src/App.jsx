@@ -250,7 +250,6 @@ function AppShell() {
 
           <Route path="/recover" element={<RecoverPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/reset-password" element={<RecoverPasswordPage />} />
 
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
 
