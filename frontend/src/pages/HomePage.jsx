@@ -10,11 +10,11 @@ export default function HomePage() {
   };
 
   const heroActions = [
-    { to: '/editor', label: 'Crear diseño' },
-    { to: '/editor', label: 'Cómo empezar' },
-    { to: '/designs', label: 'DiagramTec' },
-    { to: '/designs', label: 'Ver diseños' },
-    { to: '/classes', label: 'Unirse a clases' },
+    { to: '/editor', label: 'Crear diseño', image: '/tarjs/14.png' },
+    { to: '/editor', label: 'Cómo empezar', image: '/tarjs/15.png' },
+    { to: '/designs', label: 'DiagramTec', image: '/tarjs/16.png' },
+    { to: '/designs', label: 'Ver diseños', image: '/tarjs/17.png' },
+    { to: '/classes', label: 'Unirse a clases', image: '/tarjs/18.png' },
   ];
 
   return (
@@ -35,7 +35,7 @@ export default function HomePage() {
         {heroActions.map((action) => (
           <article className="figma-mini-card" key={action.label}>
             <div className="figma-mini-card-media" aria-hidden>
-              <Icon name="image" size={64} />
+              <img src={action.image} alt="" className="figma-mini-card-img" />
             </div>
             <Link className="primary-button figma-mini-card-button" to={action.to}>+ {action.label}</Link>
           </article>
