@@ -1225,6 +1225,9 @@ textarea {
   color: #000;
   font-weight: 700;
   line-height: 1.2;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .connect-mode .editable-text,
@@ -1660,7 +1663,9 @@ textarea {
 }
 
 .while-header {
-  height: 38px;
+  min-height: 38px;
+  height: auto;
+  padding: 0.35rem 0.5rem;
   border-bottom: var(--border-thin) solid var(--dark);
   display: flex;
   justify-content: center;
@@ -3133,7 +3138,7 @@ main:has(.figma-sector) {
   height: var(--figma-header-h);
   min-height: var(--figma-header-h);
   max-height: var(--figma-header-h);
-  padding: 0.25rem 2.5rem;
+  padding: 0.25rem 2rem 0.25rem 1rem;
   color: #000;
   background-color: #fff;
   background-image: radial-gradient(circle, #d4d4d4 1.2px, transparent 1.2px);
@@ -3145,7 +3150,7 @@ main:has(.figma-sector) {
 .figma-header-inner {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(140px, 1fr) auto minmax(140px, 1fr);
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 1rem;
   max-width: 1280px;
@@ -3155,6 +3160,8 @@ main:has(.figma-sector) {
 
 .figma-header-logo {
   justify-self: start;
+  margin-left: 0;
+  min-width: 0;
 }
 
 .figma-brand {
@@ -3162,14 +3169,15 @@ main:has(.figma-sector) {
   align-items: center;
   text-decoration: none;
   line-height: 0;
+  margin-left: 0;
 }
 
 .figma-brand .brand-logo {
   display: block;
-  height: calc(var(--figma-header-h) - 0.5rem);
-  max-height: calc(var(--figma-header-h) - 0.5rem);
+  height: calc(var(--figma-header-h) - 1rem);
+  max-height: calc(var(--figma-header-h) - 1rem);
   width: auto;
-  max-width: min(400px, 64vw);
+  max-width: min(140px, 38vw);
   object-fit: contain;
   object-position: left center;
 }
@@ -3901,7 +3909,7 @@ body.mobile-menu-open {
   }
 
   .app-header.figma-header {
-    padding: 0.35rem 1.1rem;
+    padding: 0.35rem 1rem 0.35rem 0.75rem;
   }
 
   .app-header.figma-header.figma-header--menu-open {
@@ -5999,11 +6007,24 @@ body.mobile-menu-open {
 .footer-brand {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 1rem;
 }
 
+.footer-brand-link {
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+  text-decoration: none;
+}
+
 .footer-logo {
-  width: 180px;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(200px, 100%);
+  object-fit: contain;
+  object-position: left center;
 }
 
 .footer-socials {
