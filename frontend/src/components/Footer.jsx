@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="app-footer">
       <div className="footer-brand-section">
         <div className="footer-brand">
-          <img src="/Diagram(3).png" alt="DiagramTec" className="footer-logo" />
+          <img src="/diagram.png" alt="DiagramTec" className="footer-logo" />
           <div className="footer-socials">
             <a href="https://www.facebook.com" title="Facebook" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
               <svg viewBox="0 0 24 24" aria-hidden><path d="M13.5 22v-8h2.7l.4-3.1h-3.1V8.9c0-.9.2-1.5 1.5-1.5h1.6V4.6c-.3 0-1.2-.1-2.4-.1-2.3 0-3.8 1.4-3.8 3.9v2.2H8v3.1h2.4v8h3.1z" fill="currentColor" /></svg>
