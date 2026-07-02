@@ -65,6 +65,8 @@ export {
   getDefaultSize,
   clampIfDimensions,
   clampShapeDimensions,
+  fitShapeToTextContent,
+  measureEditableText,
 } from './models/shape.js';
 
 export {

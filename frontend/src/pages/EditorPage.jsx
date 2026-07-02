@@ -25,6 +25,7 @@ import {
   duplicateShape,
   bringShapesToFront,
   shapesToMap,
+  fitShapeToTextContent,
   parseDiagramContent,
   serializeDiagram,
   emptyDiagramState,
@@ -86,6 +87,10 @@ export default function EditorPage() {
   const shapeConnectHandledByTouchRef = useRef(false);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  const shapesRef = useRef(shapes);
+  const connectionsRef = useRef(connections);
+  shapesRef.current = shapes;
+  connectionsRef.current = connections;
   const [clipboardShapes, setClipboardShapes] = useState([]);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -345,6 +350,25 @@ export default function EditorPage() {
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
   };
+
+  const handleShapeTextChange = useCallback((shapeId, title, textElement) => {
+    setShapes((current) =>
+      current.map((item) => {
+        if (item.id !== shapeId) return item;
+        const size = fitShapeToTextContent(item, textElement);
+        return {
+          ...item,
+          title,
+          width: size.width,
+          height: size.height,
+        };
+      }),
+    );
+  }, []);
+
+  const handleShapeTextCommit = useCallback(() => {
+    commitHistory(shapesRef.current, connectionsRef.current);
+  }, [commitHistory]);
 
   const placeShapeAt = (type, clientX, clientY) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -924,7 +948,11 @@ export default function EditorPage() {
                 onTouchEnd={(event) => handleShapeTouchEndConnect(event, shape)}
                 onClick={(event) => handleShapeClick(event, shape)}
               >
-                <RenderShape shape={shape} />
+                <RenderShape
+                  shape={shape}
+                  onTextChange={(title, textElement) => handleShapeTextChange(shape.id, title, textElement)}
+                  onTextCommit={handleShapeTextCommit}
+                />
                 {selectedIds.length === 1 && selectedIdSet.has(shape.id) && (
                   <div
                     className="resize-handle"

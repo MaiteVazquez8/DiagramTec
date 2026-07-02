@@ -16,5 +16,5 @@ export default function ShapePreview({ type }) {
       </div>
     );
   }
-  return <RenderShape shape={createShape(type, 0, 0, 'preview')} />;
+  return <RenderShape shape={createShape(type, 0, 0, 'preview', { preview: true })} preview />;
 }
