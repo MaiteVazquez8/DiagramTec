@@ -4,8 +4,8 @@ import { getDiagramBounds } from '../math/bounds.js';
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
 import { canvasToPngDataUrl } from './capture.js';
 
-/** Logo DiagramTec usado como marca de agua (public/Diagram(3).png). */
-const WATERMARK_SRC = '/Diagram(3).png';
+/** Logo DiagramTec usado como marca de agua (public/diagram.png). */
+const WATERMARK_SRC = '/diagram.png';
 const WATERMARK_OPACITY = 0.2;
 const WATERMARK_MAX_WIDTH_RATIO = 0.4;
 
