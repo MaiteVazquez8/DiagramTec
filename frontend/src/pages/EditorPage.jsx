@@ -23,8 +23,9 @@ import {
   PALETTE_DRAG_TYPE_KEY,
   createShape,
   duplicateShape,
-  bringShapeToFront,
+  bringShapesToFront,
   shapesToMap,
+  fitShapeToTextContent,
   parseDiagramContent,
   serializeDiagram,
   emptyDiagramState,
@@ -61,13 +62,12 @@ export default function EditorPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // ── Estado del diagrama y UI del editor ──
   const [shapes, setShapes] = useState([]);
   const [connections, setConnections] = useState([]);
   const [nextId, setNextId] = useState(1);
   const [connectMode, setConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState(null);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState(null);
   const [saveTitle, setSaveTitle] = useState('Mi diagrama');
   const [saveClassId, setSaveClassId] = useState('');
@@ -81,16 +81,21 @@ export default function EditorPage() {
   const [paletteTouchDrag, setPaletteTouchDrag] = useState(null);
   const [paletteDragOverCanvas, setPaletteDragOverCanvas] = useState(false);
 
-  // ── Referencias al DOM y sesiones de arrastre ──
   const canvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
   const paletteDragSessionRef = useRef(null);
   const shapeConnectHandledByTouchRef = useRef(false);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
-  const [clipboardShape, setClipboardShape] = useState(null);
+  const shapesRef = useRef(shapes);
+  const connectionsRef = useRef(connections);
+  shapesRef.current = shapes;
+  connectionsRef.current = connections;
+  const [clipboardShapes, setClipboardShapes] = useState([]);
 
-  // ── Estado derivado y mapa de formas por id ──
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const hasShapeSelection = selectedIds.length > 0;
+
   const diagramState = useMemo(
     () => ({ shapes, connections }),
     [shapes, connections]
@@ -100,7 +105,6 @@ export default function EditorPage() {
 
   const historyIndex = historyStack.index;
 
-  // ── Historial (deshacer / rehacer) ──
   const commitHistory = useCallback((newShapes, newConnections) => {
     const next = pushHistory(
       historyStack,
@@ -128,7 +132,6 @@ export default function EditorPage() {
     applyDiagram(state);
   };
 
-  // ── Zoom, pan y centrado del canvas ──
   const centerView = useCallback(() => {
     if (!canvasWrapperRef.current) return;
     const { clientWidth, clientHeight } = canvasWrapperRef.current;
@@ -175,7 +178,6 @@ export default function EditorPage() {
     setPan(computeCenterPan(clientWidth, clientHeight, 1));
   };
 
-  // ── Efectos: centrado inicial, carga de diseño y clases ──
   useEffect(() => {
     centerView();
     const t1 = setTimeout(centerView, 100);
@@ -187,23 +189,19 @@ export default function EditorPage() {
   }, [centerView, sidebarOpen]);
 
   useEffect(() => {
-    // Invitado intentando abrir diseño guardado → redirige al editor vacío
     if (!user && id) {
       showError('Inicia sesión para abrir diseños guardados');
       navigate('/editor', { replace: true });
       return;
     }
-    // Modo invitado sin id: diagrama vacío
     if (!user && !id) {
       const empty = emptyDiagramState();
       setHistoryStack(initHistoryWithState(empty));
       return;
     }
-    // Usuario autenticado: clases disponibles para asociar al guardar
     if (user) {
       api.get('/classes/available').then((r) => setClasses(r.data.classes)).catch(() => setClasses([]));
     }
-    // Carga diseño existente por id desde el API
     if (user && id) {
       api.get(`/designs/${id}`).then((response) => {
         const design = response.data.design;
@@ -218,7 +216,6 @@ export default function EditorPage() {
     }
   }, [user, id, centerView, navigate]);
 
-  // Zoom con rueda (Ctrl) y desplazamiento con scroll
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
     if (!wrapper) return;
@@ -246,60 +243,81 @@ export default function EditorPage() {
     return () => wrapper.removeEventListener('wheel', handleWheel);
   }, []);
 
-  // Atajos de teclado: Ctrl+Z/Y, Delete/Backspace
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (document.activeElement?.contentEditable === 'true') return;
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') { e.preventDefault(); undo(); }
         if (e.key === 'y') { e.preventDefault(); redo(); }
+        if (e.key === 'c') { e.preventDefault(); handleCopySelected(); }
+        if (e.key === 'v') { e.preventDefault(); handlePasteClipboard(); }
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedConnectionId) {
           handleDeleteConnection(selectedConnectionId);
-        } else if (selectedId) {
-          handleDeleteShape(selectedId);
+        } else if (selectedIds.length > 0) {
+          handleDeleteSelectedShapes();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedId, selectedConnectionId, historyStack, shapes, connections]);
+  }, [selectedIds, selectedConnectionId, historyStack, shapes, connections]);
 
-  // ── Operaciones sobre formas y conexiones ──
-  const handleDeleteShape = (shapeId) => {
-    const next = deleteShapeFromDiagram(diagramState, shapeId);
-    setShapes(next.shapes);
-    setConnections(next.connections);
-    commitHistory(next.shapes, next.connections);
-    if (selectedId === shapeId) setSelectedId(null);
-  };
-
-  const handleDuplicateShape = (shapeId) => {
-    const original = shapesById.get(shapeId);
-    if (!original) return;
-    const newShape = duplicateShape(original);
-    const nextShapes = [...shapes, newShape];
-    setShapes(nextShapes);
-    commitHistory(nextShapes, connections);
-    setSelectedId(newShape.id);
-    setNextId((v) => Math.max(v, newShape.id + 1));
+  const handleDeleteSelectedShapes = () => {
+    if (selectedIds.length === 0) return;
+    let nextState = diagramState;
+    for (const shapeId of selectedIds) {
+      nextState = deleteShapeFromDiagram(nextState, shapeId);
+    }
+    setShapes(nextState.shapes);
+    setConnections(nextState.connections);
+    commitHistory(nextState.shapes, nextState.connections);
+    setSelectedIds([]);
   };
 
   const handleCopySelected = () => {
-    if (!selectedId) return;
-    const original = shapesById.get(selectedId);
-    if (original) setClipboardShape({ ...original });
+    if (selectedIds.length === 0) return;
+    const copied = selectedIds
+      .map((id) => shapesById.get(id))
+      .filter(Boolean)
+      .map((shape) => ({ ...shape }));
+    if (copied.length > 0) setClipboardShapes(copied);
   };
 
   const handlePasteClipboard = () => {
-    if (!clipboardShape) return;
-    const newShape = duplicateShape(clipboardShape, { x: 24, y: 24 }, nextId);
-    const nextShapes = [...shapes, newShape];
+    if (clipboardShapes.length === 0) return;
+    let idCounter = nextId;
+    const pasted = clipboardShapes.map((shape) =>
+      duplicateShape(shape, { x: 24, y: 24 }, idCounter++),
+    );
+    const nextShapes = [...shapes, ...pasted];
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
-    setSelectedId(newShape.id);
-    setNextId((v) => Math.max(v, newShape.id + 1));
+    setSelectedIds(pasted.map((shape) => shape.id));
+    setNextId((v) => Math.max(v, idCounter));
+  };
+
+  /** Copia las formas seleccionadas y las pega desplazadas; si hay portapapeles, pega ese. */
+  const handleCopyPaste = () => {
+    if (selectedIds.length > 0) {
+      let idCounter = nextId;
+      const pasted = selectedIds
+        .map((id) => shapesById.get(id))
+        .filter(Boolean)
+        .map((original) => duplicateShape(original, { x: 24, y: 24 }, idCounter++));
+      if (pasted.length === 0) return;
+      setClipboardShapes(
+        selectedIds.map((id) => shapesById.get(id)).filter(Boolean).map((shape) => ({ ...shape })),
+      );
+      const nextShapes = [...shapes, ...pasted];
+      setShapes(nextShapes);
+      commitHistory(nextShapes, connections);
+      setSelectedIds(pasted.map((shape) => shape.id));
+      setNextId((v) => Math.max(v, idCounter));
+      return;
+    }
+    handlePasteClipboard();
   };
 
   const handleDeleteConnection = (connectionId) => {
@@ -312,8 +330,8 @@ export default function EditorPage() {
   const handleDeleteSelected = () => {
     if (selectedConnectionId) {
       handleDeleteConnection(selectedConnectionId);
-    } else if (selectedId) {
-      handleDeleteShape(selectedId);
+    } else if (selectedIds.length > 0) {
+      handleDeleteSelectedShapes();
     }
   };
 
@@ -321,18 +339,37 @@ export default function EditorPage() {
     if (connectMode) return;
     event.stopPropagation();
     setSelectedConnectionId(connectionId);
-    setSelectedId(null);
+    setSelectedIds([]);
     setConnectSource(null);
   };
 
-  const handleBringToFront = (shapeId) => {
-    const nextShapes = bringShapeToFront(shapes, shapeId);
+  const handleBringToFront = () => {
+    if (selectedIds.length === 0) return;
+    const nextShapes = bringShapesToFront(shapes, selectedIds);
     if (nextShapes === shapes) return;
     setShapes(nextShapes);
     commitHistory(nextShapes, connections);
   };
 
-  // ── Colocar formas desde paleta (drop o tap) ──
+  const handleShapeTextChange = useCallback((shapeId, title, textElement) => {
+    setShapes((current) =>
+      current.map((item) => {
+        if (item.id !== shapeId) return item;
+        const size = fitShapeToTextContent(item, textElement);
+        return {
+          ...item,
+          title,
+          width: size.width,
+          height: size.height,
+        };
+      }),
+    );
+  }, []);
+
+  const handleShapeTextCommit = useCallback(() => {
+    commitHistory(shapesRef.current, connectionsRef.current);
+  }, [commitHistory]);
+
   const placeShapeAt = (type, clientX, clientY) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const { x, y } = screenToCanvas(clientX, clientY, rect, zoom, DROP_OFFSET);
@@ -352,7 +389,6 @@ export default function EditorPage() {
 
   const PALETTE_DRAG_THRESHOLD = 6;
 
-  // ── Arrastre táctil/ratón desde la paleta lateral ──
   const endPaletteDragSession = useCallback(() => {
     const session = paletteDragSessionRef.current;
     if (!session) return;
@@ -453,7 +489,6 @@ export default function EditorPage() {
     }
   };
 
-  // ── Modo conectar: enlazar formas con flechas ──
   const handleShapeConnect = (event, shape) => {
     if (!connectMode) return;
     event.stopPropagation();
@@ -491,25 +526,41 @@ export default function EditorPage() {
     handleShapeConnect(event, shape);
   };
 
-  // ── Interacción: mover formas (mouse y touch) ──
   const handleMouseDown = (event, shape) => {
     if (connectMode || event.target.closest('.resize-handle')) return;
     event.stopPropagation();
-    setSelectedId(shape.id);
+
+    const isMultiToggle = event.ctrlKey || event.metaKey;
+
+    if (isMultiToggle) {
+      setSelectedIds((prev) =>
+        prev.includes(shape.id) ? prev.filter((id) => id !== shape.id) : [...prev, shape.id],
+      );
+      setSelectedConnectionId(null);
+      return;
+    }
+
+    const idsToMove = selectedIdSet.has(shape.id) ? [...selectedIds] : [shape.id];
+    if (!selectedIdSet.has(shape.id)) {
+      setSelectedIds([shape.id]);
+    }
     setSelectedConnectionId(null);
+
     const startX = event.clientX;
     const startY = event.clientY;
-    const initial = { ...shape };
+    const initialPositions = new Map(
+      idsToMove.map((id) => [id, { ...(shapesById.get(id) || {}) }]),
+    );
 
     const onMouseMove = (moveEvent) => {
       const dx = clientDeltaToCanvas(moveEvent.clientX - startX, zoom);
       const dy = clientDeltaToCanvas(moveEvent.clientY - startY, zoom);
       setShapes((current) =>
-        current.map((item) =>
-          item.id === shape.id
-            ? { ...item, x: initial.x + dx, y: initial.y + dy }
-            : item
-        )
+        current.map((item) => {
+          const initial = initialPositions.get(item.id);
+          if (!initial) return item;
+          return { ...item, x: initial.x + dx, y: initial.y + dy };
+        }),
       );
     };
     const onMouseUp = () => {
@@ -526,7 +577,7 @@ export default function EditorPage() {
     if (event.target.closest('.editable-text')) return;
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
-    setSelectedId(shape.id);
+    setSelectedIds([shape.id]);
     setSelectedConnectionId(null);
     const touch = event.touches[0];
     const startX = touch.clientX;
@@ -540,8 +591,8 @@ export default function EditorPage() {
       const dy = clientDeltaToCanvas(moveTouch.clientY - startY, zoom);
       setShapes((current) =>
         current.map((item) =>
-          item.id === shape.id ? { ...item, x: initial.x + dx, y: initial.y + dy } : item
-        )
+          item.id === shape.id ? { ...item, x: initial.x + dx, y: initial.y + dy } : item,
+        ),
       );
     };
     const cleanup = () => {
@@ -555,7 +606,6 @@ export default function EditorPage() {
     window.addEventListener('touchcancel', cleanup);
   };
 
-  // ── Redimensionar formas seleccionadas ──
   const handleResizeMouseDown = (event, shape) => {
     event.stopPropagation();
     event.preventDefault();
@@ -623,17 +673,15 @@ export default function EditorPage() {
     window.addEventListener('touchend', onTouchEnd);
   };
 
-  // Vacía el lienzo y recentra la vista
   const handleClear = () => {
     const empty = emptyDiagramState();
     setShapes(empty.shapes);
     setConnections(empty.connections);
-    setSelectedId(null);
+    setSelectedIds([]);
     setConnectSource(null);
     centerView();
   };
 
-  // ── Guardar diseño en la nube (POST o PUT) con preview PNG/PDF ──
   const handleSave = async () => {
     if (isSaving) return;
     if (!user) {
@@ -675,7 +723,6 @@ export default function EditorPage() {
     }
   };
 
-  // ── Exportación: PDF de alta resolución ──
   const handleExportPDF = async () => {
     if (!canvasRef.current) return;
     showMessage('Generando PDF...');
@@ -698,7 +745,6 @@ export default function EditorPage() {
     }
   };
 
-  // ── Exportación: PNG vía html2canvas ──
   const handleExport = () => {
     if (!canvasRef.current) return;
     html2canvas(canvasRef.current, { backgroundColor: '#ffffff', scale: 2 }).then((canvas) => {
@@ -722,10 +768,9 @@ export default function EditorPage() {
     return true;
   };
 
-  // ── Pan del canvas y deselección al clic en fondo ──
   const handleCanvasMouseDown = (e) => {
     if (!isCanvasBackgroundTarget(e.target)) return;
-    setSelectedId(null);
+    setSelectedIds([]);
     setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
@@ -747,7 +792,7 @@ export default function EditorPage() {
     if (connectMode) return;
     if (e.touches.length !== 1) return;
     if (!isCanvasBackgroundTarget(e.target)) return;
-    setSelectedId(null);
+    setSelectedIds([]);
     setSelectedConnectionId(null);
     setConnectSource(null);
     setIsPanning(true);
@@ -771,13 +816,11 @@ export default function EditorPage() {
     window.addEventListener('touchcancel', cleanup);
   };
 
-  // ── JSX: layout del editor (sidebar, toolbars, canvas) ──
   return (
     <div
       className={`editor-fullscreen figma-editor${paletteTouchDrag ? ' is-palette-dragging' : ''}`}
       id="editor-page"
     >
-      {/* Paleta lateral de formas */}
       <EditorSidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -790,7 +833,6 @@ export default function EditorPage() {
 
       <div className="editor-main-fs figma-editor-main">
         <div className="figma-editor-panel">
-          {/* Barra superior: título, guardar, exportar */}
           <div className="figma-editor-panel-head">
             <EditorToolbar
               saveTitle={saveTitle}
@@ -807,7 +849,6 @@ export default function EditorPage() {
             />
           </div>
 
-          {/* Sub-barra: zoom, undo/redo, acciones sobre selección */}
           <EditorSubToolbar
             zoom={zoom}
             zoomIn={zoomIn}
@@ -819,18 +860,14 @@ export default function EditorPage() {
             canUndo={canUndo(historyStack)}
             canRedo={canRedo(historyStack)}
             isSaving={isSaving}
-            onBringToFront={() => {
-              if (!selectedId) return;
-              handleBringToFront(selectedId);
-            }}
-            onPaste={handlePasteClipboard}
+            onBringToFront={handleBringToFront}
+            onCopyPaste={handleCopyPaste}
             onDelete={handleDeleteSelected}
-            canBringToFront={!!selectedId}
-            canPaste={!!clipboardShape}
-            canDelete={!!selectedId || !!selectedConnectionId}
+            canBringToFront={hasShapeSelection}
+            canCopyPaste={hasShapeSelection || clipboardShapes.length > 0}
+            canDelete={hasShapeSelection || !!selectedConnectionId}
           />
 
-          {/* Área del canvas con capas SVG (conexiones) y formas HTML */}
           <div className="figma-editor-canvas-area">
         <div
           className={`editor-canvas-fs figma-canvas-panel ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''} ${paletteTouchDrag ? 'palette-touch-active' : ''} ${paletteDragOverCanvas ? 'palette-drop-target' : ''}`}
@@ -839,7 +876,7 @@ export default function EditorPage() {
           onDragOver={(event) => event.preventDefault()}
           onClick={(event) => {
             if (!shouldClearCanvasSelection(event.target)) return;
-            setSelectedId(null);
+            setSelectedIds([]);
             setSelectedConnectionId(null);
             setConnectSource(null);
           }}
@@ -857,7 +894,6 @@ export default function EditorPage() {
               position: 'relative',
             }}
           >
-            {/* Capa SVG de flechas entre formas */}
             <svg
               id="connections-layer"
               className="connection-layer"
@@ -905,15 +941,19 @@ export default function EditorPage() {
             {shapes.map((shape) => (
               <div
                 key={shape.id}
-                className={`shape-element ${selectedId === shape.id ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
+                className={`shape-element ${selectedIdSet.has(shape.id) ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
                 style={{ left: shape.x, top: shape.y, width: shape.width, height: shape.height }}
                 onMouseDown={(event) => handleMouseDown(event, shape)}
                 onTouchStart={(event) => handleShapeTouchStart(event, shape)}
                 onTouchEnd={(event) => handleShapeTouchEndConnect(event, shape)}
                 onClick={(event) => handleShapeClick(event, shape)}
               >
-                <RenderShape shape={shape} />
-                {selectedId === shape.id && (
+                <RenderShape
+                  shape={shape}
+                  onTextChange={(title, textElement) => handleShapeTextChange(shape.id, title, textElement)}
+                  onTextCommit={handleShapeTextCommit}
+                />
+                {selectedIds.length === 1 && selectedIdSet.has(shape.id) && (
                   <div
                     className="resize-handle"
                     onMouseDown={(e) => handleResizeMouseDown(e, shape)}
@@ -929,7 +969,6 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* Fantasma visual al arrastrar forma desde paleta en touch */}
       {paletteTouchDrag && (
         <div
           className="palette-touch-drag-ghost"

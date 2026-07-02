@@ -9,6 +9,7 @@ import {
   SuperAdminClassTile,
   previewItems,
 } from '../components/superadmin/SuperAdminTiles';
+import { SuperAdminDashboardSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
 export default function SuperAdminPage() {
   const navigate = useNavigate();
@@ -20,7 +21,6 @@ export default function SuperAdminPage() {
     fetchData();
   }, []);
 
-  // Carga usuarios y clases en paralelo desde endpoints admin
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -39,9 +39,9 @@ export default function SuperAdminPage() {
 
   if (loading) {
     return (
-      <div className="superadmin-dashboard figma-dot-pattern">
-        <p className="superadmin-dashboard__loading">Cargando panel de administración...</p>
-      </div>
+      <SuperAdminShell>
+        <SuperAdminDashboardSkeleton />
+      </SuperAdminShell>
     );
   }
 
@@ -66,7 +66,6 @@ export default function SuperAdminPage() {
   return (
     <SuperAdminShell>
       <main className="superadmin-dashboard__main" id="superadmin-page">
-        {/* Vista previa de alumnos */}
         <SuperAdminSection
           id="alumnos"
           title="Alumnos"
@@ -84,7 +83,6 @@ export default function SuperAdminPage() {
           ))}
         </SuperAdminSection>
 
-        {/* Vista previa de profesores */}
         <SuperAdminSection
           id="profesores"
           title="Profesores"
@@ -102,7 +100,6 @@ export default function SuperAdminPage() {
           ))}
         </SuperAdminSection>
 
-        {/* Vista previa de clases */}
         <SuperAdminSection
           id="clases"
           title="Clases"

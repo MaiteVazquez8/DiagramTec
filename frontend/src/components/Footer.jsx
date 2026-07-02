@@ -1,14 +1,13 @@
-/** Pie de página global: logo, redes sociales, enlaces a Inicio, Clases y Editor. */
 import { Link } from 'react-router-dom';
 
-/** Componente de pie de página reutilizable en todas las páginas públicas. */
 export default function Footer() {
   return (
     <footer className="app-footer">
-      {/* Sección de marca: logo y enlaces a redes sociales con iconos SVG inline */}
       <div className="footer-brand-section">
         <div className="footer-brand">
-          <img src="/Diagram(3).png" alt="DiagramTec" className="footer-logo" />
+          <Link to="/" className="footer-brand-link" aria-label="DiagramTec — Inicio">
+            <img src="/Diagram2.png" alt="DiagramTec" className="footer-logo" />
+          </Link>
           <div className="footer-socials">
             <a href="https://www.facebook.com" title="Facebook" target="_blank" rel="noopener noreferrer" aria-label="Facebook">
               <svg viewBox="0 0 24 24" aria-hidden><path d="M13.5 22v-8h2.7l.4-3.1h-3.1V8.9c0-.9.2-1.5 1.5-1.5h1.6V4.6c-.3 0-1.2-.1-2.4-.1-2.3 0-3.8 1.4-3.8 3.9v2.2H8v3.1h2.4v8h3.1z" fill="currentColor" /></svg>
@@ -26,7 +25,6 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Columnas de enlaces: ayuda, navegación interna y redes */}
       <div className="footer-content">
         <div className="footer-section footer-separator">
           <h3>Ayuda</h3>
@@ -42,7 +40,6 @@ export default function Footer() {
         <div className="footer-section">
           <h3>Links</h3>
           <ul>
-            {/* Link internos de React Router (SPA, sin recarga) */}
             <li><Link to="/">Inicio</Link></li>
             <li><Link to="/classes">Mis clases</Link></li>
             <li><Link to="/editor">Agregar diseño</Link></li>

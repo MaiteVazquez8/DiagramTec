@@ -1,4 +1,4 @@
-/** Cálculo de puntos de anclaje y segmentos SVG entre dos formas conectadas. */
+/** Cálculo de puntos de anclaje y segmentos SVG entre dos formas. */
 import {
   ellipseBorderScale,
   getShapeOutlineVertices,
@@ -10,12 +10,10 @@ import {
 import { SHAPE_TYPES } from '../constants/palette.js';
 
 /**
- * Segmento de línea entre dos puntos de anclaje.
  * @typedef {{ x1: number, y1: number, x2: number, y2: number }} ConnectionLine
  * @typedef {'top' | 'bottom' | 'left' | 'right'} CardinalSide
  */
 
-// Vectores unitarios para cada lado cardinal (arriba, abajo, izquierda, derecha)
 const CARDINAL_VECTOR = {
   top: { x: 0, y: -1 },
   bottom: { x: 0, y: 1 },
@@ -24,33 +22,28 @@ const CARDINAL_VECTOR = {
 };
 
 /**
- * Determina el factor de escala hasta el borde según la forma (polígono, elipse o rectángulo).
  * @param {import('../models/shape.js').Shape} shape
- * @param {number} dx  Dirección X hacia el otro nodo
- * @param {number} dy  Dirección Y hacia el otro nodo
- * @param {number} dist Longitud del vector dirección
+ * @param {number} dx
+ * @param {number} dy
+ * @param {number} dist
  */
 function borderScaleForShape(shape, dx, dy, dist) {
   const absDx = Math.abs(dx);
   const absDy = Math.abs(dy);
   const outline = getShapeOutlineVertices(shape);
-  // Formas poligonales (input, print, if): intersección rayo–polígono
   if (outline) {
     const center = shapeCenter(shape);
     const polyScale = polygonBorderScale(center, { x: dx, y: dy }, outline);
     if (polyScale !== null) return polyScale;
   }
-  // Terminadores inicio/fin: borde elíptico
   if (shape.type === SHAPE_TYPES.START || shape.type === SHAPE_TYPES.END) {
     return ellipseBorderScale(shape, dx, dy, dist);
   }
-  // Resto: rectángulo axis-aligned
   return rectBorderScale(shape, absDx, absDy);
 }
 
 /**
- * Elige los lados de salida (origen) y entrada (destino) según posición relativa.
- * Prioriza el eje dominante (horizontal o vertical).
+ * Lados de salida/entrada según la posición real (x, y) de cada figura.
  * @param {import('../models/shape.js').Shape} from
  * @param {import('../models/shape.js').Shape} to
  */
@@ -60,21 +53,18 @@ function getConnectionSides(from, to) {
   const dx = toC.x - fromC.x;
   const dy = toC.y - fromC.y;
 
-  // Destino más a la derecha o izquierda: conectar por lados horizontales
   if (Math.abs(dx) >= Math.abs(dy)) {
     return dx > 0
       ? { fromSide: 'right', toSide: 'left' }
       : { fromSide: 'left', toSide: 'right' };
   }
-  // Destino más arriba o abajo: conectar por lados verticales
   return dy > 0
     ? { fromSide: 'bottom', toSide: 'top' }
     : { fromSide: 'top', toSide: 'bottom' };
 }
 
 /**
- * Calcula el punto exacto de anclaje en el borde de la figura para un lado cardinal.
- * Maneja casos especiales: FOR (brazo), polígonos, elipses y rectángulos.
+ * Punto de anclaje en el borde usando x, y, width y height del componente.
  * @param {import('../models/shape.js').Shape} shape
  * @param {CardinalSide} side
  * @returns {{ x: number, y: number }}
@@ -83,7 +73,6 @@ function getShapeAnchorPoint(shape, side) {
   const cx = shape.x + shape.width / 2;
   const cy = shape.y + shape.height / 2;
 
-  // FOR: anclajes superior/inferior en el centro del cuerpo principal (no del brazo)
   if (shape.type === SHAPE_TYPES.FOR && (side === 'top' || side === 'bottom')) {
     const armWidth = 65;
     const mainWidth = Math.max(shape.width - armWidth, shape.width * 0.72);
@@ -102,7 +91,6 @@ function getShapeAnchorPoint(shape, side) {
     return { x: cx + dx * scale, y: cy + dy * scale };
   }
 
-  // Elipses (inicio/fin): punto en el perímetro según ángulo del lado
   if (shape.type === SHAPE_TYPES.START || shape.type === SHAPE_TYPES.END) {
     const angle = {
       top: -Math.PI / 2,
@@ -123,7 +111,6 @@ function getShapeAnchorPoint(shape, side) {
     };
   }
 
-  // Rectángulo estándar: punto medio del borde correspondiente
   switch (side) {
     case 'top':
       return { x: cx, y: shape.y };
@@ -139,7 +126,7 @@ function getShapeAnchorPoint(shape, side) {
 }
 
 /**
- * Calcula los extremos de la línea SVG entre dos figuras (borde a borde).
+ * Calcula los extremos de una línea entre dos figuras (borde a borde según su posición).
  * @param {import('../models/shape.js').Shape} from
  * @param {import('../models/shape.js').Shape} to
  * @returns {ConnectionLine | null}
@@ -147,7 +134,6 @@ function getShapeAnchorPoint(shape, side) {
 export function getConnectionLine(from, to) {
   const fromC = shapeCenter(from);
   const toC = shapeCenter(to);
-  // Misma posición: no dibujar línea
   if (vectorLength(toC.x - fromC.x, toC.y - fromC.y) === 0) return null;
 
   const { fromSide, toSide } = getConnectionSides(from, to);
@@ -158,7 +144,11 @@ export function getConnectionLine(from, to) {
 }
 
 /**
- * Resuelve una figura desde el Map probando id directo, numérico y string.
+ * @param {import('../models/connection.js').Connection} connection
+ * @param {Map<string, import('../models/shape.js').Shape>} shapesById
+ * @returns {ConnectionLine | null}
+ */
+/**
  * @param {Map<string|number, import('../models/shape.js').Shape>} shapesById
  * @param {string|number} id
  */
@@ -174,12 +164,6 @@ function resolveShapeFromMap(shapesById, id) {
   return shapesById.get(String(id));
 }
 
-/**
- * Obtiene la línea de conexión a partir de una Connection y un Map de figuras.
- * @param {import('../models/connection.js').Connection} connection
- * @param {Map<string|number, import('../models/shape.js').Shape>} shapesById
- * @returns {ConnectionLine | null}
- */
 export function getConnectionLineFromMap(connection, shapesById) {
   const from = resolveShapeFromMap(shapesById, connection.from);
   const to = resolveShapeFromMap(shapesById, connection.to);

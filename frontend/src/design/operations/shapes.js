@@ -1,8 +1,7 @@
-/** Operaciones de alto nivel: alta, baja y movimiento de figuras en el diagrama. */
+/** Alta/baja/movimiento de formas en el array del diagrama. */
 import { removeConnectionsForShape } from '../models/connection.js';
 
 /**
- * Elimina una figura del array shapes por su ID (sin tocar conexiones).
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {string|number} shapeId
  * @returns {import('../models/shape.js').Shape[]}
@@ -12,7 +11,6 @@ export function removeShape(shapes, shapeId) {
 }
 
 /**
- * Desplaza una figura por ID sumando dx/dy a su posición.
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {string|number} shapeId
  * @param {number} dx
@@ -26,7 +24,6 @@ export function moveShapeById(shapes, shapeId, dx, dy) {
 }
 
 /**
- * Cambia ancho y alto de una figura por ID en el array.
  * @param {import('../models/shape.js').Shape[]} shapes
  * @param {string|number} shapeId
  * @param {number} width
@@ -40,7 +37,7 @@ export function resizeShapeById(shapes, shapeId, width, height) {
 }
 
 /**
- * Elimina una figura y todas sus conexiones del estado completo del diagrama.
+ * Elimina figura y sus conexiones asociadas.
  * @param {import('../models/diagramState.js').DiagramState} state
  * @param {string|number} shapeId
  * @returns {import('../models/diagramState.js').DiagramState}
@@ -53,7 +50,6 @@ export function deleteShapeFromDiagram(state, shapeId) {
 }
 
 /**
- * Añade una figura nueva al estado del diagrama (sin modificar conexiones).
  * @param {import('../models/diagramState.js').DiagramState} state
  * @param {import('../models/shape.js').Shape} shape
  * @returns {import('../models/diagramState.js').DiagramState}

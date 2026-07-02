@@ -12,8 +12,8 @@ import Icon from '../components/Icon.jsx';
 import ClassPost from '../components/ClassPost';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
 import { useToast } from '../ToastContext.jsx';
+import { ClassDetailSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
-// Compara IDs numéricos aunque vengan como string
 function sameId(a, b) {
   if (a == null || b == null) return false;
   return Number(a) === Number(b);
@@ -24,12 +24,11 @@ export default function ClassDetailPage() {
   const { user } = useAuth();
   const { showError, showMessage } = useToast();
   const navigate = useNavigate();
-  // Datos de la clase, feed y diseños del usuario
   const [classInfo, setClassInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [designs, setDesigns] = useState([]);
   const [comments, setComments] = useState([]);
   const [userDesigns, setUserDesigns] = useState([]);
-  // UI: modal de subida, selección de diseño, compositor de comentarios
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDesignId, setSelectedDesignId] = useState(null);
   const [commentText, setCommentText] = useState('');
@@ -57,12 +56,13 @@ export default function ClassDetailPage() {
     setConfirmModal({ show: true, type, targetId, userId, highlightName });
   };
 
-  // Carga metadatos de la clase y publicaciones/comentarios
   const loadClassData = async () => {
+    setLoading(true);
     try {
       const res = await api.get(`/classes/${id}`);
       setClassInfo(res.data.class);
     } catch {
+      setLoading(false);
       return;
     }
 
@@ -72,10 +72,11 @@ export default function ClassDetailPage() {
       setComments(designsRes.data.comments || []);
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Carga diseños propios del usuario para compartir en la clase
   const loadUserDesigns = async () => {
     if (!user?.id) return;
     try {
@@ -96,7 +97,6 @@ export default function ClassDetailPage() {
     setSelectedDesignId((prev) => (prev === designId ? null : designId));
   };
 
-  // Publica diseño seleccionado desde el modal con comentario opcional
   const handleModalPublish = async () => {
     if (!selectedDesignId) {
       showError('Selecciona un diseño para compartir');
@@ -117,7 +117,6 @@ export default function ClassDetailPage() {
     }
   };
 
-  // Publica comentario o comparte diseño adjunto desde el compositor inferior
   const handlePostComment = async () => {
     if (!commentText.trim() && !selectedDesignId) return;
     
@@ -205,7 +204,6 @@ export default function ClassDetailPage() {
     return type;
   };
 
-  // Ejecuta la acción confirmada: quitar post, borrar comentario, expulsar o eliminar clase
   const confirmAction = async () => {
     const { type, targetId, userId: targetUserId } = confirmModal;
     setConfirmBusy(true);
@@ -238,17 +236,14 @@ export default function ClassDetailPage() {
     return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  if (!classInfo) {
-    return (
-      <section className="figma-sector class-detail-sector">
-        <div className="figma-sector-inner">
-          <p className="class-detail-loading">Cargando...</p>
-        </div>
-      </section>
-    );
+  if (loading) {
+    return <ClassDetailSkeleton />;
   }
 
-  // Flags de permisos según rol y membresía
+  if (!classInfo) {
+    return null;
+  }
+
   const isTeacher = user?.role === 'teacher';
   const isClassOwner = sameId(user?.id, classInfo.ownerId) || classInfo.isOwner;
   const canSeeCode = isTeacher || isClassOwner || user?.role === 'superadmin';
@@ -270,7 +265,6 @@ export default function ClassDetailPage() {
   return (
     <section className="figma-sector class-detail-sector" id="class-detail-page">
       <div className="figma-sector-inner">
-      {/* Banner con título, menú contextual y código de clase */}
       <article className="class-detail-banner figma-dot-pattern">
         <div className="class-detail-banner__bookmark" aria-hidden>
           <Icon name="bookmark" size={22} />
@@ -340,7 +334,6 @@ export default function ClassDetailPage() {
         </div>
       </article>
 
-      {/* Cabecera del feed de publicaciones */}
       <div className="class-detail-section-head">
         <h2 className="class-section-title">Publicaciones de la clase</h2>
         {canExpelStudents && (
@@ -370,7 +363,6 @@ export default function ClassDetailPage() {
         </button>
       )}
 
-      {/* Feed de diseños publicados en la clase */}
       <div className="posts-feed class-detail-posts">
         {designs.length === 0 ? (
           <div className="class-posts-empty figma-dot-pattern">
@@ -395,7 +387,6 @@ export default function ClassDetailPage() {
         )}
       </div>
 
-      {/* Comentarios de texto sueltos (no asociados a diseños) */}
       {comments.length > 0 && (
         <div className="figma-class-comments">
           {comments.map((c) => {
@@ -431,7 +422,6 @@ export default function ClassDetailPage() {
         </div>
       )}
 
-      {/* Compositor inferior para estudiantes (comentario o diseño adjunto) */}
       {!isTeacher && (
         <div className={`class-composer class-composer--student ${selectedDesignId ? 'has-attachment' : ''}`}>
           <div className="class-composer-avatar">
@@ -469,7 +459,7 @@ export default function ClassDetailPage() {
         </div>
       )}
 
-      {/* Modal para elegir diseño propio y publicarlo en la clase */}
+      {/* ── Upload Design Modal ── */}
       {showUploadModal && (
         <div
           className="modal-overlay figma-modal-overlay"
@@ -574,8 +564,7 @@ export default function ClassDetailPage() {
           </div>
         </div>
       )}
-
-      {/* Modal de confirmación para abandonar la clase */}
+      {/* ── Leave Class Modal ── */}
       {showLeaveModal && (
         <div className="modal-overlay" onClick={() => setShowLeaveModal(false)}>
           <div className="modal modal-danger" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
@@ -608,8 +597,6 @@ export default function ClassDetailPage() {
           </div>
         </div>
       )}
-
-      {/* Modal genérico de confirmación (eliminar post, comentario, expulsar, clase) */}
       <ClassConfirmModal
         open={confirmModal.show}
         variant={confirmModalVariant(confirmModal.type)}

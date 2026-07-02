@@ -1,25 +1,35 @@
 /** Inicio de sesión vía authApi (PHP). Redirige al guardar token en AuthContext. */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
+import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
 import { useToast } from '../ToastContext.jsx';
+import { Button, Input } from '../components/ui/index.js';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
   const { showError } = useToast();
-  // Ruta a la que volver tras login (por defecto /designs)
   const redirectTo = location.state?.from || '/designs';
-  // Estado del formulario
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Envía credenciales al backend PHP y guarda el token si es válido
+  // Tras OAuth de Google, PHP redirige aquí con ?token=...
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    if (!token) return;
+    login(token);
+    navigate(redirectTo, { replace: true });
+  }, [location.search, login, navigate, redirectTo]);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setLoading(true);
     try {
       const response = await authApi.post('/login.php', { email, password });
       if (response.data?.token) {
@@ -30,32 +40,44 @@ export default function LoginPage() {
       }
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <section className="page-container auth-page-wrap">
-      <article className="form-card auth-card figma-auth-card figma-login-card">
-        {/* Pestañas de navegación entre login y registro */}
+    <section className="page-container auth-page-wrap ui-fade-in">
+      <article className="form-card auth-card figma-auth-card figma-login-card ui-slide-up">
         <div className="auth-tabs">
           <span className="active">Iniciar sesion</span>
           <Link to="/signup">Registrarse</Link>
         </div>
         <h2>Ingreso de usuario</h2>
+
+        <GoogleLoginButton />
+
+        <p className="auth-divider" role="separator">
+          <span>o</span>
+        </p>
+
         <form onSubmit={handleSubmit}>
-          <label>
-            Email
-            <input type="email" placeholder="Tu email..." value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
+          <Input
+            label="Email"
+            type="email"
+            placeholder="Tu email..."
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            labelClassName=""
+          />
           <PasswordInput
             label="Contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña..."
           />
-          {/* Guarda el email en localStorage para el flujo de recuperación */}
-          <button
-            className="ghost-link"
+          <Button
+            variant="ghost"
             type="button"
             onClick={() => {
               if (email) localStorage.setItem('recoverEmail', email);
@@ -63,8 +85,10 @@ export default function LoginPage() {
             }}
           >
             Olvide mi contraseña
-          </button>
-          <button className="primary-button full-width" type="submit">Ingresar</button>
+          </Button>
+          <Button variant="primary" fullWidth type="submit" loading={loading}>
+            Ingresar
+          </Button>
         </form>
         <p className="small-text">
           ¿No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
