@@ -155,7 +155,7 @@ function Header() {
       <div className="figma-header-inner">
         <div className="figma-header-logo">
           <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
-            <img src="/Diagram(3).png" alt="DiagramTec" className="brand-logo" />
+            <img src="/diagram.png" alt="DiagramTec" className="brand-logo" />
           </Link>
         </div>
 
