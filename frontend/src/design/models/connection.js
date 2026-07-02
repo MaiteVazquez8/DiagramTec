@@ -1,24 +1,24 @@
 /**
- * Conexiones entre formas (clic origen → clic destino) y utilidades de gestión.
+ * Conexiones entre formas (clic origen → clic destino) y líneas SVG.
  * @typedef {Object} Connection
  * @property {string|number} id
- * @property {string|number} from  // ID de la figura origen
- * @property {string|number} to    // ID de la figura destino
+ * @property {string|number} from
+ * @property {string|number} to
  */
 
 /**
- * Normaliza un ID de extremo: convierte a número si es numérico, sino mantiene string.
- * Evita inconsistencias string "1" vs number 1 al comparar conexiones.
- * @param {string|number} id
- * @returns {string|number}
+ * @param {string|number} fromId
+ * @param {string|number} toId
+ * @param {string|number} [id]
+ * @returns {Connection}
  */
+/** @param {string|number} id */
 export function normalizeEndpointId(id) {
   const n = Number(id);
   return Number.isNaN(n) ? id : n;
 }
 
 /**
- * Normaliza una conexión completa aplicando normalizeEndpointId a from y to.
  * @param {Connection} connection
  * @returns {Connection}
  */
@@ -30,13 +30,6 @@ export function normalizeConnection(connection) {
   };
 }
 
-/**
- * Crea una nueva conexión dirigida entre dos figuras.
- * @param {string|number} fromId
- * @param {string|number} toId
- * @param {string|number} [id]
- * @returns {Connection}
- */
 export function createConnection(fromId, toId, id) {
   return {
     id: id ?? Date.now(),
@@ -46,7 +39,6 @@ export function createConnection(fromId, toId, id) {
 }
 
 /**
- * Elimina todas las conexiones que involucran a una figura (como origen o destino).
  * @param {Connection[]} connections
  * @param {string|number} shapeId
  * @returns {Connection[]}
@@ -56,7 +48,6 @@ export function removeConnectionsForShape(connections, shapeId) {
 }
 
 /**
- * Elimina una conexión específica por su ID.
  * @param {Connection[]} connections
  * @param {string|number} connectionId
  * @returns {Connection[]}
@@ -66,7 +57,7 @@ export function removeConnection(connections, connectionId) {
 }
 
 /**
- * Genera clave única para un par de componentes sin importar la dirección (A→B = B→A).
+ * Clave única para un par de componentes (sin importar dirección).
  * @param {string|number} a
  * @param {string|number} b
  * @returns {string}
@@ -78,7 +69,7 @@ export function getPairKey(a, b) {
 }
 
 /**
- * Comprueba si ya existe una conexión entre dos figuras (en cualquier dirección).
+ * Indica si ya existe conexión entre dos componentes (en cualquier dirección).
  * @param {Connection[]} connections
  * @param {string|number} fromId
  * @param {string|number} toId
@@ -90,27 +81,22 @@ export function hasConnectionBetween(connections, fromId, toId) {
 }
 
 /**
- * Gestiona el flujo de clic para conectar figuras:
- * 1. Primer clic: selecciona origen (connectSource).
- * 2. Segundo clic en otra figura: crea conexión o la elimina si ya existe en esa dirección.
- * Regla: solo una conexión por par (A,B), pero cada figura puede conectar con muchas distintas.
+ * Alterna conexión existente o crea una nueva entre dos componentes.
+ * Regla: solo una conexión por par (A,B), pero cada componente puede conectar con muchos distintos.
  * @param {Connection[]} connections
- * @param {string|number|null} connectSource  // Figura origen seleccionada, o null
- * @param {string|number} targetId            // Figura sobre la que se hizo clic
+ * @param {string|number|null} connectSource
+ * @param {string|number} targetId
  * @returns {{ connections: Connection[], connectSource: string|number|null, created: boolean, removed: boolean, message?: string }}
  */
 export function handleConnectClick(connections, connectSource, targetId) {
-  // Primer clic: guardar figura origen
   if (!connectSource) {
     return { connections, connectSource: targetId, created: false, removed: false };
   }
 
-  // Clic en la misma figura: cancelar selección
   if (connectSource === targetId) {
     return { connections, connectSource: null, created: false, removed: false };
   }
 
-  // Ya existe conexión entre el par: intentar eliminar si coincide la dirección
   if (hasConnectionBetween(connections, connectSource, targetId)) {
     const existing = connections.find(
       (c) => c.from === connectSource && c.to === targetId
@@ -124,7 +110,6 @@ export function handleConnectClick(connections, connectSource, targetId) {
         removed: true,
       };
     }
-    // Existe en dirección opuesta: no permitir segunda conexión
     return {
       connections,
       connectSource: null,
@@ -134,7 +119,6 @@ export function handleConnectClick(connections, connectSource, targetId) {
     };
   }
 
-  // Crear nueva conexión origen → destino
   return {
     connections: [...connections, createConnection(connectSource, targetId)],
     connectSource: null,

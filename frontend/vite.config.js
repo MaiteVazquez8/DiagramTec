@@ -1,12 +1,8 @@
-/**
- * Vite — bundler y servidor de desarrollo del frontend.
- * En dev, las peticiones /api y /php-auth se redirigen al backend local.
- */
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import os from 'os';
 
-/** Detecta IP LAN para probar la app desde el móvil en la misma Wi‑Fi. */
+/** IP de Wi‑Fi/LAN (evita 192.168.56.x de VirtualBox que el móvil no alcanza). */
 function getLanUrl(port) {
   const nets = os.networkInterfaces();
   const candidates = [];
@@ -27,9 +23,8 @@ function getLanUrl(port) {
 
 export default defineConfig({
   plugins: [
-    react(), // JSX + Fast Refresh
+    react(),
     {
-      // Al arrancar dev, imprime URL accesible desde el teléfono
       name: 'log-lan-url',
       configureServer(server) {
         server.httpServer?.once('listening', () => {
@@ -43,16 +38,14 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
-    host: '0.0.0.0', // escucha en todas las interfaces (LAN)
+    host: '0.0.0.0',
     strictPort: true,
     proxy: {
-      // Frontend llama /api/* → backend Node en :4002 (diseños, clases, admin)
       '/api': {
         target: 'http://127.0.0.1:4002',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
-      // authApi usa /api/php-auth/* → Node reenvía a PHP (login, registro)
       '/php-auth': {
         target: process.env.VITE_PHP_TARGET || 'http://localhost',
         changeOrigin: true,

@@ -1,108 +1,122 @@
-/**
- * Definición visual de cada tipo de forma del diagrama
- * (inicio/fin, proceso, entrada/salida, for, while, if).
- */
-import React from 'react';
-
-/** Handlers comunes en texto editable: evitan que el drag del lienzo capture el evento. */
-const stopPointer = (e) => e.stopPropagation();
-
-/**
- * Forma ovalada de inicio o fin del flujo.
- * @param {{ shape: object, fsContext: object }} props
- */
-export const StartEndShape = ({ shape, fsContext }) => (
-  <div className={`shape shape-circle ${shape.type === 'start' ? 'shape-start' : 'shape-end'}`}>
-    <div className="editable-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>{shape.title}</div>
-  </div>
-);
-
-/** Paralelogramo de entrada de datos (input). */
-export const InputShape = ({ shape, fsContext }) => (
-  <div className="shape-input">
-    <svg className="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polygon points="0,0 100,0 85,100 15,100" />
-    </svg>
-    <div className="editable-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>{shape.title}</div>
-  </div>
-);
-
-/** Paralelogramo invertido para salida/impresión (print). */
-export const PrintShape = ({ shape, fsContext }) => (
-  <div className="shape-print">
-    <svg className="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <polygon points="15,0 85,0 100,100 0,100" />
-    </svg>
-    <div className="editable-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>{shape.title}</div>
-  </div>
-);
-
-/** Estructura for: cuerpo del proceso + brazo con contador I y fracción 1/N. */
-export const ForShape = ({ shape, fsContext }) => (
-  <div className="shape-for-layout">
-    <div className="shape shape-process for-process-box">
-      <div className="editable-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>{shape.title}</div>
-    </div>
-    <div className="for-loop-arm">
-      <div className="for-loop-circle">
-        <div className="editable-text top-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>I</div>
-        <div className="line-divider"></div>
-        <div className="editable-text bottom-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>1/N</div>
-      </div>
-    </div>
-  </div>
-);
-
-/** Estructura while: cabecera con condición y cuerpo para procesos anidados. */
-export const WhileShape = ({ shape, fsContext }) => (
-  <div className="shape-while-container">
-    <div className="while-header">
-      <div className="editable-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>WHILE</div>
-    </div>
-    <div className="while-body">
-      <div className="editable-text internal-placeholder" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>Arrastra procesos aquí</div>
-    </div>
-  </div>
-);
-
-/** Estructura if: techo triangular con condición y columnas SI / NO. */
-export const IfShape = ({ shape, fsContext }) => (
-  <div className="shape-if-house">
-    <div className="if-roof">
-      <svg className="roof-triangle-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <polygon points="50,0 100,100 0,100" fill="white" stroke="black" />
-      </svg>
-      <div className="if-text-overlay">
-        <div
-          className="editable-text if-condition"
-          style={fsContext}
-          contentEditable
-          suppressContentEditableWarning
-          onPointerDown={stopPointer}
-          onPointerUp={stopPointer}
-          onClick={stopPointer}
-        >
-          {shape.title}
-        </div>
-      </div>
-    </div>
-    <div className="if-body">
-      <div className="if-header-row">
-        <div className="if-header-si">SI</div>
-        <div className="if-header-no">NO</div>
-      </div>
-      {/* Zonas internas reservadas para subprocesos (placeholders visuales) */}
-      <div className="if-content-row">
-        <div className="if-col-si internal-placeholder" />
-        <div className="if-col-no internal-placeholder" />
-      </div>
-    </div>
-  </div>
-);
-
-/** Rectángulo de proceso genérico (asignación u operación). */
-export const ProcessShape = ({ shape, fsContext }) => (
-  <div className="shape shape-process">
-    <div className="editable-text" style={fsContext} contentEditable suppressContentEditableWarning onPointerDown={stopPointer} onPointerUp={stopPointer} onClick={stopPointer}>{shape.title}</div>
-  </div>
-);
+/**
+ * Definición visual de cada tipo de forma del diagrama
+ * (inicio/fin, proceso, entrada/salida, for, while, if).
+ */
+import React from 'react';
+import EditableShapeText from './EditableShapeText.jsx';
+
+const textProps = (shape, fsContext, preview, onTextChange, onTextCommit) => ({
+  text: shape.title,
+  style: fsContext,
+  editable: !preview,
+  onTextChange: preview ? undefined : onTextChange,
+  onTextCommit: preview ? undefined : onTextCommit,
+});
+
+// figura para el inicio y el final del diagrama
+export const StartEndShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className={`shape shape-circle ${shape.type === 'start' ? 'shape-start' : 'shape-end'}`}>
+    <EditableShapeText {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)} />
+  </div>
+);
+
+// figura para la entrada de datos o input
+export const InputShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className="shape-input">
+    <svg className="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <polygon points="0,0 100,0 85,100 15,100" />
+    </svg>
+    <EditableShapeText {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)} />
+  </div>
+);
+
+// figura para la salida de datos o impresion
+export const PrintShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className="shape-print">
+    <svg className="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <polygon points="15,0 85,0 100,100 0,100" />
+    </svg>
+    <EditableShapeText {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)} />
+  </div>
+);
+
+// figura para representar el ciclo for
+export const ForShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className="shape-for-layout">
+    <div className="shape shape-process for-process-box">
+      <EditableShapeText {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)} />
+    </div>
+    <div className="for-loop-arm">
+      <div className="for-loop-circle">
+        <EditableShapeText
+          text={preview ? 'I' : ''}
+          style={fsContext}
+          className="top-text"
+          editable={!preview}
+        />
+        <div className="line-divider"></div>
+        <EditableShapeText
+          text={preview ? '1/N' : ''}
+          style={fsContext}
+          className="bottom-text"
+          editable={!preview}
+        />
+      </div>
+    </div>
+  </div>
+);
+
+// figura para representar el ciclo while
+export const WhileShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className="shape-while-container">
+    <div className="while-header">
+      <EditableShapeText
+        {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)}
+        text={preview ? 'WHILE' : shape.title}
+      />
+    </div>
+    <div className="while-body">
+      <EditableShapeText
+        text={preview ? 'Procesos' : ''}
+        style={fsContext}
+        className="internal-placeholder"
+        editable={!preview}
+      />
+    </div>
+  </div>
+);
+
+// figura para representar la condicion if
+export const IfShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className="shape-if-house">
+    <div className="if-roof">
+      <svg className="roof-triangle-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polygon points="50,0 100,100 0,100" fill="white" stroke="black" />
+      </svg>
+      <div className="if-text-overlay">
+        <EditableShapeText
+          {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)}
+          className="if-condition"
+        />
+      </div>
+    </div>
+    <div className="if-body">
+      <div className="if-header-row">
+        <div className="if-header-si">SI</div>
+        <div className="if-header-no">NO</div>
+      </div>
+      <div className="if-content-row">
+        <div className="if-col-si internal-placeholder" />
+        <div className="if-col-no internal-placeholder" />
+      </div>
+    </div>
+  </div>
+);
+
+// figura para representar un proceso o asignacion
+export const ProcessShape = ({ shape, fsContext, preview = false, onTextChange, onTextCommit }) => (
+  <div className="shape shape-process">
+    <EditableShapeText {...textProps(shape, fsContext, preview, onTextChange, onTextCommit)} />
+  </div>
+);
+

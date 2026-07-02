@@ -1,13 +1,9 @@
 /** Listado Figma: cabecera de columnas + filas en tarjetas. */
 import SuperAdminUserManageRow from './SuperAdminUserManageRow.jsx';
+import { SuperAdminManageSkeleton } from '../skeletons/PageSkeletons.jsx';
 
-/**
- * Tabla/lista de gestión de usuarios en el panel superadmin.
- * Muestra estados de carga, vacío o filas editables.
- */
 export default function SuperAdminUserManageList({
   loading,
-  loadingText,
   emptyMessage,
   users,
   lockRole,
@@ -17,7 +13,7 @@ export default function SuperAdminUserManageList({
   deleteLabel,
 }) {
   if (loading) {
-    return <p className="superadmin-manage__loading">{loadingText}</p>;
+    return <SuperAdminManageSkeleton />;
   }
 
   if (users.length === 0) {
@@ -26,7 +22,6 @@ export default function SuperAdminUserManageList({
 
   return (
     <>
-      {/* Fila de encabezados de columnas (no editable) */}
       <div className="superadmin-manage__row superadmin-manage__row--head" role="row">
         <span className="superadmin-manage__col-head superadmin-manage__col-head--avatar" aria-hidden />
         <span className="superadmin-manage__col-head">Email</span>
@@ -37,7 +32,6 @@ export default function SuperAdminUserManageList({
         <span className="superadmin-manage__col-head superadmin-manage__col-head--delete">Eliminar</span>
       </div>
 
-      {/* Una fila editable por cada usuario */}
       <div className="superadmin-manage__list">
         {users.map((user) => (
           <SuperAdminUserManageRow

@@ -44,13 +44,13 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 
 
 import RecoverPasswordPage from './pages/RecoverPasswordPage.jsx';
-
 import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import Footer from './components/Footer.jsx';
 
 
 import Icon from './components/Icon.jsx';
 import ProfileSilhouette from './components/ProfileSilhouette.jsx';
+import { RouteGuardSkeleton } from './components/skeletons/PageSkeletons.jsx';
 
 
 
@@ -59,7 +59,7 @@ function AdminRoute({ children }) {
 
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="page-container">Cargando...</div>;
+  if (loading) return <RouteGuardSkeleton />;
 
   if (!user || (user.role !== 'superadmin' && user.role !== 'admin')) {
     return <Navigate to="/" replace />;
@@ -76,7 +76,7 @@ function ProtectedRoute({ children }) {
 
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="page-container">Cargando...</div>;
+  if (loading) return <RouteGuardSkeleton />;
 
   return user ? children : <Navigate to="/login" replace />;
 
@@ -84,7 +84,6 @@ function ProtectedRoute({ children }) {
 
 
 
-/** Avatar del header (silueta burdeos reutilizable). */
 function HeaderProfileAvatar() {
   return <ProfileSilhouette size={44} className="figma-header-profile-svg" />;
 }
@@ -95,22 +94,18 @@ function Header() {
   const location = useLocation();
   const headerRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  // En /superadmin* el nav cambia a gestión de alumnos/profesores/clases
   const isSuperAdminPanel = location.pathname.startsWith('/superadmin');
 
   const toggleMenu = () => setMenuOpen((open) => !open);
   const closeMenu = () => setMenuOpen(false);
   const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
-  // Destino del avatar según rol: login, cuenta o panel admin
   const profileTo = !user ? '/login' : isSuperAdmin ? '/superadmin' : '/account';
   const profileLabel = !user ? 'Iniciar sesión' : isSuperAdmin ? 'Panel superadmin' : 'Mi cuenta';
 
-  // Cierra el menú hamburguesa al cambiar de ruta
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  // Escape cierra menú móvil; bloquea scroll del body mientras está abierto
   useEffect(() => {
     if (!menuOpen) return undefined;
 
@@ -127,7 +122,6 @@ function Header() {
     };
   }, [menuOpen]);
 
-  // Enlaces de navegación (desktop y móvil comparten este bloque)
   const navLinks = (
     <nav className="figma-nav" aria-label={isSuperAdminPanel ? 'Administración' : 'Principal'}>
       {isSuperAdminPanel ? (
@@ -161,7 +155,7 @@ function Header() {
       <div className="figma-header-inner">
         <div className="figma-header-logo">
           <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
-            <img src="/Diagram(3).png" alt="DiagramTec" className="brand-logo" />
+            <img src="/logo.png" alt="DiagramTec" className="brand-logo" />
           </Link>
         </div>
 
@@ -234,7 +228,6 @@ function AppShell() {
   const isEditor = location.pathname.startsWith('/editor');
   const isSuperAdmin = location.pathname.startsWith('/superadmin');
 
-  // Clase CSS del main según vista: editor a pantalla completa, superadmin con layout propio
   let mainClass = 'main-figma';
   if (isEditor) mainClass = 'main-editor';
   else if (isSuperAdmin) mainClass = 'main-figma main-superadmin';
@@ -249,29 +242,37 @@ function AppShell() {
 
         <Routes>
 
-          {/* ——— Rutas públicas ——— */}
           <Route path="/" element={<HomePage />} />
+
           <Route path="/login" element={<LoginPage />} />
+
           <Route path="/signup" element={<SignupPage />} />
+
           <Route path="/recover" element={<RecoverPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* ——— Rutas protegidas (requieren login) ——— */}
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+
           <Route path="/edit-profile" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
+
           <Route path="/classes" element={<ProtectedRoute><ClassesPage /></ProtectedRoute>} />
+
           <Route path="/classes/:id/members" element={<ProtectedRoute><ClassMembersPage /></ProtectedRoute>} />
+
           <Route path="/classes/:id" element={<ProtectedRoute><ClassDetailPage /></ProtectedRoute>} />
 
-          {/* Diseños y editor: accesibles sin login (invitado puede editar, guardar pide login) */}
           <Route path="/designs" element={<DesignsPage />} />
+
           <Route path="/editor" element={<EditorPage />} />
+
           <Route path="/editor/:id" element={<EditorPage />} />
 
-          {/* ——— Panel superadmin ——— */}
           <Route path="/superadmin" element={<AdminRoute><SuperAdminPage /></AdminRoute>} />
+
           <Route path="/superadmin/alumnos" element={<AdminRoute><SuperAdminStudentsPage /></AdminRoute>} />
+
           <Route path="/superadmin/profesores" element={<AdminRoute><SuperAdminTeachersPage /></AdminRoute>} />
+
           <Route path="/superadmin/clases" element={<AdminRoute><SuperAdminClassesPage /></AdminRoute>} />
 
           <Route path="*" element={<NotFoundPage />} />
@@ -280,7 +281,6 @@ function AppShell() {
 
       </main>
 
-      {/* El editor ocupa toda la pantalla: sin footer */}
       {!isEditor ? <Footer /> : null}
 
     </div>
@@ -292,7 +292,6 @@ function AppShell() {
 
 
 export default function App() {
-  // Orden: sesión → toasts → router → layout con rutas
   return (
     <AuthProvider>
       <ToastProvider>

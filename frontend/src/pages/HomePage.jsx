@@ -4,26 +4,21 @@ import { useAuth } from '../AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 
 export default function HomePage() {
-  // Usuario autenticado (null si es invitado)
   const { user } = useAuth();
-
-  // Desplaza suavemente al inicio de la página
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Accesos rápidos del hero hacia las secciones principales
   const heroActions = [
-    { to: '/editor', label: 'Crear diseño' },
-    { to: '/editor', label: 'Cómo empezar' },
-    { to: '/designs', label: 'DiagramTec' },
-    { to: '/designs', label: 'Ver diseños' },
-    { to: '/classes', label: 'Unirse a clases' },
+    { to: '/editor', label: 'Crear diseño', image: '/tarjs/14.png' },
+    { to: '/editor', label: 'Cómo empezar', image: '/tarjs/15.png' },
+    { to: '/designs', label: 'DiagramTec', image: '/tarjs/16.png' },
+    { to: '/designs', label: 'Ver diseños', image: '/tarjs/17.png' },
+    { to: '/classes', label: 'Unirse a clases', image: '/tarjs/18.png' },
   ];
 
   return (
     <section className="page-container figma-home-page">
-      {/* Hero principal con bienvenida y botones de auth solo para invitados */}
       <article className="figma-home-hero">
         <h1>Bienvenido a DiagramTec</h1>
         <p>
@@ -36,19 +31,17 @@ export default function HomePage() {
         </div>
       </article>
 
-      {/* Tarjetas de acceso rápido */}
       <div className="figma-home-shortcuts">
         {heroActions.map((action) => (
           <article className="figma-mini-card" key={action.label}>
             <div className="figma-mini-card-media" aria-hidden>
-              <Icon name="image" size={64} />
+              <img src={action.image} alt="" className="figma-mini-card-img" />
             </div>
             <Link className="primary-button figma-mini-card-button" to={action.to}>+ {action.label}</Link>
           </article>
         ))}
       </div>
 
-      {/* Bloque informativo: guía de inicio */}
       <section className="figma-home-block">
         <h2>Cómo empezar</h2>
         <p>
@@ -60,7 +53,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bloque informativo: sobre el proyecto y el equipo */}
       <section className="figma-home-block">
         <h2>DiagramTec</h2>
         <div className="figma-about-grid">
@@ -98,12 +90,11 @@ export default function HomePage() {
             </p>
           </div>
           <div className="figma-about-logo-wrap">
-            <img src="/logoDT.png" alt="Logo DiagramTec" className="figma-about-logo" />
+            <img src="/logo2.png" alt="Logo DiagramTec" className="figma-about-logo" />
           </div>
         </div>
       </section>
 
-      {/* Botón flotante para volver arriba */}
       <div className="figma-home-back-to-top-wrap">
         <button
           className="figma-home-back-to-top"

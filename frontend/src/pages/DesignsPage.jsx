@@ -5,8 +5,9 @@ import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
 import Icon from '../components/Icon.jsx';
+import { CardsGridSkeleton } from '../components/skeletons/PageSkeletons.jsx';
+import { Button, EmptyState } from '../components/ui/index.js';
 
-// Normaliza campos del diseño para la UI
 function normalizeDesign(raw) {
   return {
     ...raw,
@@ -26,7 +27,6 @@ export default function DesignsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextDesign, setContextDesign] = useState(null);
 
-  // Carga la biblioteca de diseños del usuario autenticado
   const loadDesigns = useCallback(async () => {
     setIsLoadingDesigns(true);
     setLoadFailed(false);
@@ -42,7 +42,6 @@ export default function DesignsPage() {
     }
   }, []);
 
-  // Recarga al cambiar usuario, sesión o navegación
   useEffect(() => {
     if (!authLoading && user) {
       loadDesigns();
@@ -54,7 +53,6 @@ export default function DesignsPage() {
     }
   }, [user, authLoading, location.key, loadDesigns]);
 
-  // Refresca al volver a la pestaña del navegador
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState === 'visible' && user) {
@@ -69,7 +67,6 @@ export default function DesignsPage() {
     d.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Elimina un diseño del servidor y del estado local
   const handleDelete = async (id) => {
     try {
       await api.delete(`/designs/${id}`);
@@ -80,7 +77,6 @@ export default function DesignsPage() {
     }
   };
 
-  // Duplica un diseño vía API y recarga la lista
   const handleCopy = async (id) => {
     try {
       await api.post(`/designs/${id}/copy`);
@@ -97,9 +93,8 @@ export default function DesignsPage() {
   };
 
   return (
-    <section className="figma-sector" id="designs-page">
+    <section className="figma-sector ui-fade-in" id="designs-page">
       <div className="figma-sector-inner">
-        {/* Cabecera con búsqueda y botón crear diseño */}
         <header className="figma-sector-hero">
           <h1>Mis diseños</h1>
           <div className="figma-sector-toolbar">
@@ -146,68 +141,65 @@ export default function DesignsPage() {
           </div>
         </header>
 
-        {/* Estado: cargando sesión */}
         {authLoading && (
-          <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
-            <p className="figma-loading-text">Cargando tu sesión…</p>
-          </div>
+          <CardsGridSkeleton count={6} />
         )}
 
-        {/* Estado: usuario invitado sin biblioteca */}
         {!authLoading && !user && (
-          <div className="figma-empty-panel figma-dot-pattern">
-            <Icon name="image" size={64} strokeWidth={1} />
-            <h3>Modo invitado</h3>
-            <p>
-              Crea y edita diagramas libremente. Para guardarlos en tu cuenta y ver tu biblioteca,
-              inicia sesión o regístrate.
-            </p>
-            <div className="hero-actions">
-              <Link className="primary-button" to="/editor" id="btn-guest-create">
-                <Icon name="plus" size={18} strokeWidth={2.5} />
-                Crear diseño
-              </Link>
-              <Link className="secondary-button" to="/login">Iniciar sesión</Link>
-              <Link className="secondary-button" to="/signup">Crear cuenta</Link>
-            </div>
-          </div>
+          <EmptyState
+            icon={<Icon name="image" size={64} strokeWidth={1} />}
+            title="Modo invitado"
+            description="Crea y edita diagramas libremente. Para guardarlos en tu cuenta y ver tu biblioteca, inicia sesión o regístrate."
+            action={
+              <div className="hero-actions">
+                <Button to="/editor" id="btn-guest-create">
+                  <Icon name="plus" size={18} strokeWidth={2.5} />
+                  Crear diseño
+                </Button>
+                <Button variant="secondary" to="/login">
+                  Iniciar sesión
+                </Button>
+                <Button variant="secondary" to="/signup">
+                  Crear cuenta
+                </Button>
+              </div>
+            }
+          />
         )}
 
-        {/* Error de carga con botón reintentar */}
         {loadFailed && user ? (
-          <div className="figma-designs-error">
-            <button type="button" className="secondary-button" onClick={loadDesigns}>
+          <div className="figma-designs-error ui-fade-in">
+            <Button variant="secondary" onClick={loadDesigns}>
               Reintentar carga de diseños
-            </button>
+            </Button>
           </div>
         ) : null}
 
-        {/* Grilla de diseños del usuario autenticado */}
         {!authLoading && user && (
           <div className="figma-cards-grid">
             {isLoadingDesigns ? (
-              <div className="figma-empty-panel figma-dot-pattern" aria-busy="true">
-                <p className="figma-loading-text">Cargando tus diseños…</p>
-              </div>
+              <CardsGridSkeleton count={6} />
             ) : filteredDesigns.length === 0 ? (
-              <div className="figma-empty-panel figma-dot-pattern">
-                <Icon name="empty" size={64} strokeWidth={1} />
-                <h3>No hay diseños guardados</h3>
-                <p>
-                  {search.trim()
+              <EmptyState
+                icon={<Icon name="empty" size={64} strokeWidth={1} />}
+                title="No hay diseños guardados"
+                description={
+                  search.trim()
                     ? 'No hay resultados para tu búsqueda. Prueba con otro nombre.'
-                    : 'Crea un diagrama en el editor y pulsa Guardar para que aparezca aquí.'}
-                </p>
-                <Link className="primary-button" to="/editor" id="btn-empty-create-design">
-                  <Icon name="plus" size={18} strokeWidth={2.5} />
-                  Crear diseño
-                </Link>
-              </div>
+                    : 'Crea un diagrama en el editor y pulsa Guardar para que aparezca aquí.'
+                }
+                action={
+                  <Button to="/editor" id="btn-empty-create-design">
+                    <Icon name="plus" size={18} strokeWidth={2.5} />
+                    Crear diseño
+                  </Button>
+                }
+              />
             ) : (
               filteredDesigns.map((design, index) => (
                 <article
                   key={design.id}
-                  className="figma-card figma-card--compact"
+                  className="figma-card figma-card--compact ui-slide-up"
                   id={`design-card-${design.id}`}
                   style={{ animationDelay: `${Math.min(index, 8) * 0.05}s` }}
                 >
@@ -240,7 +232,6 @@ export default function DesignsPage() {
           </div>
         )}
 
-        {/* Modal contextual: editar, eliminar, exportar, copiar */}
         {contextDesign && (
           <div
             className="design-context-overlay"
