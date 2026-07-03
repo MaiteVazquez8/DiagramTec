@@ -3138,7 +3138,7 @@ main:has(.figma-sector) {
   height: var(--figma-header-h);
   min-height: var(--figma-header-h);
   max-height: var(--figma-header-h);
-  padding: 0.25rem 2rem 0.25rem 1rem;
+  padding: 0.25rem 1rem;
   color: #000;
   background-color: #fff;
   background-image: radial-gradient(circle, #d4d4d4 1.2px, transparent 1.2px);
@@ -3150,7 +3150,7 @@ main:has(.figma-sector) {
 .figma-header-inner {
   position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 1rem;
   max-width: 1280px;
@@ -3160,6 +3160,8 @@ main:has(.figma-sector) {
 
 .figma-header-logo {
   justify-self: start;
+  grid-column: 1;
+  grid-row: 1;
   margin-left: 0;
   min-width: 0;
 }
@@ -3183,6 +3185,8 @@ main:has(.figma-sector) {
 }
 
 .figma-header-nav-wrap {
+  grid-column: 2;
+  grid-row: 1;
   justify-self: center;
   display: flex;
   flex-direction: column;
@@ -3199,7 +3203,7 @@ main:has(.figma-sector) {
 .figma-nav a {
   position: relative;
   color: #000000;
-  padding: 0.45rem 1.5rem 0.45rem 1.65rem;
+  padding: 0.45rem 1.25rem;
   font-weight: 600;
   font-size: 1rem;
   letter-spacing: -0.01em;
@@ -3244,6 +3248,8 @@ main:has(.figma-sector) {
 }
 
 .figma-header-profile {
+  grid-column: 3;
+  grid-row: 1;
   justify-self: end;
   text-decoration: none;
   line-height: 0;
@@ -3302,7 +3308,9 @@ main:has(.figma-sector) {
 
 .figma-menu-btn {
   display: none;
-  justify-self: center;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
   color: #810000;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
@@ -5528,10 +5536,6 @@ body.mobile-menu-open {
     flex-direction: column;
     gap: 0.35rem;
   }
-
-  .account-cards-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ==========================================================
@@ -5575,6 +5579,161 @@ body.mobile-menu-open {
 
 #account-page .account-layout:has(.account-sidebar--collapsed) .account-main {
   padding-left: max(1.5rem, calc(50vw - 600px));
+}
+
+/* Account — móvil: tipografía y tarjetas más compactas */
+@media (max-width: 768px) {
+  #account-page {
+    min-height: 0;
+  }
+
+  #account-page .account-layout {
+    min-height: 0;
+    gap: 0;
+  }
+
+  #account-page .account-sidebar {
+    min-height: 0;
+  }
+
+  #account-page .account-main {
+    padding: 0.85rem 0.85rem 2rem;
+    gap: 1.15rem;
+  }
+
+  #account-page .account-section-head {
+    margin-bottom: 0.65rem;
+    align-items: center;
+    flex-direction: row;
+  }
+
+  #account-page .account-section-head h1 {
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  #account-page .account-link {
+    font-size: 0.75rem;
+  }
+
+  #account-page .account-sidebar__body {
+    padding: 0.85rem 0.85rem 0.35rem;
+    align-items: stretch;
+  }
+
+  #account-page .account-avatar {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 0.75rem;
+  }
+
+  #account-page .account-avatar-ring {
+    width: 60px;
+    height: 60px;
+    border-width: 2px;
+  }
+
+  #account-page .account-avatar-svg {
+    max-width: 54px !important;
+    max-height: 54px !important;
+  }
+
+  #account-page .account-avatar-info h2 {
+    font-size: 0.92rem;
+    margin-bottom: 0.08rem;
+  }
+
+  #account-page .account-avatar-info p,
+  #account-page .account-role {
+    font-size: 0.7rem;
+    line-height: 1.25;
+  }
+
+  #account-page .account-sidebar__actions {
+    padding: 0.55rem 0.85rem 0.75rem;
+    gap: 0.45rem;
+  }
+
+  #account-page .account-action-button,
+  #account-page .account-help-button {
+    min-height: 38px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.5rem 0.7rem;
+    gap: 0.4rem;
+  }
+
+  #account-page .account-action-button .icon,
+  #account-page .account-help-button .icon {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  #account-page .account-sidebar__footer {
+    padding: 0 0.85rem 0.75rem;
+  }
+
+  #account-page .account-sidebar__collapse {
+    display: none;
+  }
+
+  #account-page .account-cards-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  #account-page .account-preview-card__media {
+    aspect-ratio: 1 / 1;
+    padding: 0.35rem;
+    background-size: 12px 12px;
+  }
+
+  #account-page .account-preview-card__media > .icon,
+  #account-page .account-preview-card__media > .icon svg,
+  #account-page .account-preview-card__book,
+  #account-page .account-preview-card__book svg {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  #account-page .account-preview-card .account-preview-card__text .figma-card-title,
+  #account-page .account-preview-card--class .account-preview-card__text .figma-card-title {
+    font-size: 0.76rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #account-page .account-preview-card__text p {
+    font-size: 0.65rem;
+  }
+
+  #account-page .account-preview-card__foot,
+  #account-page .account-preview-card--class .account-preview-card__foot {
+    min-height: auto;
+    padding: 0.35rem 0.45rem !important;
+  }
+
+  #account-page .account-preview-card__line {
+    height: 6px;
+    width: min(56px, 60%);
+  }
+}
+
+@media (max-width: 480px) {
+  #account-page .account-section-head h1 {
+    font-size: 1.2rem;
+  }
+
+  #account-page .account-cards-row {
+    gap: 0.5rem;
+  }
+
+  #account-page .account-main {
+    padding-inline: 0.75rem;
+  }
 }
 
 .app-header.figma-header,
