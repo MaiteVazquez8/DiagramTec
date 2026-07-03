@@ -2,10 +2,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import { fetchAdminTeachers } from '../utils/adminUsers.js';
 import SuperAdminShell from '../components/superadmin/SuperAdminShell.jsx';
 import SuperAdminUserManageList from '../components/superadmin/SuperAdminUserManageList.jsx';
+import SuperAdminUserConfirmModal from '../components/superadmin/SuperAdminUserConfirmModal.jsx';
 import Icon from '../components/Icon';
 import { useToast } from '../ToastContext.jsx';
+import { userSearchBlob } from '../utils/userFields.js';
 
 export default function SuperAdminTeachersPage() {
   const { showMessage } = useToast();
@@ -13,12 +16,13 @@ export default function SuperAdminTeachersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadTeachers = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/admin/users');
-      const list = (res.data.users || []).filter((u) => u.role === 'teacher');
+      const list = await fetchAdminTeachers(api);
       setTeachers(list);
     } catch {
       // El interceptor global ya muestra el toast de error.
@@ -34,10 +38,7 @@ export default function SuperAdminTeachersPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return teachers;
-    return teachers.filter((u) => {
-      const blob = `${u.email} ${u.firstName} ${u.lastName}`.toLowerCase();
-      return blob.includes(q);
-    });
+    return teachers.filter((u) => userSearchBlob(u).includes(q));
   }, [teachers, search]);
 
   const handleSave = async (data) => {
@@ -47,9 +48,14 @@ export default function SuperAdminTeachersPage() {
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
-        role: 'teacher',
+        role: data.role,
       });
-      showMessage('Profesor actualizado correctamente');
+      const roleChanged = data.role !== 'teacher';
+      showMessage(
+        roleChanged
+          ? 'Usuario actualizado. Si cambió a alumno, ver Gestión de alumnos.'
+          : 'Profesor actualizado correctamente',
+      );
       loadTeachers();
     } catch {
       // El interceptor global ya muestra el toast de error.
@@ -58,14 +64,23 @@ export default function SuperAdminTeachersPage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar este profesor?')) return;
+  const handleDeleteRequest = (id) => {
+    const user = teachers.find((u) => u.id === id);
+    if (user) setDeleteTarget(user);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/admin/users/${id}`);
+      await api.delete(`/admin/users/${deleteTarget.id}`);
       showMessage('Profesor eliminado');
+      setDeleteTarget(null);
       loadTeachers();
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -113,14 +128,22 @@ export default function SuperAdminTeachersPage() {
             loading={loading}
             emptyMessage={emptyMessage}
             users={filtered}
-            lockRole="teacher"
             savingId={savingId}
             onSave={handleSave}
-            onDelete={handleDelete}
+            onDelete={handleDeleteRequest}
             deleteLabel="Eliminar profesor"
           />
         </div>
       </div>
+
+      <SuperAdminUserConfirmModal
+        open={Boolean(deleteTarget)}
+        user={deleteTarget}
+        userKind="teacher"
+        onClose={() => !deleting && setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        busy={deleting}
+      />
     </SuperAdminShell>
   );
 }

@@ -27,9 +27,6 @@ function loadEnvFile($path)
 loadEnvFile(__DIR__ . '/../.env');
 loadEnvFile(__DIR__ . '/../../backend/.env');
 
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASSWORD', getenv('DB_PASSWORD') ?: '');
-define('DB_NAME', getenv('DB_NAME') ?: 'tecdiagram');
-define('DB_PORT', (int) (getenv('DB_PORT') ?: 3306));
+define('DATABASE_URL', getenv('DATABASE_URL') ?: '');
+define('DB_SSL', getenv('DB_SSL') ?: 'true');
 define('JWT_SECRET', getenv('JWT_SECRET') ?: 'nuevaContraseña_superSegura_diagramtec');

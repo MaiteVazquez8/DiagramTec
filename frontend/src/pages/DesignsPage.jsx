@@ -7,6 +7,7 @@ import { useAuth } from '../AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 import { CardsGridSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 import { Button, EmptyState } from '../components/ui/index.js';
+import AppConfirmModal from '../components/AppConfirmModal.jsx';
 
 function normalizeDesign(raw) {
   return {
@@ -26,6 +27,8 @@ export default function DesignsPage() {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextDesign, setContextDesign] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadDesigns = useCallback(async () => {
     setIsLoadingDesigns(true);
@@ -67,13 +70,22 @@ export default function DesignsPage() {
     d.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = async (id) => {
+  const handleDeleteRequest = (design) => {
+    setDeleteTarget(design);
+    setContextDesign(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/designs/${id}`);
-      setDesigns((prev) => prev.filter((d) => d.id !== id));
-      setContextDesign(null);
+      await api.delete(`/designs/${deleteTarget.id}`);
+      setDesigns((prev) => prev.filter((d) => d.id !== deleteTarget.id));
+      setDeleteTarget(null);
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -275,7 +287,7 @@ export default function DesignsPage() {
                   <button
                     type="button"
                     className="context-action"
-                    onClick={() => handleDelete(contextDesign.id)}
+                    onClick={() => handleDeleteRequest(contextDesign)}
                     id="ctx-delete"
                   >
                     <Icon name="trash" size={16} /> Eliminar diseño
@@ -331,6 +343,16 @@ export default function DesignsPage() {
           </div>
         )}
       </div>
+
+      <AppConfirmModal
+        open={Boolean(deleteTarget)}
+        variant="deleteDesign"
+        highlightName={deleteTarget?.title ?? ''}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        busy={deleting}
+        titleId="design-delete-confirm-title"
+      />
     </section>
   );
 }

@@ -149,19 +149,34 @@ GET    /api/classes/:id/students  # Estudiantes de la clase
 
 ## Variables de Entorno
 
-Crea un archivo `.env` en la carpeta `backend/`:
+Crea un archivo `.env` en la carpeta `backend/` (copiá desde `backend/.env.example`).
 
-```envDB_HOST=localhost
+**Local (MySQL / Laragon):**
+
+```env
+DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=
-DB_NAME=nombreDB
+DB_NAME=tecdiagram
 DB_PORT=3306
 
-JWT_SECRET=nuevaContraseña_superSegura_diagramtec
+PORT=4002
+JWT_SECRET=tu_secreto_jwt_largo
+
+FRONTEND_URL=http://localhost:5173
 
 EMAIL_USER=diagramtec@gmail.com
-EMAIL_PASS=poxtavbmlepblanm #clave de aplicación para gmail
+EMAIL_PASS=                    # contraseña de aplicación Gmail (16 caracteres)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
 ```
+
+**Producción (Supabase / Hostinger):** ver `hostinger/node.env.example`. Las credenciales de email van en hPanel → api.diagramtec.com → Environment variables, no en el ZIP.
+
+Generar contraseña de aplicación: https://myaccount.google.com/apppasswords
+
+Probar SMTP local: `node backend/scripts/test-mail.js`
 - [ ] Historial detallado de cambios
 - [ ] Buscar y reemplazar en diagramas
 

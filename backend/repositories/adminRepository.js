@@ -18,8 +18,37 @@ async function listUsers(db) {
   return rows;
 }
 
+async function listTeachers(db) {
+  const [rows] = await db.execute(`
+    SELECT DISTINCT u.id, u.firstName, u.lastName, u.email, u.role, u.createdAt
+    FROM users u
+    LEFT JOIN classes c ON c.ownerId = u.id
+    WHERE u.role = 'teacher' OR c.id IS NOT NULL
+    ORDER BY u.createdAt DESC
+  `);
+  return rows;
+}
+
+async function listStudents(db) {
+  const [rows] = await db.execute(`
+    SELECT u.id, u.firstName, u.lastName, u.email, u.role, u.createdAt
+    FROM users u
+    WHERE u.role = 'student'
+      AND u.id NOT IN (
+        SELECT DISTINCT c.ownerId FROM classes c WHERE c.ownerId IS NOT NULL
+      )
+    ORDER BY u.createdAt DESC
+  `);
+  return rows;
+}
+
 async function updateUser(db, id, firstName, lastName, email, role) {
-  await db.execute('UPDATE users SET firstName = ?, lastName = ?, email = ?, role = ? WHERE id = ?', [firstName, lastName, email, role, id]);
+  const allowedRoles = ['student', 'teacher', 'admin', 'superadmin'];
+  const safeRole = allowedRoles.includes(role) ? role : 'student';
+  await db.execute(
+    'UPDATE users SET firstName = ?, lastName = ?, email = ?, role = ? WHERE id = ?',
+    [firstName, lastName, email.toLowerCase(), safeRole, id],
+  );
   const [rows] = await db.execute('SELECT id, firstName, lastName, email, role FROM users WHERE id = ?', [id]);
   return rows[0];
 }
@@ -54,6 +83,8 @@ module.exports = {
   countClasses,
   countDesigns,
   listUsers,
+  listTeachers,
+  listStudents,
   updateUser,
   deleteUser,
   listClasses,

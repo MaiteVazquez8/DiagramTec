@@ -6,7 +6,6 @@ export default function SuperAdminUserManageList({
   loading,
   emptyMessage,
   users,
-  lockRole,
   savingId,
   onSave,
   onDelete,
@@ -21,13 +20,13 @@ export default function SuperAdminUserManageList({
   }
 
   return (
-    <>
+    <div className="superadmin-manage__list-wrap">
       <div className="superadmin-manage__row superadmin-manage__row--head" role="row">
         <span className="superadmin-manage__col-head superadmin-manage__col-head--avatar" aria-hidden />
         <span className="superadmin-manage__col-head">Email</span>
         <span className="superadmin-manage__col-head">Nombre</span>
         <span className="superadmin-manage__col-head">Apellido</span>
-        <span className="superadmin-manage__col-head">Rol</span>
+        <span className="superadmin-manage__col-head superadmin-manage__col-head--role">Rol</span>
         <span className="superadmin-manage__col-head superadmin-manage__col-head--modify">Modificar</span>
         <span className="superadmin-manage__col-head superadmin-manage__col-head--delete">Eliminar</span>
       </div>
@@ -37,7 +36,6 @@ export default function SuperAdminUserManageList({
           <SuperAdminUserManageRow
             key={user.id}
             user={user}
-            lockRole={lockRole}
             saving={savingId === user.id}
             onSave={onSave}
             onDelete={onDelete}
@@ -45,6 +43,6 @@ export default function SuperAdminUserManageList({
           />
         ))}
       </div>
-    </>
+    </div>
   );
 }

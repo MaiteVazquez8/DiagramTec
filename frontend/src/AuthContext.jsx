@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY) || '');
 
   const clearSessionState = useCallback(() => {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     setToken('');
     setUser(null);
     setAuthToken(null);
@@ -25,19 +26,43 @@ export function AuthProvider({ children }) {
   // Validar token y cargar usuario
   useEffect(() => {
     if (!token) {
-      clearSessionState();
+      setUser(null);
+      setAuthToken(null);
+      setLoading(false);
       return;
     }
 
     setAuthToken(token);
-    setLoading(true);
-    api.get('/auth/me', { skipErrorToast: true })
-      .then((response) => setUser(response.data.user))
-      .catch(() => {
+    let cancelled = false;
+
+    async function fetchMe(attempt = 0) {
+      setLoading(true);
+      try {
+        const response = await api.get('/auth/me', { skipErrorToast: true });
+        if (cancelled) return;
+        if (response.data?.user) {
+          setUser(response.data.user);
+        } else {
+          throw new Error('NO_USER');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const status = err.response?.status;
+        const retryable = status === 503 || !err.response;
+        if (retryable && attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+          return fetchMe(attempt + 1);
+        }
         clearSessionState();
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchMe();
+    return () => {
+      cancelled = true;
+    };
   }, [token, clearSessionState]);
 
   // Otra pestaña inició o cerró sesión (storage no se dispara en la misma pestaña)
@@ -60,11 +85,12 @@ export function AuthProvider({ children }) {
 
   const login = (newToken) => {
     localStorage.setItem(AUTH_TOKEN_KEY, newToken);
+    setUser(null);
+    setLoading(true);
     setToken(newToken);
   };
 
   const logout = () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     clearSessionState();
   };
 

@@ -11,8 +11,26 @@ async function listUsers(db) {
   return await adminRepository.listUsers(db);
 }
 
+async function listTeachers(db) {
+  return await adminRepository.listTeachers(db);
+}
+
+async function listStudents(db) {
+  return await adminRepository.listStudents(db);
+}
+
 async function updateUser(db, id, data) {
-  return await adminRepository.updateUser(db, id, data.firstName, data.lastName, data.email, data.role);
+  if (!data.firstName?.trim() || !data.lastName?.trim() || !data.email?.trim()) {
+    throw new Error('USER_FIELDS_REQUIRED');
+  }
+  return await adminRepository.updateUser(
+    db,
+    id,
+    data.firstName.trim(),
+    data.lastName.trim(),
+    data.email.trim(),
+    data.role,
+  );
 }
 
 async function deleteUser(db, id) {
@@ -30,6 +48,8 @@ async function deleteClass(db, id) {
 module.exports = {
   getStats,
   listUsers,
+  listTeachers,
+  listStudents,
   updateUser,
   deleteUser,
   listClasses,

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
-import ConfirmModal from '../components/ConfirmModal.jsx';
+import AppConfirmModal from '../components/AppConfirmModal.jsx';
 import Icon from '../components/Icon.jsx';
 import ProfileSilhouette from '../components/ProfileSilhouette.jsx';
 import { AccountPageSkeleton } from '../components/skeletons/PageSkeletons.jsx';
@@ -219,18 +219,19 @@ export default function AccountPage() {
         </main>
       </div>
 
-      <ConfirmModal
+      <AppConfirmModal
         open={confirmModal === 'logout'}
-        message="¿Está seguro que quiere cerrar sesión?"
+        variant="logout"
         onClose={() => setConfirmModal(null)}
         onConfirm={() => {
           setConfirmModal(null);
           logout();
         }}
+        titleId="account-logout-confirm-title"
       />
-      <ConfirmModal
+      <AppConfirmModal
         open={confirmModal === 'delete'}
-        message="¿Está seguro que quiere eliminar su cuenta?"
+        variant="deleteAccount"
         onClose={() => {
           if (!confirmBusy) setConfirmModal(null);
         }}
@@ -247,6 +248,7 @@ export default function AccountPage() {
           }
         }}
         busy={confirmBusy}
+        titleId="account-delete-confirm-title"
       />
     </section>
   );

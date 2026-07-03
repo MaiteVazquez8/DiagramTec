@@ -572,11 +572,17 @@ textarea {
   font-size: 0.92rem;
 }
 
-.modal.modal--join .modal-body label {
+.modal.modal--join .modal-body label,
+.modal.modal--join .modal-body .ui-field {
+  display: block;
+}
+
+.modal.modal--join .modal-body .figma-field__label {
   display: none;
 }
 
-.modal.modal--join .modal-body input {
+.modal.modal--join .modal-body input,
+.modal.modal--join .modal-body .ui-input {
   border-radius: 999px;
   text-transform: none;
   letter-spacing: normal;
@@ -6932,6 +6938,15 @@ body.mobile-menu-open {
   box-shadow: none;
 }
 
+.superadmin-manage__list-wrap--fixed-role .superadmin-manage__row {
+  grid-template-columns: 48px minmax(120px, 1.4fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(130px, auto) 44px;
+}
+
+.superadmin-manage__list-wrap--fixed-role .superadmin-manage__col-head--role,
+.superadmin-manage__list-wrap--fixed-role .superadmin-manage__cell--role {
+  display: none;
+}
+
 .superadmin-manage__col-head {
   font-size: 0.82rem;
   font-weight: 700;
@@ -7025,9 +7040,19 @@ body.mobile-menu-open {
   background: #6a1a1a;
 }
 
-.superadmin-manage__btn-modify:disabled {
-  opacity: 0.65;
-  cursor: wait;
+.superadmin-manage__btn-modify:disabled,
+.superadmin-manage__btn-modify--inactive:disabled {
+  background: #b47a7a;
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+  transform: none;
+}
+
+.superadmin-manage__btn-modify:disabled .icon,
+.superadmin-manage__btn-modify--inactive:disabled .icon {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .superadmin-manage__btn-modify .icon {
@@ -7083,9 +7108,16 @@ body.mobile-menu-open {
   .superadmin-manage__cell:nth-child(2) { grid-area: email; }
   .superadmin-manage__cell:nth-child(3) { grid-area: nombre; }
   .superadmin-manage__cell:nth-child(4) { grid-area: apellido; }
-  .superadmin-manage__cell:nth-child(5) { grid-area: rol; }
+  .superadmin-manage__cell--role { grid-area: rol; }
   .superadmin-manage__cell--actions { grid-area: modify; }
   .superadmin-manage__cell--delete { grid-area: delete; }
+
+  .superadmin-manage__list-wrap--fixed-role .superadmin-manage__row {
+    grid-template-areas:
+      "avatar email email"
+      ". nombre apellido"
+      ". modify delete";
+  }
 }
 
 @media (max-width: 640px) {
