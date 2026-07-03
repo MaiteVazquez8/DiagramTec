@@ -85,7 +85,7 @@ export default function AccountPage() {
         {design?.image ? (
           <img src={design.image} alt="" className="design-thumb-img" />
         ) : (
-          <Icon name="image" size={34} strokeWidth={1.25} />
+          <Icon name="image" size={28} strokeWidth={1.25} />
         )}
       </button>
       <div className="figma-card-foot account-preview-card__foot">
@@ -115,7 +115,7 @@ export default function AccountPage() {
       tabIndex={classItem ? 0 : undefined}
     >
       <div className="figma-card-media figma-dot-pattern account-preview-card__media">
-        <Icon name="classBook" size={36} className="account-preview-card__book" />
+        <Icon name="classBook" size={28} className="account-preview-card__book" />
       </div>
       <div className="figma-card-foot account-preview-card__foot">
         {classItem ? (
@@ -147,7 +147,7 @@ export default function AccountPage() {
           <div className="account-sidebar__body">
             <div className="account-avatar">
               <div className="account-avatar-ring" aria-hidden title={initials}>
-                <ProfileSilhouette size={88} className="account-avatar-svg" />
+                <ProfileSilhouette size={72} className="account-avatar-svg" />
               </div>
               <div className="account-avatar-info">
                 <h2>{user?.firstName} {user?.lastName}</h2>
