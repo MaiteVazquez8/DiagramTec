@@ -1,5 +1,5 @@
-/** Inicio de sesión vía authApi (PHP). Redirige al guardar token en AuthContext. */
-import { useEffect, useState } from 'react';
+/** Inicio de sesión vía authApi (Node). Redirige al guardar token en AuthContext. */
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
@@ -11,21 +11,44 @@ import { Button, Input } from '../components/ui/index.js';
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const { showError } = useToast();
   const redirectTo = location.state?.from || '/designs';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const pendingOAuth = useRef(false);
 
-  // Tras OAuth de Google, PHP redirige aquí con ?token=...
+  // Tras OAuth de Google, el backend redirige aquí con ?token=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    const oauthError = params.get('error');
+    if (oauthError === 'google') {
+      showError('No se pudo iniciar sesión con Google. Intentá de nuevo.');
+      navigate('/login', { replace: true });
+      return;
+    }
+
     const token = params.get('token');
-    if (!token) return;
+    if (!token || pendingOAuth.current) return;
+
+    pendingOAuth.current = true;
     login(token);
-    navigate(redirectTo, { replace: true });
-  }, [location.search, login, navigate, redirectTo]);
+    navigate('/login', { replace: true, state: location.state });
+  }, [location.search, location.state, login, navigate, showError]);
+
+  useEffect(() => {
+    if (!pendingOAuth.current || authLoading) return;
+
+    if (user) {
+      pendingOAuth.current = false;
+      navigate(redirectTo, { replace: true });
+      return;
+    }
+
+    pendingOAuth.current = false;
+    showError('No se pudo validar la sesión. Intentá iniciar sesión de nuevo.');
+  }, [authLoading, user, navigate, redirectTo, showError]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

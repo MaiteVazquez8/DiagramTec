@@ -1,5 +1,5 @@
-/** Registro de usuario nuevo vía authApi (PHP). */
-import { useEffect, useState } from 'react';
+/** Registro de usuario nuevo vía authApi (Node). */
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import authApi from '../authApi.js';
 import { useAuth } from '../AuthContext.jsx';
@@ -11,7 +11,7 @@ import { Button, Input, Select } from '../components/ui/index.js';
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const { showError } = useToast();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -20,14 +20,30 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
+  const pendingOAuth = useRef(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
-    if (!token) return;
+    if (!token || pendingOAuth.current) return;
+
+    pendingOAuth.current = true;
     login(token);
-    navigate('/', { replace: true });
+    navigate('/signup', { replace: true });
   }, [location.search, login, navigate]);
+
+  useEffect(() => {
+    if (!pendingOAuth.current || authLoading) return;
+
+    if (user) {
+      pendingOAuth.current = false;
+      navigate('/', { replace: true });
+      return;
+    }
+
+    pendingOAuth.current = false;
+    showError('No se pudo validar la sesión. Intentá registrarte de nuevo.');
+  }, [authLoading, user, navigate, showError]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
