@@ -15,6 +15,18 @@ import { SHAPE_SIZE_LIMITS } from '../constants/canvas.js';
  */
 
 const DEFAULT_TITLES = {
+  [SHAPE_TYPES.START]: '',
+  [SHAPE_TYPES.END]: '',
+  [SHAPE_TYPES.INPUT]: '',
+  [SHAPE_TYPES.PRINT]: '',
+  [SHAPE_TYPES.PROCESS]: '',
+  [SHAPE_TYPES.FOR]: '',
+  [SHAPE_TYPES.WHILE]: '',
+  [SHAPE_TYPES.IF]: '',
+};
+
+/** Textos solo en la paleta lateral (no se copian al lienzo). */
+const PALETTE_PREVIEW_TITLES = {
   [SHAPE_TYPES.START]: 'inicio',
   [SHAPE_TYPES.END]: 'FINAL',
   [SHAPE_TYPES.INPUT]: 'INPUT',
@@ -79,7 +91,15 @@ export function clampShapeDimensions(shape, width, height) {
  * @returns {string}
  */
 export function getDefaultTitle(type) {
-  return DEFAULT_TITLES[type] ?? 'BLOQUE';
+  return DEFAULT_TITLES[type] ?? '';
+}
+
+/**
+ * @param {string} type
+ * @returns {string}
+ */
+export function getPalettePreviewTitle(type) {
+  return PALETTE_PREVIEW_TITLES[type] ?? '';
 }
 
 /**
@@ -96,14 +116,16 @@ export function getDefaultSize(type) {
  * @param {number} x
  * @param {number} y
  * @param {string|number} [id]
+ * @param {{ preview?: boolean }} [options]
  * @returns {Shape}
  */
-export function createShape(type, x, y, id) {
+export function createShape(type, x, y, id, options = {}) {
   const size = getDefaultSize(type);
+  const title = options.preview ? getPalettePreviewTitle(type) : getDefaultTitle(type);
   return {
     id: id ?? Date.now().toString(),
     type,
-    title: getDefaultTitle(type),
+    title,
     x,
     y,
     width: size.width,
@@ -146,6 +168,97 @@ export function translateShape(shape, dx, dy) {
 export function resizeShape(shape, width, height) {
   const size = clampShapeDimensions(shape, width, height);
   return { ...shape, ...size };
+}
+
+const TEXT_FIT = {
+  horizontalPad: 32,
+  verticalPad: 28,
+  maxTextWidth: 420,
+};
+
+const FOR_LOOP_ARM_WIDTH = 65;
+const WHILE_BODY_MIN_HEIGHT = 96;
+
+/**
+ * Mide el texto renderizado con los mismos estilos del elemento editable.
+ * @param {HTMLElement} textEl
+ * @param {number} [maxWidth]
+ * @returns {{ width: number, height: number }}
+ */
+export function measureEditableText(textEl, maxWidth = TEXT_FIT.maxTextWidth) {
+  if (typeof document === 'undefined') {
+    return { width: 80, height: 20 };
+  }
+
+  const styles = window.getComputedStyle(textEl);
+  const probe = document.createElement('div');
+  Object.assign(probe.style, {
+    position: 'absolute',
+    left: '-9999px',
+    top: '0',
+    visibility: 'hidden',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    fontFamily: styles.fontFamily,
+    fontSize: styles.fontSize,
+    fontWeight: styles.fontWeight,
+    lineHeight: styles.lineHeight,
+    letterSpacing: styles.letterSpacing,
+    width: 'max-content',
+    maxWidth: `${maxWidth}px`,
+    padding: '0',
+    border: '0',
+  });
+  probe.textContent = textEl.innerText || textEl.textContent || '';
+  document.body.appendChild(probe);
+  const size = {
+    width: probe.offsetWidth,
+    height: probe.offsetHeight,
+  };
+  document.body.removeChild(probe);
+  return size;
+}
+
+/**
+ * Calcula width/height de la forma según el texto escrito.
+ * @param {Shape} shape
+ * @param {HTMLElement} textEl
+ * @returns {{ width: number, height: number }}
+ */
+export function fitShapeToTextContent(shape, textEl) {
+  const defaults = getDefaultSize(shape.type);
+  const { width: textWidth, height: textHeight } = measureEditableText(textEl);
+  const hasText = Boolean((textEl.innerText || textEl.textContent || '').trim());
+
+  if (!hasText) {
+    return clampShapeDimensions(shape, defaults.width, defaults.height);
+  }
+
+  let width = textWidth + TEXT_FIT.horizontalPad * 2;
+  let height = textHeight + TEXT_FIT.verticalPad * 2;
+
+  if (shape.type === SHAPE_TYPES.START || shape.type === SHAPE_TYPES.END) {
+    width = Math.max(width, height * 1.35);
+  }
+
+  if (shape.type === SHAPE_TYPES.FOR) {
+    width += FOR_LOOP_ARM_WIDTH;
+  }
+
+  if (shape.type === SHAPE_TYPES.WHILE) {
+    height = Math.max(height + WHILE_BODY_MIN_HEIGHT, defaults.height);
+  }
+
+  if (shape.type === SHAPE_TYPES.IF) {
+    const roofHeight = textHeight + 36;
+    height = Math.max(defaults.height, Math.round(roofHeight / 0.45));
+  }
+
+  return clampShapeDimensions(
+    shape,
+    Math.max(defaults.width, width),
+    Math.max(defaults.height, height),
+  );
 }
 
 /**
