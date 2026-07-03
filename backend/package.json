@@ -15,6 +15,7 @@
     "test:integration": "node scripts/run_integration_tests.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
     "axios": "^1.16.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

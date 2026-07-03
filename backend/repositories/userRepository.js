@@ -3,12 +3,32 @@ async function findByEmail(db, email) {
   return rows[0] || null;
 }
 
+async function findByEmailOrGoogleId(db, email, googleId) {
+  const [rows] = await db.execute(
+    'SELECT id, firstName, lastName, email, role, googleId FROM users WHERE email = ? OR googleId = ?',
+    [email.toLowerCase(), googleId],
+  );
+  return rows[0] || null;
+}
+
 async function createUser(db, firstName, lastName, email, passwordHash, role) {
   const [result] = await db.execute(
     'INSERT INTO users (firstName, lastName, email, passwordHash, role) VALUES (?, ?, ?, ?, ?)',
     [firstName, lastName, email.toLowerCase(), passwordHash, role]
   );
   return result.insertId;
+}
+
+async function createGoogleUser(db, firstName, lastName, email, googleId, role = 'student') {
+  const [result] = await db.execute(
+    'INSERT INTO users (firstName, lastName, email, googleId, role) VALUES (?, ?, ?, ?, ?)',
+    [firstName, lastName, email.toLowerCase(), googleId, role],
+  );
+  return result.insertId;
+}
+
+async function setGoogleId(db, userId, googleId) {
+  await db.execute('UPDATE users SET googleId = ? WHERE id = ?', [googleId, userId]);
 }
 
 async function findById(db, id) {
@@ -42,7 +62,10 @@ async function updatePassword(db, userId, passwordHash, token) {
 
 module.exports = {
   findByEmail,
+  findByEmailOrGoogleId,
   createUser,
+  createGoogleUser,
+  setGoogleId,
   findById,
   updateUser,
   deleteUser,

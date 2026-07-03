@@ -85,19 +85,47 @@ class PgConnection {
   }
 }
 
-async function openDb() {
-  const connectionString = process.env.DATABASE_URL;
+function resolvePoolConfig() {
+  const ssl = process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false };
+  const max = Number(process.env.DB_POOL_MAX || 10);
+
+  if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD) {
+    const config = {
+      host: process.env.PGHOST.trim(),
+      user: process.env.PGUSER.trim(),
+      password: process.env.PGPASSWORD,
+      database: (process.env.PGDATABASE || 'postgres').trim(),
+      port: Number(process.env.PGPORT || 5432),
+      ssl,
+      max,
+    };
+    console.log(`DB config: user=${config.user} host=${config.host}:${config.port} (PG* vars)`);
+    return config;
+  }
+
+  const connectionString = (process.env.DATABASE_URL || '').trim();
   if (!connectionString) {
     throw new Error(
-      'DATABASE_URL no está configurada. Añádela en backend/.env (Supabase → Settings → Database).',
+      'DATABASE_URL o PGHOST/PGUSER/PGPASSWORD no están configurados.',
     );
   }
 
-  const pool = new Pool({
+  try {
+    const parsed = new URL(connectionString);
+    console.log(`DB config: user=${decodeURIComponent(parsed.username)} host=${parsed.hostname}:${parsed.port || 5432} (DATABASE_URL)`);
+  } catch {
+    console.log('DB config: DATABASE_URL set (could not parse for log)');
+  }
+
+  return {
     connectionString,
-    ssl: process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false },
-    max: Number(process.env.DB_POOL_MAX || 10),
-  });
+    ssl,
+    max,
+  };
+}
+
+async function openDb() {
+  const pool = new Pool(resolvePoolConfig());
 
   await pool.query('SELECT 1');
 

@@ -2,7 +2,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const {
   findByEmail,
+  findByEmailOrGoogleId,
   createUser,
+  createGoogleUser,
+  setGoogleId,
   findById,
   updateUser,
   deleteUser,
@@ -85,6 +88,23 @@ async function resetPassword(db, email, token, password, password2) {
   return { message: 'Contraseña actualizada correctamente.' };
 }
 
+async function loginOrRegisterWithGoogle(db, profile) {
+  const { googleId, email, firstName, lastName } = profile;
+  let user = await findByEmailOrGoogleId(db, email, googleId);
+
+  if (user) {
+    if (!user.googleId) {
+      await setGoogleId(db, user.id, googleId);
+      user = { ...user, googleId };
+    }
+  } else {
+    const id = await createGoogleUser(db, firstName, lastName, email, googleId, 'student');
+    user = await findById(db, id);
+  }
+
+  return user;
+}
+
 module.exports = {
   register,
   login,
@@ -93,4 +113,5 @@ module.exports = {
   deleteAccount,
   requestRecoveryCode,
   resetPassword,
+  loginOrRegisterWithGoogle,
 };

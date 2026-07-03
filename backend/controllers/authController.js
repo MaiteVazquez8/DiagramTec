@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const googleAuthService = require('../services/googleAuthService');
 
 async function register(req, res) {
   const db = req.app.locals.db;
@@ -72,6 +73,42 @@ async function resetPassword(req, res) {
   res.json(result);
 }
 
+function googleRedirect(req, res) {
+  try {
+    const state = googleAuthService.createOAuthState();
+    res.redirect(googleAuthService.buildGoogleAuthUrl(state));
+  } catch (err) {
+    if (err.message === 'GOOGLE_NOT_CONFIGURED') {
+      return res.status(500).json({ error: 'Google OAuth no configurado en el servidor' });
+    }
+    console.error('Google redirect error:', err);
+    return res.status(500).json({ error: 'No se pudo iniciar sesión con Google' });
+  }
+}
+
+async function googleCallback(req, res) {
+  const db = req.app.locals.db;
+  const { code, state } = req.query;
+
+  if (!code || !state) {
+    return res.status(400).json({ error: 'Faltan parámetros de Google' });
+  }
+  if (!googleAuthService.consumeOAuthState(String(state))) {
+    return res.status(403).json({ error: 'Estado OAuth inválido' });
+  }
+
+  try {
+    const profile = await googleAuthService.exchangeCodeForUser(String(code));
+    const user = await authService.loginOrRegisterWithGoogle(db, profile);
+    const token = googleAuthService.signUserToken(user);
+    res.redirect(googleAuthService.buildFrontendRedirect(token));
+  } catch (err) {
+    console.error('Google callback error:', err.message);
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://diagramtec.com').replace(/\/$/, '');
+    res.redirect(`${frontendUrl}/login?error=google`);
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -80,4 +117,6 @@ module.exports = {
   deleteAccount,
   requestRecoveryCode,
   resetPassword,
+  googleRedirect,
+  googleCallback,
 };
