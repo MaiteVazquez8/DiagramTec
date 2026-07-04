@@ -55,6 +55,14 @@ async function deleteClass(req, res) {
   res.json({ ok: true });
 }
 
+async function updateClass(req, res) {
+  const db = req.app.locals.db;
+  const classId = Number(req.params.id);
+  const { title, description } = req.body;
+  const classRow = await classService.updateClass(db, classId, req.user, title, description);
+  res.json({ class: classRow });
+}
+
 async function joinClass(req, res) {
   const db = req.app.locals.db;
   const { code } = req.body;
@@ -121,6 +129,7 @@ module.exports = {
   availableClasses,
   createClass,
   getClass,
+  updateClass,
   deleteClass,
   joinClass,
   leaveClass,

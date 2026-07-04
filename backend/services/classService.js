@@ -45,6 +45,20 @@ async function deleteClass(db, classId) {
   return await classRepository.deleteClass(db, classId);
 }
 
+async function updateClass(db, classId, requester, title, description) {
+  if (!title) throw new Error('TITLE_REQUIRED');
+
+  const classRow = await classRepository.findClassById(db, classId);
+  if (!classRow) throw new Error('CLASS_NOT_FOUND');
+
+  const isOwner = Number(classRow.ownerId) === Number(requester.id);
+  if (!isOwner && requester.role !== 'superadmin') {
+    throw new Error('UNAUTHORIZED');
+  }
+
+  return await classRepository.updateClass(db, classId, title, description);
+}
+
 async function joinClass(db, code, userId) {
   const classRow = await classRepository.findClassByCode(db, code);
   if (!classRow) throw new Error('CLASS_NOT_FOUND');
@@ -116,6 +130,7 @@ module.exports = {
   listAvailableClasses,
   createClass,
   getClass,
+  updateClass,
   deleteClass,
   joinClass,
   leaveClass,
