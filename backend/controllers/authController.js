@@ -1,10 +1,16 @@
 const authService = require('../services/authService');
 
+const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
 async function register(req, res) {
   const db = req.app.locals.db;
   const { firstName, lastName, email, password, role } = req.body;
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+  if (!STRONG_PASSWORD_RE.test(password)) {
+    return res.status(400).json({ error: PASSWORD_REQUIREMENTS_MESSAGE });
   }
   const result = await authService.register(db, { firstName, lastName, email, password, role });
   res.json(result);

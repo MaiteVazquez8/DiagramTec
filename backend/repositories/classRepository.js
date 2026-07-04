@@ -2,18 +2,14 @@ async function findClassesForUser(db, userId) {
   const [rows] = await db.execute(`
     SELECT c.id, c.title, c.description, c.ownerId, c.code,
       CONCAT(u.firstName, ' ', u.lastName) AS ownerName,
-      1 AS joined
+      CASE WHEN c.ownerId = ? THEN 0 ELSE 1 END AS joined
     FROM classes c
     LEFT JOIN users u ON u.id = c.ownerId
-    INNER JOIN class_members cm ON cm.classId = c.id AND cm.userId = ?
-    UNION
-    SELECT c.id, c.title, c.description, c.ownerId, c.code,
-      CONCAT(u.firstName, ' ', u.lastName) AS ownerName,
-      0 AS joined
-    FROM classes c
-    LEFT JOIN users u ON u.id = c.ownerId
-    WHERE c.ownerId = ?
-  `, [userId, userId]);
+    LEFT JOIN class_members cm ON cm.classId = c.id AND cm.userId = ?
+    WHERE c.ownerId = ? OR cm.userId = ?
+    GROUP BY c.id, c.title, c.description, c.ownerId, c.code, u.firstName, u.lastName, c.createdAt
+    ORDER BY c.createdAt DESC
+  `, [userId, userId, userId, userId]);
   return rows;
 }
 
@@ -54,6 +50,14 @@ async function createClass(db, title, description, code, ownerId) {
   );
   const [rows] = await db.execute('SELECT id, title, description, code, ownerId FROM classes WHERE id = ?', [result.insertId]);
   return rows[0];
+}
+
+async function updateClass(db, classId, title, description) {
+  await db.execute(
+    'UPDATE classes SET title = ?, description = ? WHERE id = ?',
+    [title, description || '', classId]
+  );
+  return await findClassById(db, classId);
 }
 
 async function deleteClass(db, classId) {
@@ -136,6 +140,7 @@ module.exports = {
   findClassById,
   findClassByCode,
   createClass,
+  updateClass,
   deleteClass,
   findMembersForClass,
   findStudentMembersByClass,

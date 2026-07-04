@@ -8,6 +8,16 @@ import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input, Select } from '../components/ui/index.js';
 
+const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+const PASSWORD_REQUIREMENTS = [
+  { id: 'length', label: 'Mínimo 6 caracteres', test: (value) => value.length >= 6 },
+  { id: 'uppercase', label: 'Una letra mayúscula', test: (value) => /[A-Z]/.test(value) },
+  { id: 'lowercase', label: 'Una letra minúscula', test: (value) => /[a-z]/.test(value) },
+  { id: 'number', label: 'Un número', test: (value) => /\d/.test(value) },
+  { id: 'special', label: 'Un caracter especial', test: (value) => /[^A-Za-z0-9]/.test(value) },
+];
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,6 +41,10 @@ export default function SignupPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!STRONG_PASSWORD_RE.test(password)) {
+      showError(PASSWORD_REQUIREMENTS_MESSAGE);
+      return;
+    }
     if (password !== confirmPassword) {
       showError('Las contraseñas no coinciden');
       return;
@@ -108,13 +122,34 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Tu contraseña..."
+              minLength={6}
             />
             <PasswordInput
               label="Confirmar contraseña"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Tu contraseña..."
+              minLength={6}
             />
+          </div>
+          <div className="password-checklist" aria-live="polite">
+            <p className="password-checklist__title">Tu contraseña debe incluir:</p>
+            <ul>
+              {PASSWORD_REQUIREMENTS.map((requirement) => {
+                const isComplete = requirement.test(password);
+                return (
+                  <li
+                    key={requirement.id}
+                    className={isComplete ? 'is-complete' : ''}
+                  >
+                    <span className="password-checklist__mark" aria-hidden>
+                      {isComplete ? '✓' : '•'}
+                    </span>
+                    <span>{requirement.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
           <Select label="Rol" value={role} onChange={(e) => setRole(e.target.value)} required>
             <option value="" disabled>
