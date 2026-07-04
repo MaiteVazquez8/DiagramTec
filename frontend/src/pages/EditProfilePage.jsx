@@ -14,6 +14,17 @@ export default function EditProfilePage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const originalFirstName = user?.firstName || '';
+  const originalLastName = user?.lastName || '';
+  const originalEmail = user?.email || '';
+  const profileChanged =
+    firstName.trim() !== originalFirstName.trim() ||
+    lastName.trim() !== originalLastName.trim() ||
+    email.trim() !== originalEmail.trim();
+  const passwordChanged = password.length > 0 || confirmPassword.length > 0;
+  const hasRequiredProfileFields = Boolean(firstName.trim() && lastName.trim() && email.trim());
+  const canSave = hasRequiredProfileFields && (profileChanged || passwordChanged) && !saving;
 
   useEffect(() => {
     if (user) {
@@ -25,14 +36,20 @@ export default function EditProfilePage() {
 
   const handleSave = async (event) => {
     event.preventDefault();
+    if (!canSave) return;
 
-    if (password && password !== confirmPassword) {
+    if (passwordChanged && password !== confirmPassword) {
       showError('Las contraseñas no coinciden');
       return;
     }
 
+    setSaving(true);
     try {
-      const updateData = { firstName, lastName, email };
+      const updateData = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+      };
       if (password) {
         updateData.password = password;
       }
@@ -46,6 +63,8 @@ export default function EditProfilePage() {
       setTimeout(() => navigate('/account'), 1500);
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -126,9 +145,10 @@ export default function EditProfilePage() {
 
           <button
             type="submit"
-            className="primary-button"
+            className="primary-button edit-profile-submit"
+            disabled={!canSave}
           >
-            Modificar
+            {saving ? 'Modificando...' : 'Modificar'}
           </button>
         </form>
       </div>

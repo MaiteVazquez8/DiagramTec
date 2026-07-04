@@ -8,6 +8,9 @@ import PasswordInput from '../components/PasswordInput.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input } from '../components/ui/index.js';
 
+const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,6 +40,11 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (!STRONG_PASSWORD_RE.test(password)) {
+      showError(PASSWORD_REQUIREMENTS_MESSAGE);
+      return;
+    }
 
     if (password !== confirmPassword) {
       showError('Las contraseñas no coinciden');
@@ -85,12 +93,14 @@ export default function ResetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña..."
+            minLength={6}
           />
           <PasswordInput
             label="Confirmar contraseña"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Tu contraseña..."
+            minLength={6}
           />
           <Button variant="ghost" type="button" onClick={handleSendCode} loading={resending}>
             Reenviar codigo
