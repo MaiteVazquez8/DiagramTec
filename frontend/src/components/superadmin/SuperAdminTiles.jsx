@@ -1,7 +1,7 @@
 /** Tarjetas del dashboard superadmin (datos reales de la API). */
 import Icon from '../Icon.jsx';
 import ProfileSilhouette from '../ProfileSilhouette.jsx';
-
+import { readUserFields } from '../../utils/userFields.js';
 const PREVIEW_LIMIT = 6;
 
 export function previewItems(items) {
@@ -9,8 +9,9 @@ export function previewItems(items) {
 }
 
 function personLabel(user) {
-  const name = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-  return name || user.email || 'Usuario';
+  const u = readUserFields(user);
+  const name = `${u.firstName} ${u.lastName}`.trim();
+  return name || u.email || 'Usuario';
 }
 
 export function SuperAdminPersonTile({ user, onClick }) {
@@ -32,10 +33,9 @@ export function SuperAdminClassTile({ classItem, onClick }) {
       <div className="superadmin-tile__media figma-dot-pattern">
         <Icon name="classBook" size={40} className="superadmin-tile__book" strokeWidth={1.2} />
       </div>
-      <span className="superadmin-tile__label" title={classItem.title}>
-        {classItem.title}
-      </span>
-    </button>
+      <span className="superadmin-tile__label" title={String(classItem.title ?? '')}>
+        {String(classItem.title ?? 'Clase')}
+      </span>    </button>
   );
 }
 

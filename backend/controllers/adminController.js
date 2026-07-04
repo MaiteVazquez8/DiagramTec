@@ -12,6 +12,18 @@ async function listUsers(req, res) {
   res.json({ users });
 }
 
+async function listTeachers(req, res) {
+  const db = req.app.locals.db;
+  const users = await adminService.listTeachers(db);
+  res.json({ users });
+}
+
+async function listStudents(req, res) {
+  const db = req.app.locals.db;
+  const users = await adminService.listStudents(db);
+  res.json({ users });
+}
+
 async function updateUser(req, res) {
   const db = req.app.locals.db;
   const id = Number(req.params.id);
@@ -42,7 +54,9 @@ async function deleteClass(req, res) {
 
 module.exports = { 
     stats, 
-    listUsers, 
+    listUsers,
+    listTeachers,
+    listStudents,
     updateUser, 
     deleteUser, 
     listClasses, 

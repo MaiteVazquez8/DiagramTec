@@ -56,6 +56,16 @@ import {
   ShapePreview,
 } from '../design';
 
+const EDITOR_BACKUP_PREFIX = 'diagramtec_editor_backup';
+
+function getEditorBackupKey(designId) {
+  return `${EDITOR_BACKUP_PREFIX}:${designId || 'new'}`;
+}
+
+function hasDiagramContent(state) {
+  return (state.shapes?.length ?? 0) > 0 || (state.connections?.length ?? 0) > 0;
+}
+
 export default function EditorPage() {
   const { user } = useAuth();
   const { showError, showMessage } = useToast();
@@ -65,7 +75,6 @@ export default function EditorPage() {
   const [shapes, setShapes] = useState([]);
   const [connections, setConnections] = useState([]);
   const [nextId, setNextId] = useState(1);
-  const [connectMode, setConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState(null);
@@ -80,11 +89,16 @@ export default function EditorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [paletteTouchDrag, setPaletteTouchDrag] = useState(null);
   const [paletteDragOverCanvas, setPaletteDragOverCanvas] = useState(false);
+  const [draggingShapeIds, setDraggingShapeIds] = useState([]);
+  const [connectionDraft, setConnectionDraft] = useState(null);
+  const [connectionHandleSides, setConnectionHandleSides] = useState({});
+  const [backupPrompt, setBackupPrompt] = useState(null);
 
   const canvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
   const paletteDragSessionRef = useRef(null);
-  const shapeConnectHandledByTouchRef = useRef(false);
+  const backupReadyRef = useRef(false);
+  const interactionInProgressRef = useRef(false);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const shapesRef = useRef(shapes);
@@ -94,6 +108,7 @@ export default function EditorPage() {
   const [clipboardShapes, setClipboardShapes] = useState([]);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const draggingShapeIdSet = useMemo(() => new Set(draggingShapeIds), [draggingShapeIds]);
   const hasShapeSelection = selectedIds.length > 0;
 
   const diagramState = useMemo(
@@ -101,9 +116,178 @@ export default function EditorPage() {
     [shapes, connections]
   );
 
+  const saveBrowserBackup = useCallback((reason = 'autosave') => {
+    if (!hasDiagramContent(diagramState)) return false;
+    try {
+      localStorage.setItem(
+        getEditorBackupKey(id),
+        JSON.stringify({
+          id: id || null,
+          title: saveTitle,
+          classId: saveClassId || '',
+          content: serializeDiagram(diagramState),
+          savedAt: new Date().toISOString(),
+          reason,
+        }),
+      );
+      return true;
+    } catch (err) {
+      console.warn('No se pudo guardar backup local del editor:', err);
+      return false;
+    }
+  }, [diagramState, id, saveClassId, saveTitle]);
+
+  const saveBrowserBackupFromRefs = useCallback((reason = 'interaction-end') => {
+    const state = {
+      shapes: shapesRef.current,
+      connections: connectionsRef.current,
+    };
+    if (!hasDiagramContent(state)) return false;
+    try {
+      localStorage.setItem(
+        getEditorBackupKey(id),
+        JSON.stringify({
+          id: id || null,
+          title: saveTitle,
+          classId: saveClassId || '',
+          content: serializeDiagram(state),
+          savedAt: new Date().toISOString(),
+          reason,
+        }),
+      );
+      return true;
+    } catch (err) {
+      console.warn('No se pudo guardar backup local del editor:', err);
+      return false;
+    }
+  }, [id, saveClassId, saveTitle]);
+
+  const clearBrowserBackup = useCallback((designId = id) => {
+    try {
+      localStorage.removeItem(getEditorBackupKey(designId));
+    } catch (err) {
+      console.warn('No se pudo limpiar backup local del editor:', err);
+    }
+  }, [id]);
+
   const shapesById = useMemo(() => shapesToMap(shapes), [shapes]);
 
   const historyIndex = historyStack.index;
+
+  const isShapeInsideContainer = useCallback((shape) => {
+    const containerTypes = new Set([SHAPE_TYPES.WHILE, SHAPE_TYPES.IF, SHAPE_TYPES.FOR]);
+
+    return shapes.some((candidate) => {
+      if (candidate.id === shape.id || !containerTypes.has(candidate.type)) return false;
+
+      let content = {
+        x: candidate.x,
+        y: candidate.y,
+        width: candidate.width,
+        height: candidate.height,
+      };
+      if (candidate.type === SHAPE_TYPES.WHILE) {
+        const headerHeight = Math.min(38, candidate.height / 2);
+        content = {
+          x: candidate.x,
+          y: candidate.y + headerHeight,
+          width: candidate.width,
+          height: Math.max(0, candidate.height - headerHeight),
+        };
+      } else if (candidate.type === SHAPE_TYPES.IF) {
+        const bodyStart = candidate.height * 0.45 + 30;
+        content = {
+          x: candidate.x,
+          y: candidate.y + bodyStart,
+          width: candidate.width,
+          height: Math.max(0, candidate.height - bodyStart),
+        };
+      } else if (candidate.type === SHAPE_TYPES.FOR) {
+        const armWidth = 65;
+        const mainWidth = Math.max(candidate.width - armWidth, candidate.width * 0.72);
+        content = {
+          x: candidate.x,
+          y: candidate.y,
+          width: mainWidth,
+          height: candidate.height,
+        };
+      }
+
+      const shapeCenterX = shape.x + shape.width / 2;
+      const shapeCenterY = shape.y + shape.height / 2;
+      const centerInside = (
+        shapeCenterX >= content.x
+        && shapeCenterX <= content.x + content.width
+        && shapeCenterY >= content.y
+        && shapeCenterY <= content.y + content.height
+      );
+
+      const overlapX = Math.max(
+        0,
+        Math.min(content.x + content.width, shape.x + shape.width) - Math.max(content.x, shape.x),
+      );
+      const overlapY = Math.max(
+        0,
+        Math.min(content.y + content.height, shape.y + shape.height) - Math.max(content.y, shape.y),
+      );
+      const overlapArea = overlapX * overlapY;
+      const shapeArea = shape.width * shape.height;
+
+      return centerInside && shapeArea > 0 && overlapArea / shapeArea >= 0.35;
+    });
+  }, [shapes]);
+
+  const getTopConnectionAnchor = useCallback((shape) => {
+    if (shape.type === SHAPE_TYPES.FOR) {
+      const armWidth = 65;
+      const mainWidth = Math.max(shape.width - armWidth, shape.width * 0.72);
+      return { x: mainWidth / 2, y: 0 };
+    }
+    return { x: shape.width / 2, y: 0 };
+  }, []);
+
+  const getConnectionAnchor = useCallback((shape, side) => {
+    if (side === 'top') {
+      return getTopConnectionAnchor(shape);
+    }
+    if (side === 'left') {
+      return { x: 0, y: shape.height / 2 };
+    }
+    if (side === 'right') {
+      return { x: shape.width, y: shape.height / 2 };
+    }
+    if (shape.type === SHAPE_TYPES.FOR) {
+      const armWidth = 65;
+      const mainWidth = Math.max(shape.width - armWidth, shape.width * 0.72);
+      return { x: mainWidth / 2, y: shape.height };
+    }
+    return { x: shape.width / 2, y: shape.height };
+  }, [getTopConnectionAnchor]);
+
+  const getConnectionHandleSide = useCallback((shape) => {
+    return connectionHandleSides[shape.id] || 'bottom';
+  }, [connectionHandleSides]);
+
+  const getConnectionHandleStyle = useCallback((shape) => {
+    const anchor = getConnectionAnchor(shape, getConnectionHandleSide(shape));
+    return {
+      '--connection-handle-x': `${anchor.x}px`,
+      '--connection-handle-y': `${anchor.y}px`,
+    };
+  }, [getConnectionAnchor, getConnectionHandleSide]);
+
+  const connectionDraftLine = useMemo(() => {
+    if (!connectionDraft) return null;
+    const fromShape = shapesById.get(connectionDraft.fromId);
+    if (!fromShape) return null;
+    const anchor = getConnectionAnchor(fromShape, connectionDraft.fromSide || getConnectionHandleSide(fromShape));
+    return {
+      x1: fromShape.x + anchor.x,
+      y1: fromShape.y + anchor.y,
+      x2: connectionDraft.x,
+      y2: connectionDraft.y,
+    };
+  }, [connectionDraft, getConnectionAnchor, getConnectionHandleSide, shapesById]);
 
   const commitHistory = useCallback((newShapes, newConnections) => {
     const next = pushHistory(
@@ -141,6 +325,37 @@ export default function EditorPage() {
     }
     setPan(computeCenterPan(clientWidth, clientHeight, zoomRef.current));
   }, []);
+
+  const restoreBrowserBackup = useCallback((backup) => {
+    const content = parseDiagramContent(backup.content);
+    setSaveTitle(backup.title || 'Mi diagrama');
+    setSaveClassId(backup.classId || '');
+    setShapes(content.shapes);
+    setConnections(content.connections);
+    setNextId(nextShapeIdFromList(content.shapes));
+    setHistoryStack(initHistoryWithState(content));
+    setTimeout(centerView, 100);
+  }, [centerView]);
+
+  const showBrowserBackupPrompt = useCallback((designId = id) => {
+    try {
+      const raw = localStorage.getItem(getEditorBackupKey(designId));
+      if (!raw) return false;
+      const backup = JSON.parse(raw);
+      const content = parseDiagramContent(backup.content);
+      if (!hasDiagramContent(content)) return false;
+
+      setBackupPrompt({
+        designId: designId || null,
+        backup,
+        savedAt: backup.savedAt ? new Date(backup.savedAt).toLocaleString() : '',
+      });
+      return true;
+    } catch (err) {
+      console.warn('No se pudo leer backup local del editor:', err);
+      return false;
+    }
+  }, [id]);
 
   const applyZoom = useCallback((getNextZoom, focalX, focalY) => {
     setZoom((currentZoom) => {
@@ -195,8 +410,11 @@ export default function EditorPage() {
       return;
     }
     if (!user && !id) {
-      const empty = emptyDiagramState();
-      setHistoryStack(initHistoryWithState(empty));
+      if (!showBrowserBackupPrompt(null)) {
+        const empty = emptyDiagramState();
+        setHistoryStack(initHistoryWithState(empty));
+      }
+      backupReadyRef.current = true;
       return;
     }
     if (user) {
@@ -211,10 +429,32 @@ export default function EditorPage() {
         setConnections(content.connections);
         setNextId(nextShapeIdFromList(content.shapes));
         setHistoryStack(initHistoryWithState(content));
+        showBrowserBackupPrompt(id);
+        backupReadyRef.current = true;
         setTimeout(centerView, 500);
-      }).catch(() => {});
+      }).catch(() => {
+        showBrowserBackupPrompt(id);
+        backupReadyRef.current = true;
+      });
+      return;
     }
-  }, [user, id, centerView, navigate]);
+    if (user && !id) {
+      showBrowserBackupPrompt(null);
+      backupReadyRef.current = true;
+    }
+  }, [user, id, centerView, navigate, showBrowserBackupPrompt, showError]);
+
+  useEffect(() => {
+    if (
+      !backupReadyRef.current
+      || interactionInProgressRef.current
+      || !hasDiagramContent(diagramState)
+    ) return undefined;
+    const timeout = window.setTimeout(() => {
+      saveBrowserBackup('autosave');
+    }, 2500);
+    return () => window.clearTimeout(timeout);
+  }, [diagramState, saveBrowserBackup, saveClassId, saveTitle]);
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -336,7 +576,6 @@ export default function EditorPage() {
   };
 
   const selectConnection = (event, connectionId) => {
-    if (connectMode) return;
     event.stopPropagation();
     setSelectedConnectionId(connectionId);
     setSelectedIds([]);
@@ -482,53 +721,119 @@ export default function EditorPage() {
     placeShapeAt(type, window.innerWidth / 2, window.innerHeight / 2);
   };
 
-  const handlePaletteClick = (type) => {
-    if (type === SHAPE_TYPES.CONNECT) {
-      setConnectMode((c) => !c);
-      setConnectSource(null);
-    }
+  const getCanvasPoint = (clientX, clientY) => {
+    if (!canvasRef.current) return null;
+    const rect = canvasRef.current.getBoundingClientRect();
+    return screenToCanvas(clientX, clientY, rect, zoom, { x: 0, y: 0 });
   };
 
-  const handleShapeConnect = (event, shape) => {
-    if (!connectMode) return;
+  const findShapeElementAtPoint = (clientX, clientY) => {
+    const target = document.elementFromPoint(clientX, clientY);
+    return target?.closest('.shape-element') ?? null;
+  };
+
+  const findShapeIdAtPoint = (clientX, clientY) => {
+    return findShapeElementAtPoint(clientX, clientY)?.dataset.shapeId ?? null;
+  };
+
+  const getNearestHandleSide = (shape, clientX, clientY, element) => {
+    const rect = element.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const distances = [
+      ['top', y],
+      ['right', rect.width - x],
+      ['bottom', rect.height - y],
+      ['left', x],
+    ];
+
+    distances.sort((a, b) => a[1] - b[1]);
+    return distances[0][0];
+  };
+
+  const handleShapeMouseMove = (event, shape) => {
+    const side = getNearestHandleSide(shape, event.clientX, event.clientY, event.currentTarget);
+    setConnectionHandleSides((current) => (
+      current[shape.id] === side ? current : { ...current, [shape.id]: side }
+    ));
+  };
+
+  const handleConnectionDragStart = (event, shape) => {
+    const isTouch = event.type === 'touchstart';
+    const point = isTouch ? event.touches?.[0] : event;
+    if (!point) return;
+    if (!isTouch && event.button !== 0) return;
+
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
-    const result = handleConnectClick(connections, connectSource, shape.id);
-    setConnections(result.connections);
-    setConnectSource(result.connectSource);
-    if (result.message) showMessage(result.message);
-    if (result.created || result.removed) {
-      commitHistory(shapes, result.connections);
-    }
-  };
 
-  const handleShapeClick = (event, shape) => {
-    if (!connectMode) return;
-    if (shapeConnectHandledByTouchRef.current) {
-      shapeConnectHandledByTouchRef.current = false;
-      return;
+    const startPoint = getCanvasPoint(point.clientX, point.clientY);
+    const fromSide = getConnectionHandleSide(shape);
+    setSelectedIds([shape.id]);
+    setSelectedConnectionId(null);
+    setConnectSource(shape.id);
+    setConnectionDraft(startPoint ? { fromId: shape.id, fromSide, ...startPoint } : null);
+
+    const onMove = (moveEvent) => {
+      if (moveEvent.cancelable) moveEvent.preventDefault();
+      const movePoint = isTouch ? moveEvent.touches?.[0] : moveEvent;
+      if (!movePoint) return;
+      const canvasPoint = getCanvasPoint(movePoint.clientX, movePoint.clientY);
+      if (canvasPoint) setConnectionDraft({ fromId: shape.id, fromSide, ...canvasPoint });
+    };
+
+    const onEnd = (endEvent) => {
+      const endPoint = isTouch ? endEvent.changedTouches?.[0] : endEvent;
+      setConnectionDraft(null);
+      setConnectSource(null);
+
+      if (endPoint) {
+        const targetElement = findShapeElementAtPoint(endPoint.clientX, endPoint.clientY);
+        const targetId = targetElement?.dataset.shapeId ?? null;
+        if (targetId && String(targetId) !== String(shape.id)) {
+          const parsedTargetId = Number(targetId);
+          const targetShapeId = Number.isNaN(parsedTargetId) ? targetId : parsedTargetId;
+          const targetShape = shapesById.get(targetShapeId) || shapesById.get(String(targetShapeId));
+          const toSide = targetShape && targetElement
+            ? getNearestHandleSide(targetShape, endPoint.clientX, endPoint.clientY, targetElement)
+            : undefined;
+          const result = handleConnectClick(connections, shape.id, targetShapeId, { fromSide, toSide });
+          setConnections(result.connections);
+          if (result.message) showMessage(result.message);
+          if (result.created || result.removed) {
+            commitHistory(shapes, result.connections);
+          }
+        }
+      }
+
+      if (isTouch) {
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+        window.removeEventListener('touchcancel', onEnd);
+      } else {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+      }
+    };
+
+    if (isTouch) {
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+      window.addEventListener('touchcancel', onEnd);
+    } else {
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onEnd);
     }
-    handleShapeConnect(event, shape);
   };
 
   const handleShapeTouchStart = (event, shape) => {
-    if (connectMode) {
-      event.stopPropagation();
-      return;
-    }
     handleTouchStartShape(event, shape);
   };
 
-  const handleShapeTouchEndConnect = (event, shape) => {
-    if (!connectMode) return;
-    if (event.target.closest('.resize-handle')) return;
-    shapeConnectHandledByTouchRef.current = true;
-    handleShapeConnect(event, shape);
-  };
-
   const handleMouseDown = (event, shape) => {
-    if (connectMode || event.target.closest('.resize-handle')) return;
+    if (event.target.closest('.resize-handle') || event.target.closest('.connection-handle')) return;
     event.stopPropagation();
+    interactionInProgressRef.current = true;
 
     const isMultiToggle = event.ctrlKey || event.metaKey;
 
@@ -551,20 +856,30 @@ export default function EditorPage() {
     const initialPositions = new Map(
       idsToMove.map((id) => [id, { ...(shapesById.get(id) || {}) }]),
     );
+    let isDragging = false;
 
     const onMouseMove = (moveEvent) => {
       const dx = clientDeltaToCanvas(moveEvent.clientX - startX, zoom);
       const dy = clientDeltaToCanvas(moveEvent.clientY - startY, zoom);
-      setShapes((current) =>
-        current.map((item) => {
+      if (!isDragging && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+        isDragging = true;
+        setDraggingShapeIds(idsToMove);
+      }
+      setShapes((current) => {
+        const next = current.map((item) => {
           const initial = initialPositions.get(item.id);
           if (!initial) return item;
           return { ...item, x: initial.x + dx, y: initial.y + dy };
-        }),
-      );
+        });
+        shapesRef.current = next;
+        return next;
+      });
     };
     const onMouseUp = () => {
-      commitHistory(shapes, connections);
+      setDraggingShapeIds([]);
+      commitHistory(shapesRef.current, connectionsRef.current);
+      interactionInProgressRef.current = false;
+      saveBrowserBackupFromRefs('move-end');
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
@@ -573,30 +888,41 @@ export default function EditorPage() {
   };
 
   const handleTouchStartShape = (event, shape) => {
-    if (connectMode || event.target.closest('.resize-handle')) return;
+    if (event.target.closest('.resize-handle') || event.target.closest('.connection-handle')) return;
     if (event.target.closest('.editable-text')) return;
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
+    interactionInProgressRef.current = true;
     setSelectedIds([shape.id]);
     setSelectedConnectionId(null);
     const touch = event.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
     const initial = { ...shape };
+    let isDragging = false;
 
     const onTouchMove = (moveEvent) => {
       if (moveEvent.cancelable) moveEvent.preventDefault();
       const moveTouch = moveEvent.touches[0];
       const dx = clientDeltaToCanvas(moveTouch.clientX - startX, zoom);
       const dy = clientDeltaToCanvas(moveTouch.clientY - startY, zoom);
-      setShapes((current) =>
-        current.map((item) =>
+      if (!isDragging && (Math.abs(dx) > 1 || Math.abs(dy) > 1)) {
+        isDragging = true;
+        setDraggingShapeIds([shape.id]);
+      }
+      setShapes((current) => {
+        const next = current.map((item) =>
           item.id === shape.id ? { ...item, x: initial.x + dx, y: initial.y + dy } : item,
-        ),
-      );
+        );
+        shapesRef.current = next;
+        return next;
+      });
     };
     const cleanup = () => {
-      commitHistory(shapes, connections);
+      setDraggingShapeIds([]);
+      commitHistory(shapesRef.current, connectionsRef.current);
+      interactionInProgressRef.current = false;
+      saveBrowserBackupFromRefs('move-end');
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', cleanup);
       window.removeEventListener('touchcancel', cleanup);
@@ -609,6 +935,7 @@ export default function EditorPage() {
   const handleResizeMouseDown = (event, shape) => {
     event.stopPropagation();
     event.preventDefault();
+    interactionInProgressRef.current = true;
     const startX = event.clientX;
     const startY = event.clientY;
     const startWidth = shape.width;
@@ -617,8 +944,8 @@ export default function EditorPage() {
     const onMouseMove = (moveEvent) => {
       const dx = clientDeltaToCanvas(moveEvent.clientX - startX, zoom);
       const dy = clientDeltaToCanvas(moveEvent.clientY - startY, zoom);
-      setShapes((current) =>
-        current.map((item) =>
+      setShapes((current) => {
+        const next = current.map((item) =>
           item.id === shape.id
             ? {
                 ...item,
@@ -626,11 +953,15 @@ export default function EditorPage() {
                 height: Math.max(SHAPE_SIZE_LIMITS.minHeight, startHeight + dy),
               }
             : item
-        )
-      );
+        );
+        shapesRef.current = next;
+        return next;
+      });
     };
     const onMouseUp = () => {
-      commitHistory(shapes, connections);
+      commitHistory(shapesRef.current, connectionsRef.current);
+      interactionInProgressRef.current = false;
+      saveBrowserBackupFromRefs('resize-end');
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
@@ -641,6 +972,7 @@ export default function EditorPage() {
   const handleResizeTouchStart = (event, shape) => {
     event.stopPropagation();
     if (event.cancelable) event.preventDefault();
+    interactionInProgressRef.current = true;
     const touch = event.touches[0];
     const startX = touch.clientX;
     const startY = touch.clientY;
@@ -652,8 +984,8 @@ export default function EditorPage() {
       const moveTouch = moveEvent.touches[0];
       const dx = clientDeltaToCanvas(moveTouch.clientX - startX, zoom);
       const dy = clientDeltaToCanvas(moveTouch.clientY - startY, zoom);
-      setShapes((current) =>
-        current.map((item) =>
+      setShapes((current) => {
+        const next = current.map((item) =>
           item.id === shape.id
             ? {
                 ...item,
@@ -661,11 +993,15 @@ export default function EditorPage() {
                 height: Math.max(SHAPE_SIZE_LIMITS.minHeight, startHeight + dy),
               }
             : item
-        )
-      );
+        );
+        shapesRef.current = next;
+        return next;
+      });
     };
     const onTouchEnd = () => {
-      commitHistory(shapes, connections);
+      commitHistory(shapesRef.current, connectionsRef.current);
+      interactionInProgressRef.current = false;
+      saveBrowserBackupFromRefs('resize-end');
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
     };
@@ -682,10 +1018,27 @@ export default function EditorPage() {
     centerView();
   };
 
+  const handleRestoreBackup = () => {
+    if (!backupPrompt?.backup) return;
+    restoreBrowserBackup(backupPrompt.backup);
+    setBackupPrompt(null);
+    showMessage('Backup local recuperado');
+  };
+
+  const handleDismissBackup = () => {
+    if (backupPrompt) {
+      clearBrowserBackup(backupPrompt.designId);
+    }
+    setBackupPrompt(null);
+    showMessage('Backup local descartado');
+  };
+
   const handleSave = async () => {
     if (isSaving) return;
     if (!user) {
+      saveBrowserBackup('guest-save');
       showError('Inicia sesión para guardar tus diseños en la nube');
+      showMessage('Se guardó un backup en este navegador');
       return;
     }
 
@@ -711,13 +1064,21 @@ export default function EditorPage() {
 
       if (id) {
         await api.put(`/designs/${id}`, data);
+        clearBrowserBackup(id);
       } else {
         const res = await api.post('/designs', data);
+        clearBrowserBackup(null);
         navigate(`/editor/${res.data.design.id}`, { replace: true });
       }
-      showMessage('Diseño guardado');
+      showMessage('Diseño guardado en Diseños');
     } catch (err) {
       console.error('Error al guardar:', err);
+      const backedUp = saveBrowserBackup('server-save-failed');
+      showError(
+        backedUp
+          ? 'No se pudo guardar en el servidor. Dejamos un backup en este navegador.'
+          : 'No se pudo guardar en el servidor ni crear el backup local.',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -789,7 +1150,6 @@ export default function EditorPage() {
   };
 
   const handleCanvasTouchStart = (e) => {
-    if (connectMode) return;
     if (e.touches.length !== 1) return;
     if (!isCanvasBackgroundTarget(e.target)) return;
     setSelectedIds([]);
@@ -827,8 +1187,6 @@ export default function EditorPage() {
         onPaletteDragStart={handlePaletteDragStart}
         onPaletteTapPlace={handlePaletteTapPlace}
         renderPreview={(type) => <ShapePreview type={type} />}
-        handlePaletteClick={handlePaletteClick}
-        connectMode={connectMode}
       />
 
       <div className="editor-main-fs figma-editor-main">
@@ -870,7 +1228,7 @@ export default function EditorPage() {
 
           <div className="figma-editor-canvas-area">
         <div
-          className={`editor-canvas-fs figma-canvas-panel ${connectMode ? 'connect-mode' : ''} ${isPanning ? 'panning' : ''} ${paletteTouchDrag ? 'palette-touch-active' : ''} ${paletteDragOverCanvas ? 'palette-drop-target' : ''}`}
+          className={`editor-canvas-fs figma-canvas-panel ${isPanning ? 'panning' : ''} ${paletteTouchDrag ? 'palette-touch-active' : ''} ${paletteDragOverCanvas ? 'palette-drop-target' : ''}`}
           ref={canvasWrapperRef}
           onDrop={handleDrop}
           onDragOver={(event) => event.preventDefault()}
@@ -931,8 +1289,17 @@ export default function EditorPage() {
                   </g>
                 );
               })}
+              {connectionDraftLine && (
+                <line
+                  x1={connectionDraftLine.x1}
+                  y1={connectionDraftLine.y1}
+                  x2={connectionDraftLine.x2}
+                  y2={connectionDraftLine.y2}
+                  className="connection-draft-line"
+                />
+              )}
             </svg>
-            {shapes.length === 0 && !connectMode && (
+            {shapes.length === 0 && (
               <div className="canvas-bg">
                 <p className="canvas-hint">Arrastra formas aquí para comenzar a editar</p>
               </div>
@@ -941,18 +1308,30 @@ export default function EditorPage() {
             {shapes.map((shape) => (
               <div
                 key={shape.id}
-                className={`shape-element ${selectedIdSet.has(shape.id) ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''}`}
+                data-shape-id={shape.id}
+                className={`shape-element ${selectedIdSet.has(shape.id) ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''} ${draggingShapeIdSet.has(shape.id) ? 'is-dragging' : ''}`}
                 style={{ left: shape.x, top: shape.y, width: shape.width, height: shape.height }}
+                onMouseMove={(event) => handleShapeMouseMove(event, shape)}
                 onMouseDown={(event) => handleMouseDown(event, shape)}
                 onTouchStart={(event) => handleShapeTouchStart(event, shape)}
-                onTouchEnd={(event) => handleShapeTouchEndConnect(event, shape)}
-                onClick={(event) => handleShapeClick(event, shape)}
               >
                 <RenderShape
                   shape={shape}
                   onTextChange={(title, textElement) => handleShapeTextChange(shape.id, title, textElement)}
                   onTextCommit={handleShapeTextCommit}
                 />
+                {(selectedIdSet.has(shape.id) || connectSource === shape.id) && (
+                  <button
+                    type="button"
+                    className="connection-handle"
+                    style={getConnectionHandleStyle(shape)}
+                    title="Arrastrar para conectar"
+                    aria-label={`Arrastrar para conectar ${shape.title || 'componente'}`}
+                    onMouseDown={(event) => handleConnectionDragStart(event, shape)}
+                    onTouchStart={(event) => handleConnectionDragStart(event, shape)}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                )}
                 {selectedIds.length === 1 && selectedIdSet.has(shape.id) && (
                   <div
                     className="resize-handle"
@@ -980,6 +1359,24 @@ export default function EditorPage() {
         >
           <div className="palette-touch-drag-ghost-inner">
             <ShapePreview type={paletteTouchDrag.type} />
+          </div>
+        </div>
+      )}
+
+      {backupPrompt && (
+        <div className="editor-backup-toast app-toast" role="status" aria-live="polite">
+          <p className="app-toast__text">
+            Hay un backup local de este diseño
+            {backupPrompt.savedAt ? ` (${backupPrompt.savedAt})` : ''}
+            . ¿Querés recuperarlo?
+          </p>
+          <div className="editor-backup-toast__actions">
+            <button type="button" onClick={handleRestoreBackup}>
+              Recuperar
+            </button>
+            <button type="button" onClick={handleDismissBackup}>
+              Descartar
+            </button>
           </div>
         </div>
       )}

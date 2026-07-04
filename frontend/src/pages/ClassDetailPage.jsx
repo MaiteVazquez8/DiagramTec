@@ -7,10 +7,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
-import { SendIcon, TrashIcon } from '../components/EditorUI.jsx';
+import { SendIcon } from '../components/EditorUI.jsx';
 import Icon from '../components/Icon.jsx';
 import ClassPost from '../components/ClassPost';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
+import AppConfirmModal from '../components/AppConfirmModal.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { ClassDetailSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
@@ -35,7 +36,7 @@ export default function ClassDetailPage() {
   const [modalComment, setModalComment] = useState('');
   const [collapsedPosts, setCollapsedPosts] = useState(new Set());
   const [showClassMenu, setShowClassMenu] = useState(false);
-  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState({
     show: false,
     type: '',
@@ -143,7 +144,7 @@ export default function ClassDetailPage() {
   };
 
   const handleLeaveClass = () => {
-    setShowLeaveModal(true);
+    setLeaveConfirmOpen(true);
   };
 
   const confirmLeave = async () => {
@@ -151,7 +152,7 @@ export default function ClassDetailPage() {
       await api.post(`/classes/leave`, { classId: id });
       navigate('/classes');
     } catch {
-      setShowLeaveModal(false);
+      setLeaveConfirmOpen(false);
     }
   };
 
@@ -289,7 +290,7 @@ export default function ClassDetailPage() {
                   role="menuitem"
                   onClick={() => {
                     setShowClassMenu(false);
-                    triggerConfirm('class', Number(id));
+                    triggerConfirm('class', Number(id), null, classInfo.title);
                   }}
                 >
                   Eliminar clase
@@ -392,16 +393,19 @@ export default function ClassDetailPage() {
           {comments.map((c) => {
             const isOwner = c.userId === user?.id;
             const isAdmin = user?.role === 'superadmin';
+            const authorName = c.authorName ?? c.authorname ?? '';
+            const authorId = c.authorId ?? c.authorid;
+            const authorRole = c.authorRole ?? c.authorrole;
             const isTeacher = user?.role === 'teacher';
-            const targetIsStudent = c.authorRole === 'student';
+            const targetIsStudent = authorRole === 'student';
             const canDelete = isAdmin || isOwner || (isTeacher && targetIsStudent);
 
             return (
               <article key={c.id} className="figma-class-comment">
-                <div className="figma-class-post__avatar">{getInitials(c.authorName)}</div>
+                <div className="figma-class-post__avatar">{getInitials(authorName)}</div>
                 <div className="figma-class-comment__bubble">
                   <div className="figma-class-comment__top">
-                    <span className="figma-class-post__name">{c.authorName}</span>
+                    <span className="figma-class-post__name">{authorName}</span>
                     {canDelete && (
                       <button
                         type="button"
@@ -564,39 +568,14 @@ export default function ClassDetailPage() {
           </div>
         </div>
       )}
-      {/* ── Leave Class Modal ── */}
-      {showLeaveModal && (
-        <div className="modal-overlay" onClick={() => setShowLeaveModal(false)}>
-          <div className="modal modal-danger" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ background: '#fee2e2', color: '#dc2626', width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <TrashIcon />
-                </div>
-                <h2 style={{ fontSize: '1.25rem', color: 'var(--dark)' }}>¿Abandonar clase?</h2>
-              </div>
-              <button className="modal-close" onClick={() => setShowLeaveModal(false)}><Icon name="close" size={18} /></button>
-            </div>
-            <div className="modal-body">
-              <p style={{ color: 'var(--dark-soft)', lineHeight: '1.5', margin: '0' }}>
-                Ya no podrás ver los diseños compartidos ni participar en la conversación de <strong>{classInfo?.title}</strong>.
-              </p>
-            </div>
-            <div className="modal-footer" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button className="secondary-button" onClick={() => setShowLeaveModal(false)} style={{ border: 'none' }}>
-                Cancelar
-              </button>
-              <button
-                className="primary-button"
-                onClick={confirmLeave}
-                style={{ background: '#dc2626', borderColor: '#dc2626' }}
-              >
-                Abandonar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AppConfirmModal
+        open={leaveConfirmOpen}
+        variant="leaveClass"
+        highlightName={classInfo?.title ?? ''}
+        onClose={() => setLeaveConfirmOpen(false)}
+        onConfirm={confirmLeave}
+        titleId="leave-class-confirm-title"
+      />
       <ClassConfirmModal
         open={confirmModal.show}
         variant={confirmModalVariant(confirmModal.type)}

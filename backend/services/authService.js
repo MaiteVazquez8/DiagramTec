@@ -16,9 +16,11 @@ const {
 const { sendMail } = require('./mailService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
 async function register(db, userData) {
   const { firstName, lastName, email, password, role } = userData;
+  if (!STRONG_PASSWORD_RE.test(password)) throw new Error('PASSWORD_REQUIREMENTS');
   const existing = await findByEmail(db, email);
   if (existing) throw new Error('EMAIL_EXISTS');
   const hash = await bcrypt.hash(password, 10);
@@ -77,6 +79,7 @@ async function requestRecoveryCode(db, email) {
 
 async function resetPassword(db, email, token, password, password2) {
   if (password !== password2) throw new Error('PASSWORD_MISMATCH');
+  if (!STRONG_PASSWORD_RE.test(password)) throw new Error('PASSWORD_REQUIREMENTS');
 
   const user = await findByEmailAndToken(db, email, token);
   if (!user) throw new Error('INVALID_TOKEN');

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import api from '../api';
 import SuperAdminShell from '../components/superadmin/SuperAdminShell.jsx';
 import SuperAdminClassManageRow from '../components/superadmin/SuperAdminClassManageRow.jsx';
+import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
 import Icon from '../components/Icon';
 import { useToast } from '../ToastContext.jsx';
 import { SuperAdminClassesManageSkeleton } from '../components/skeletons/PageSkeletons.jsx';
@@ -13,6 +14,8 @@ export default function SuperAdminClassesPage() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadClasses = async () => {
     setLoading(true);
@@ -39,14 +42,23 @@ export default function SuperAdminClassesPage() {
     });
   }, [classes, search]);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Eliminar esta clase y todo su contenido?')) return;
+  const handleDeleteRequest = (id) => {
+    const classItem = classes.find((c) => c.id === id);
+    if (classItem) setDeleteTarget(classItem);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await api.delete(`/admin/classes/${id}`);
+      await api.delete(`/admin/classes/${deleteTarget.id}`);
       showMessage('Clase eliminada');
+      setDeleteTarget(null);
       loadClasses();
     } catch {
       // El interceptor global ya muestra el toast de error.
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -109,7 +121,7 @@ export default function SuperAdminClassesPage() {
                   <SuperAdminClassManageRow
                     key={classItem.id}
                     classItem={classItem}
-                    onDelete={handleDelete}
+                    onDelete={handleDeleteRequest}
                     onCopyCode={() => showMessage('Código copiado al portapapeles')}
                   />
                 ))}
@@ -118,6 +130,15 @@ export default function SuperAdminClassesPage() {
           )}
         </div>
       </div>
+
+      <ClassConfirmModal
+        open={Boolean(deleteTarget)}
+        variant="deleteClass"
+        highlightName={deleteTarget?.title ?? ''}
+        onClose={() => !deleting && setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        busy={deleting}
+      />
     </SuperAdminShell>
   );
 }

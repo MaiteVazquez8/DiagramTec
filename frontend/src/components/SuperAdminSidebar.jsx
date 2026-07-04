@@ -2,6 +2,7 @@
 import Icon from './Icon.jsx';
 import ProfileSilhouette from './ProfileSilhouette.jsx';
 import { useAuth } from '../AuthContext.jsx';
+import { readUserFields } from '../utils/userFields.js';
 
 function roleLabel(role) {
   if (role === 'superadmin') return 'Superadmin';
@@ -12,9 +13,8 @@ function roleLabel(role) {
 
 export default function SuperAdminSidebar({ collapsed, onToggleCollapse }) {
   const { user, logout } = useAuth();
-  const fullName = user
-    ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
-    : '';
+  const profile = readUserFields(user);
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim();
 
   return (
     <aside
@@ -37,8 +37,8 @@ export default function SuperAdminSidebar({ collapsed, onToggleCollapse }) {
             <ProfileSilhouette size={80} className="superadmin-sidebar__avatar-svg" />
           </div>
           {fullName && <p className="superadmin-sidebar__name">{fullName}</p>}
-          {user?.email && <p className="superadmin-sidebar__email">{user.email}</p>}
-          {user?.role && <p className="superadmin-sidebar__role">{roleLabel(user.role)}</p>}
+          {profile.email && <p className="superadmin-sidebar__email">{profile.email}</p>}
+          {profile.role && <p className="superadmin-sidebar__role">{roleLabel(profile.role)}</p>}
         </div>
       </div>
 

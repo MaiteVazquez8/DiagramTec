@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { openDb } = require('./db');
 const errorHandler = require('./middlewares/errorHandler');
+const waitForDb = require('./middlewares/waitForDb');
 
 let probeSupabaseConnection = async () => true;
 try {
@@ -43,20 +44,15 @@ app.get('/health', (req, res) => {
   });
 });
 
-function requireDb(req, res, next) {
-  if (!app.locals.dbReady) {
-    return res.status(503).json({ error: 'Base de datos no disponible' });
-  }
-  next();
-}
+const dbGuard = waitForDb();
 
 app.use('/php', require('./routes/phpProxy'));
 app.use('/php-auth', require('./routes/phpProxy'));
 app.use('/auth', require('./routes/auth'));
-app.use('/classes', requireDb, require('./routes/classes'));
-app.use('/designs', requireDb, require('./routes/designs'));
-app.use('/comments', requireDb, require('./routes/comments'));
-app.use('/admin', requireDb, require('./routes/admin'));
+app.use('/classes', dbGuard, require('./routes/classes'));
+app.use('/designs', dbGuard, require('./routes/designs'));
+app.use('/comments', dbGuard, require('./routes/comments'));
+app.use('/admin', dbGuard, require('./routes/admin'));
 
 app.use(errorHandler);
 
@@ -126,7 +122,7 @@ function startPhpServer() {
   }
 }
 
-async function connectDbWithRetry(maxAttempts = 30, delayMs = 60000) {
+async function connectDbWithRetry(maxAttempts = 30, delayMs = 5000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       const db = await openDb();

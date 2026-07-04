@@ -7,6 +7,9 @@ function errorHandler(err, req, res, next) {
   if (err.message === 'EMAIL_EXISTS') {
     statusCode = 400;
     message = 'El correo ya está registrado';
+  } else if (err.message === 'PASSWORD_TOO_SHORT' || err.message === 'PASSWORD_REQUIREMENTS') {
+    statusCode = 400;
+    message = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
   } else if (err.message === 'INVALID_CREDENTIALS') {
     statusCode = 401;
     message = 'Credenciales inválidas';
@@ -34,6 +37,9 @@ function errorHandler(err, req, res, next) {
   } else if (err.message === 'DESIGN_NOT_FOUND') {
     statusCode = 404;
     message = 'Diseño no encontrado';
+  } else if (err.message === 'USER_FIELDS_REQUIRED') {
+    statusCode = 400;
+    message = 'Nombre, apellido y email son obligatorios';
   } else if (err.message === 'USER_NOT_FOUND') {
     statusCode = 404;
     message = 'Usuario no encontrado';

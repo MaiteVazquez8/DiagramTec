@@ -28,6 +28,16 @@ export default function LoginPage() {
       navigate('/login', { replace: true });
       return;
     }
+    if (oauthError === 'oauth_state') {
+      showError('La sesión de Google expiró. Volvé a intentar iniciar sesión.');
+      navigate('/login', { replace: true });
+      return;
+    }
+    if (oauthError === 'db_unavailable') {
+      showError('El servidor aún se está conectando. Esperá unos segundos e intentá de nuevo.');
+      navigate('/login', { replace: true });
+      return;
+    }
 
     const token = params.get('token');
     if (!token || pendingOAuth.current) return;

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { fetchAdminDashboardData, describeAdminLoadError } from '../utils/adminUsers.js';
 import SuperAdminShell from '../components/superadmin/SuperAdminShell.jsx';
 import {
   SuperAdminSection,
@@ -13,9 +14,11 @@ import { SuperAdminDashboardSkeleton } from '../components/skeletons/PageSkeleto
 
 export default function SuperAdminPage() {
   const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -23,15 +26,24 @@ export default function SuperAdminPage() {
 
   const fetchData = async () => {
     setLoading(true);
+    setLoadError('');
     try {
-      const [usersRes, classesRes] = await Promise.all([
-        api.get('/admin/users'),
-        api.get('/admin/classes'),
-      ]);
-      setUsers(usersRes.data.users || []);
-      setClasses(classesRes.data.classes || []);
+      const {
+        students: studentsList,
+        teachers: teachersList,
+        classes: classesList,
+        loadError: partialError,
+      } = await fetchAdminDashboardData(api);
+      setStudents(studentsList);
+      setTeachers(teachersList);
+      setClasses(classesList);
+      if (partialError) setLoadError(partialError);
     } catch (err) {
       console.error('Error fetching admin data:', err);
+      setLoadError(describeAdminLoadError(err));
+      setStudents([]);
+      setTeachers([]);
+      setClasses([]);
     } finally {
       setLoading(false);
     }
@@ -44,9 +56,6 @@ export default function SuperAdminPage() {
       </SuperAdminShell>
     );
   }
-
-  const students = users.filter((u) => u.role === 'student');
-  const teachers = users.filter((u) => u.role === 'teacher');
 
   const goStudents = (e) => {
     e.preventDefault();
@@ -66,6 +75,14 @@ export default function SuperAdminPage() {
   return (
     <SuperAdminShell>
       <main className="superadmin-dashboard__main" id="superadmin-page">
+        {loadError && (
+          <div className="superadmin-row__empty superadmin-row__empty--error" role="alert">
+            <p>{loadError}</p>
+            <button type="button" className="secondary-button" onClick={fetchData}>
+              Reintentar
+            </button>
+          </div>
+        )}
         <SuperAdminSection
           id="alumnos"
           title="Alumnos"

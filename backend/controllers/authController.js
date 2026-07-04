@@ -1,11 +1,17 @@
 const authService = require('../services/authService');
 const googleAuthService = require('../services/googleAuthService');
 
+const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
 async function register(req, res) {
   const db = req.app.locals.db;
   const { firstName, lastName, email, password, role } = req.body;
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
+  }
+  if (!STRONG_PASSWORD_RE.test(password)) {
+    return res.status(400).json({ error: PASSWORD_REQUIREMENTS_MESSAGE });
   }
   const result = await authService.register(db, { firstName, lastName, email, password, role });
   res.json(result);
@@ -69,6 +75,9 @@ async function resetPassword(req, res) {
   if (!email || !token || !password || !password2) {
     return res.status(400).json({ error: 'Complete todos los campos' });
   }
+  if (!STRONG_PASSWORD_RE.test(password)) {
+    return res.status(400).json({ error: PASSWORD_REQUIREMENTS_MESSAGE });
+  }
   const result = await authService.resetPassword(db, email, token, password, password2);
   res.json(result);
 }
@@ -89,12 +98,14 @@ function googleRedirect(req, res) {
 async function googleCallback(req, res) {
   const db = req.app.locals.db;
   const { code, state } = req.query;
+  const frontendUrl = (process.env.FRONTEND_URL || 'https://diagramtec.com').replace(/\/$/, '');
 
   if (!code || !state) {
-    return res.status(400).json({ error: 'Faltan parámetros de Google' });
+    return res.redirect(`${frontendUrl}/login?error=google_params`);
   }
   if (!googleAuthService.consumeOAuthState(String(state))) {
-    return res.status(403).json({ error: 'Estado OAuth inválido' });
+    console.warn('[google] Estado OAuth inválido o expirado');
+    return res.redirect(`${frontendUrl}/login?error=oauth_state`);
   }
 
   try {
@@ -104,7 +115,6 @@ async function googleCallback(req, res) {
     res.redirect(googleAuthService.buildFrontendRedirect(token));
   } catch (err) {
     console.error('Google callback error:', err.message);
-    const frontendUrl = (process.env.FRONTEND_URL || 'https://diagramtec.com').replace(/\/$/, '');
     res.redirect(`${frontendUrl}/login?error=google`);
   }
 }

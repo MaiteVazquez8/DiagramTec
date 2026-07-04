@@ -8,6 +8,7 @@ router.get('/', authMiddleware, asyncHandler(classes.listClasses));
 router.get('/available', authMiddleware, asyncHandler(classes.availableClasses));
 router.post('/', authMiddleware, asyncHandler(classes.createClass));
 router.get('/:id', authMiddleware, asyncHandler(classes.getClass));
+router.patch('/:id', authMiddleware, asyncHandler(classes.updateClass));
 router.delete('/:id', authMiddleware, asyncHandler(classes.deleteClass));
 router.post('/join', authMiddleware, asyncHandler(classes.joinClass));
 router.post('/leave', authMiddleware, asyncHandler(classes.leaveClass));

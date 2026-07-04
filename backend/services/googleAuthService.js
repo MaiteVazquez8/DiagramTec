@@ -2,9 +2,6 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-const pendingStates = new Map();
-const STATE_TTL_MS = 10 * 60 * 1000;
-
 function getGoogleConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -19,24 +16,27 @@ function getGoogleConfig() {
   return { clientId, clientSecret, redirectUri, frontendUrl };
 }
 
-function pruneStates() {
-  const now = Date.now();
-  for (const [key, createdAt] of pendingStates.entries()) {
-    if (now - createdAt > STATE_TTL_MS) pendingStates.delete(key);
-  }
-}
-
+/** State firmado con JWT — funciona con varias instancias Node en Hostinger. */
 function createOAuthState() {
-  pruneStates();
-  const state = crypto.randomBytes(16).toString('hex');
-  pendingStates.set(state, Date.now());
-  return state;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('GOOGLE_NOT_CONFIGURED');
+
+  return jwt.sign(
+    { oauth: 'google', rnd: crypto.randomBytes(12).toString('hex') },
+    secret,
+    { expiresIn: '15m' },
+  );
 }
 
 function consumeOAuthState(state) {
-  if (!state || !pendingStates.has(state)) return false;
-  pendingStates.delete(state);
-  return true;
+  if (!state || !process.env.JWT_SECRET) return false;
+
+  try {
+    const payload = jwt.verify(String(state), process.env.JWT_SECRET);
+    return payload?.oauth === 'google';
+  } catch {
+    return false;
+  }
 }
 
 function buildGoogleAuthUrl(state) {
@@ -98,6 +98,11 @@ function buildFrontendRedirect(token) {
   return `${frontendUrl}/login?token=${encodeURIComponent(token)}`;
 }
 
+function buildFrontendErrorRedirect(errorCode) {
+  const { frontendUrl } = getGoogleConfig();
+  return `${frontendUrl}/login?error=${encodeURIComponent(errorCode)}`;
+}
+
 module.exports = {
   createOAuthState,
   consumeOAuthState,
@@ -105,5 +110,6 @@ module.exports = {
   exchangeCodeForUser,
   signUserToken,
   buildFrontendRedirect,
+  buildFrontendErrorRedirect,
   getGoogleConfig,
 };
