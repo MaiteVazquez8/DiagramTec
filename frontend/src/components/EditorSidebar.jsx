@@ -1,4 +1,4 @@
-/** Paleta lateral del editor: arrastrar formas y modo conectar. */
+/** Paleta lateral del editor: arrastrar formas al canvas. */
 import { useRef } from 'react';
 
 import Icon from './Icon';
@@ -11,10 +11,9 @@ export default function EditorSidebar({
   onPaletteDragStart,
   onPaletteTapPlace,
   renderPreview,
-  handlePaletteClick,
-  connectMode,
 }) {
   const palettePlacedRef = useRef(false);
+  const drawablePalette = palette.filter((item) => item.type !== 'connect');
 
   const markPlaced = () => {
     palettePlacedRef.current = true;
@@ -43,45 +42,27 @@ export default function EditorSidebar({
 
       <div className="sidebar-content-scroll figma-sidebar-body">
         <div className="shapes-palette-fs">
-          {palette.map((item) => (
+          {drawablePalette.map((item) => (
             <div key={item.type} className="palette-item-fs">
               <span className="shape-label">{item.label}</span>
 
-              {item.type === 'connect' ? (
-                <div
-                  className={`shape-wrapper connect-action ${connectMode ? 'active' : ''}`}
-                  onClick={() => {
-                    if (window.matchMedia('(pointer: coarse)').matches) return;
-                    handlePaletteClick(item.type);
-                  }}
-                  onTouchEnd={(event) => {
-                    event.stopPropagation();
-                    if (!window.matchMedia('(pointer: coarse)').matches) return;
-                    if (event.cancelable) event.preventDefault();
-                    handlePaletteClick(item.type);
-                  }}
-                >
-                  {renderPreview(item.type)}
-                </div>
-              ) : (
-                <div
-                  className="shape-wrapper drag-source"
-                  onMouseDown={(event) => onPaletteDragStart(event, item.type, markPlaced)}
-                  onTouchStart={(event) => onPaletteDragStart(event, item.type, markPlaced)}
-                  onClick={() => {
-                    if (palettePlacedRef.current) {
-                      palettePlacedRef.current = false;
-                      return;
-                    }
-                    if (window.matchMedia('(pointer: coarse)').matches) {
-                      onPaletteTapPlace(item.type);
-                      palettePlacedRef.current = true;
-                    }
-                  }}
-                >
-                  {renderPreview(item.type)}
-                </div>
-              )}
+              <div
+                className="shape-wrapper drag-source"
+                onMouseDown={(event) => onPaletteDragStart(event, item.type, markPlaced)}
+                onTouchStart={(event) => onPaletteDragStart(event, item.type, markPlaced)}
+                onClick={() => {
+                  if (palettePlacedRef.current) {
+                    palettePlacedRef.current = false;
+                    return;
+                  }
+                  if (window.matchMedia('(pointer: coarse)').matches) {
+                    onPaletteTapPlace(item.type);
+                    palettePlacedRef.current = true;
+                  }
+                }}
+              >
+                {renderPreview(item.type)}
+              </div>
             </div>
           ))}
         </div>
