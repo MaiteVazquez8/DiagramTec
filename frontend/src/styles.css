@@ -572,11 +572,17 @@ textarea {
   font-size: 0.92rem;
 }
 
-.modal.modal--join .modal-body label {
+.modal.modal--join .modal-body label,
+.modal.modal--join .modal-body .ui-field {
+  display: block;
+}
+
+.modal.modal--join .modal-body .figma-field__label {
   display: none;
 }
 
-.modal.modal--join .modal-body input {
+.modal.modal--join .modal-body input,
+.modal.modal--join .modal-body .ui-input {
   border-radius: 999px;
   text-transform: none;
   letter-spacing: normal;
@@ -1200,15 +1206,6 @@ textarea {
   outline-offset: -4px;
 }
 
-.connect-action {
-  cursor: pointer;
-}
-
-.connect-action.active {
-  border-color: var(--red);
-  background-color: var(--red-glow);
-}
-
 /*  Main canvas area  */
 .editor-main-fs {
   flex: 1;
@@ -1228,11 +1225,6 @@ textarea {
   white-space: pre-wrap;
   word-break: break-word;
   max-width: 100%;
-}
-
-.connect-mode .editable-text,
-.connect-mode .internal-placeholder {
-  pointer-events: none;
 }
 
 /* Ensure placeholder text is also clear if needed, 
@@ -1335,15 +1327,6 @@ textarea {
   cursor: grabbing;
 }
 
-.editor-canvas-fs.connect-mode {
-  cursor: crosshair;
-}
-
-.editor-canvas-fs.connect-mode .shape-element {
-  touch-action: manipulation;
-  cursor: crosshair;
-}
-
 .canvas-bg {
   position: absolute;
   inset: 0;
@@ -1380,11 +1363,6 @@ textarea {
   cursor: pointer;
 }
 
-.editor-canvas-fs.connect-mode .connection-group {
-  pointer-events: none;
-  cursor: default;
-}
-
 .connection-line-hit {
   stroke: transparent;
   stroke-width: 14;
@@ -1395,6 +1373,14 @@ textarea {
 .connection-line {
   stroke: #000;
   stroke-width: 3;
+  pointer-events: none;
+  fill: none;
+}
+
+.connection-draft-line {
+  stroke: var(--figma-maroon);
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
   pointer-events: none;
   fill: none;
 }
@@ -1414,6 +1400,41 @@ textarea {
   z-index: 2;
   cursor: move;
   touch-action: none;
+  transition: opacity 120ms ease;
+}
+
+.shape-element.is-dragging {
+  opacity: 0.42;
+}
+
+.connection-handle {
+  position: absolute;
+  left: var(--connection-handle-x, 50%);
+  top: var(--connection-handle-y, 100%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--figma-maroon);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+  cursor: crosshair;
+  transform: translate(-50%, -50%);
+  z-index: 70;
+  touch-action: manipulation;
+  opacity: 0.88;
+}
+
+.connection-handle:hover,
+.shape-element.selected .connection-handle,
+.shape-element.connect-source .connection-handle {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.shape-element.connect-source .connection-handle {
+  background: #2d6a30;
+  box-shadow: 0 0 0 4px rgba(45, 106, 48, 0.22), 0 2px 8px rgba(0, 0, 0, 0.24);
 }
 
 /* Selección: contorno que sigue la forma (sin glow / box-shadow) */
@@ -1856,6 +1877,42 @@ textarea {
   transform: scale(1.1);
 }
 
+.editor-backup-toast {
+  position: fixed;
+  top: calc(var(--figma-header-h, 96px) + 1rem);
+  right: 1.25rem;
+  z-index: 10001;
+  width: min(400px, calc(100vw - 2rem));
+  padding-right: 1.1rem;
+}
+
+.editor-backup-toast .app-toast__text {
+  text-align: left;
+}
+
+.editor-backup-toast__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.editor-backup-toast__actions button {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.editor-backup-toast__actions button:hover {
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 768px) {
   .toast-container,
   .editor-toast-container {
@@ -1866,6 +1923,12 @@ textarea {
 
   .app-toast {
     min-width: 0;
+  }
+
+  .editor-backup-toast {
+    right: 0.75rem;
+    top: calc(var(--figma-header-h, 72px) + 0.65rem);
+    width: min(360px, calc(100vw - 1.5rem));
   }
 }
 
@@ -2538,6 +2601,16 @@ textarea {
   box-shadow: 0 6px 24px rgba(129, 0, 0, 0.35);
 }
 
+.edit-profile-form .edit-profile-submit:disabled,
+.edit-profile-form .edit-profile-submit:disabled:hover {
+  background: #b47a7a;
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+  transform: none;
+}
+
 @media (max-width: 600px) {
   .edit-profile-container {
     padding: 1.5rem 1rem;
@@ -3138,7 +3211,7 @@ main:has(.figma-sector) {
   height: var(--figma-header-h);
   min-height: var(--figma-header-h);
   max-height: var(--figma-header-h);
-  padding: 0.25rem 1rem;
+  padding: 0.25rem 2rem 0.25rem 1rem;
   color: #000;
   background-color: #fff;
   background-image: radial-gradient(circle, #d4d4d4 1.2px, transparent 1.2px);
@@ -3149,9 +3222,9 @@ main:has(.figma-sector) {
 
 .figma-header-inner {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   max-width: 1280px;
   margin: 0 auto;
@@ -3160,8 +3233,6 @@ main:has(.figma-sector) {
 
 .figma-header-logo {
   justify-self: start;
-  grid-column: 1;
-  grid-row: 1;
   margin-left: 0;
   min-width: 0;
 }
@@ -3185,12 +3256,14 @@ main:has(.figma-sector) {
 }
 
 .figma-header-nav-wrap {
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: center;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
+  z-index: 1;
 }
 
 .figma-nav {
@@ -3203,7 +3276,7 @@ main:has(.figma-sector) {
 .figma-nav a {
   position: relative;
   color: #000000;
-  padding: 0.45rem 1.25rem;
+  padding: 0.45rem 1.5rem 0.45rem 1.65rem;
   font-weight: 600;
   font-size: 1rem;
   letter-spacing: -0.01em;
@@ -3248,9 +3321,7 @@ main:has(.figma-sector) {
 }
 
 .figma-header-profile {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
+  margin-left: auto;
   text-decoration: none;
   line-height: 0;
   display: inline-flex;
@@ -3308,9 +3379,7 @@ main:has(.figma-sector) {
 
 .figma-menu-btn {
   display: none;
-  grid-column: 2;
-  grid-row: 1;
-  justify-self: end;
+  justify-self: center;
   color: #810000;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
@@ -3473,11 +3542,6 @@ main:has(.figma-sector) {
 .figma-editor-sidebar .shape-wrapper:hover {
   transform: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-}
-
-.figma-editor-sidebar .shape-wrapper.connect-action.active {
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
 }
 
 .figma-editor-sidebar .sidebar-toggle-btn {
@@ -3926,6 +3990,7 @@ body.mobile-menu-open {
 
   .figma-header-inner {
     position: relative;
+    display: grid;
     grid-template-columns: 1fr auto auto;
     gap: 0.65rem;
     z-index: 1202;
@@ -3937,6 +4002,8 @@ body.mobile-menu-open {
 
   .figma-header-nav-wrap--desktop {
     display: none;
+    position: static;
+    transform: none;
   }
 
   .figma-menu-btn {
@@ -4510,6 +4577,16 @@ body.mobile-menu-open {
   color: #fff;
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(129, 0, 0, 0.28);
+}
+
+.modal.modal--figma-form .modal-footer .class-edit-save-btn:disabled,
+.modal.modal--figma-form .modal-footer .class-edit-save-btn:disabled:hover {
+  background: #b47a7a;
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Detalle de clase — mock Figma */
@@ -6088,6 +6165,67 @@ body.mobile-menu-open {
   cursor: pointer;
 }
 
+.password-checklist {
+  margin: -0.25rem 0 0.15rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e3e3e3;
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.password-checklist__title {
+  margin: 0 0 0.45rem;
+  color: #555;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.password-checklist ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.password-checklist li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #777;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.password-checklist__mark {
+  width: 1rem;
+  height: 1rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #9a9a9a;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.password-checklist li.is-complete {
+  color: #18723b;
+}
+
+.password-checklist li.is-complete .password-checklist__mark {
+  color: #fff;
+  background: #18723b;
+}
+
+@media (max-width: 520px) {
+  .password-checklist ul {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ghost-link {
   color: #6f2225;
   margin-top: 0.15rem;
@@ -6800,6 +6938,15 @@ body.mobile-menu-open {
   box-shadow: none;
 }
 
+.superadmin-manage__list-wrap--fixed-role .superadmin-manage__row {
+  grid-template-columns: 48px minmax(120px, 1.4fr) minmax(90px, 1fr) minmax(90px, 1fr) minmax(130px, auto) 44px;
+}
+
+.superadmin-manage__list-wrap--fixed-role .superadmin-manage__col-head--role,
+.superadmin-manage__list-wrap--fixed-role .superadmin-manage__cell--role {
+  display: none;
+}
+
 .superadmin-manage__col-head {
   font-size: 0.82rem;
   font-weight: 700;
@@ -6893,9 +7040,19 @@ body.mobile-menu-open {
   background: #6a1a1a;
 }
 
-.superadmin-manage__btn-modify:disabled {
-  opacity: 0.65;
-  cursor: wait;
+.superadmin-manage__btn-modify:disabled,
+.superadmin-manage__btn-modify--inactive:disabled {
+  background: #b47a7a;
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 1;
+  transform: none;
+}
+
+.superadmin-manage__btn-modify:disabled .icon,
+.superadmin-manage__btn-modify--inactive:disabled .icon {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .superadmin-manage__btn-modify .icon {
@@ -6951,9 +7108,16 @@ body.mobile-menu-open {
   .superadmin-manage__cell:nth-child(2) { grid-area: email; }
   .superadmin-manage__cell:nth-child(3) { grid-area: nombre; }
   .superadmin-manage__cell:nth-child(4) { grid-area: apellido; }
-  .superadmin-manage__cell:nth-child(5) { grid-area: rol; }
+  .superadmin-manage__cell--role { grid-area: rol; }
   .superadmin-manage__cell--actions { grid-area: modify; }
   .superadmin-manage__cell--delete { grid-area: delete; }
+
+  .superadmin-manage__list-wrap--fixed-role .superadmin-manage__row {
+    grid-template-areas:
+      "avatar email email"
+      ". nombre apellido"
+      ". modify delete";
+  }
 }
 
 @media (max-width: 640px) {

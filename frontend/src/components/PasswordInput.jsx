@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Icon from './Icon.jsx';
 
-export default function PasswordInput({ value, onChange, placeholder = 'Contraseña', label }) {
+export default function PasswordInput({ value, onChange, placeholder = 'Contraseña', label, minLength }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const toggleShowPassword = () => setShowPassword(!showPassword);
@@ -16,6 +16,7 @@ export default function PasswordInput({ value, onChange, placeholder = 'Contrase
           onChange={onChange}
           placeholder={placeholder}
           required
+          minLength={minLength}
           className="password-field-input"
         />
         <button

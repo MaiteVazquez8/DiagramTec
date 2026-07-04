@@ -10,6 +10,7 @@ import Icon from '../components/Icon.jsx';
 import ClassConfirmModal from '../components/ClassConfirmModal.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { ClassMembersSkeleton } from '../components/skeletons/PageSkeletons.jsx';
+import { personDisplayName, personInitials } from '../utils/userFields.js';
 
 function sameId(a, b) {
   if (a == null || b == null) return false;
@@ -32,11 +33,6 @@ export default function ClassMembersPage() {
     name: '',
   });
   const [confirmBusy, setConfirmBusy] = useState(false);
-
-  const getInitials = (name) => {
-    if (!name) return '?';
-    return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   const loadData = async () => {
     setLoading(true);
@@ -68,7 +64,7 @@ export default function ClassMembersPage() {
 
   const handleDeleteClassClick = () => {
     setShowClassMenu(false);
-    setConfirmModal({ show: true, type: 'deleteClass', userId: null, name: '' });
+    setConfirmModal({ show: true, type: 'deleteClass', userId: null, name: classInfo?.title ?? '' });
   };
 
   const confirmAction = async () => {
@@ -138,7 +134,7 @@ export default function ClassMembersPage() {
           <div className="class-detail-banner__foot">
             <div className="class-detail-banner__info">
               <h1>{classInfo?.title}</h1>
-              <p>{classInfo?.ownerName}</p>
+              <p>{personDisplayName(classInfo)}</p>
             </div>
             {canSeeCode && classInfo?.code && (
               <div className="class-detail-banner__code">
@@ -173,24 +169,27 @@ export default function ClassMembersPage() {
               <p>No hay estudiantes inscritos en esta clase.</p>
             </li>
           ) : (
-            members.map((member) => (
+            members.map((member) => {
+              const memberName = personDisplayName(member);
+              return (
               <li key={member.id} className="class-members-row">
                 <div className="class-members-row__profile">
                   <div className="class-members-row__avatar" aria-hidden>
-                    {getInitials(member.fullName)}
+                    {personInitials(member)}
                   </div>
-                  <span className="class-members-row__name">{member.fullName}</span>
+                  <span className="class-members-row__name">{memberName}</span>
                 </div>
                 <button
                   type="button"
                   className="class-members-expel-btn"
-                  onClick={() => handleExpelClick(member.id, member.fullName)}
+                  onClick={() => handleExpelClick(member.id, memberName)}
                 >
                   <Icon name="circleX" size={18} />
                   <span>Expulsar de la clase</span>
                 </button>
               </li>
-            ))
+              );
+            })
           )}
         </ul>
 

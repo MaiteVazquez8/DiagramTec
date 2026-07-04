@@ -12,11 +12,18 @@ function getTransporter() {
     return null;
   }
 
+  const secure = process.env.EMAIL_SECURE === 'true';
+  const port = Number(process.env.EMAIL_PORT || (secure ? 465 : 587));
+
   transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: Number(process.env.EMAIL_PORT || 587),
-    secure: process.env.EMAIL_SECURE === 'true',
+    port,
+    secure,
     auth: { user, pass },
+    tls: {
+      minVersion: 'TLSv1.2',
+      rejectUnauthorized: true,
+    },
   });
 
   return transporter;
@@ -38,9 +45,13 @@ async function sendMail(to, subject, html) {
     });
     return true;
   } catch (err) {
-    console.error('[mail] Error al enviar:', err.message);
+    const code = err.responseCode || err.code || 'unknown';
+    console.error(`[mail] Error al enviar (${code}):`, err.message);
+    if (code === 535 || String(err.message).includes('BadCredentials')) {
+      console.error('[mail] Gmail rechazó las credenciales. Generá una contraseña de aplicación nueva en https://myaccount.google.com/apppasswords');
+    }
     return false;
   }
 }
 
-module.exports = { sendMail };
+module.exports = { sendMail, getTransporter };

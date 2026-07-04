@@ -15,6 +15,36 @@ const CAMEL_IDENTIFIERS = [
   'originalId',
 ];
 
+/** PostgreSQL lowercases unquoted aliases (AS ownerName → ownername). */
+const LOWER_TO_CAMEL = {
+  firstname: 'firstName',
+  lastname: 'lastName',
+  passwordhash: 'passwordHash',
+  googleid: 'googleId',
+  createdat: 'createdAt',
+  ownerid: 'ownerId',
+  classid: 'classId',
+  userid: 'userId',
+  joinedat: 'joinedAt',
+  iscopy: 'isCopy',
+  originalid: 'originalId',
+  ownername: 'ownerName',
+  ownerrole: 'ownerRole',
+  fullname: 'fullName',
+  authorname: 'authorName',
+  authorid: 'authorId',
+  authorrole: 'authorRole',
+  studentcount: 'studentCount',
+  totalusers: 'totalUsers',
+  totalclasses: 'totalClasses',
+  totaldesigns: 'totalDesigns',
+};
+
+function normalizeKey(key) {
+  if (typeof key !== 'string') return key;
+  return LOWER_TO_CAMEL[key.toLowerCase()] || key;
+}
+
 function toPostgresPlaceholders(sql) {
   let index = 0;
   return sql.replace(/\?/g, () => {
@@ -45,14 +75,15 @@ function normalizeRow(row) {
   if (!row || typeof row !== 'object') return row;
   const normalized = {};
   for (const [key, value] of Object.entries(row)) {
-    if (typeof value === 'string' && /^-?\d+$/.test(value) && key !== 'content' && key !== 'token') {
+    const outKey = normalizeKey(key);
+    if (typeof value === 'string' && /^-?\d+$/.test(value) && outKey !== 'content' && outKey !== 'token') {
       const asNumber = Number(value);
       if (Number.isSafeInteger(asNumber)) {
-        normalized[key] = asNumber;
+        normalized[outKey] = asNumber;
         continue;
       }
     }
-    normalized[key] = value;
+    normalized[outKey] = value;
   }
   return normalized;
 }

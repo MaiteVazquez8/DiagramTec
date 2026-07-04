@@ -100,6 +100,25 @@ function copyBackendTo(dest) {
   cpSync(join(root, 'hostinger', 'node.env.example'), join(dest, '.env.example'));
 }
 
+function createZip(sourcePath, zipPath, { flat = false } = {}) {
+  rmSync(zipPath, { force: true });
+  const src = sourcePath.replace(/'/g, "''");
+  const dest = zipPath.replace(/'/g, "''");
+  if (process.platform === 'win32') {
+    const pathArg = flat ? `'${src}\\*'` : `'${src}'`;
+    execSync(
+      `powershell -NoProfile -Command "Compress-Archive -Path ${pathArg} -DestinationPath '${dest}' -Force"`,
+      { stdio: 'inherit' },
+    );
+  } else if (flat) {
+    execSync(`cd "${sourcePath}" && zip -r "${zipPath}" .`, { stdio: 'inherit' });
+  } else {
+    execSync(`cd "${dirname(sourcePath)}" && zip -r "${zipPath}" "${sourcePath.split('/').pop()}"`, {
+      stdio: 'inherit',
+    });
+  }
+}
+
 const fileManagerInstructions = [
   'DIAGRAMTEC — Subir backend Node.js por File Manager',
   '===================================================',
@@ -129,15 +148,7 @@ const fileManagerInstructions = [
 
 console.log('\n5/5 Crear ZIPs para File Manager...');
 const frontendSoloZip = join(hostingerDir, 'diagramtec-frontend-solo.zip');
-rmSync(frontendSoloZip, { force: true });
-if (process.platform === 'win32') {
-  execSync(
-    `powershell -NoProfile -Command "Compress-Archive -Path '${frontendSoloDir.replace(/'/g, "''")}\\*' -DestinationPath '${frontendSoloZip.replace(/'/g, "''")}' -Force"`,
-    { stdio: 'inherit' },
-  );
-} else {
-  execSync(`cd "${frontendSoloDir}" && zip -r "${frontendSoloZip}" .`, { stdio: 'inherit' });
-}
+createZip(frontendSoloDir, frontendSoloZip, { flat: true });
 
 const nodejsWrapped = join(outDir, 'nodejs');
 mkdirSync(nodejsWrapped, { recursive: true });
@@ -149,6 +160,21 @@ const flatOut = join(outDir, 'nodejs-flat');
 mkdirSync(flatOut, { recursive: true });
 copyBackendTo(flatOut);
 writeFileSync(join(flatOut, 'LEEME-SUBIR.txt'), fileManagerInstructions, 'utf8');
+
+const backendFlatDir = join(hostingerDir, 'diagramtec-nodejs-dentro-nodejs');
+rmSync(backendFlatDir, { recursive: true, force: true });
+cpSync(flatOut, backendFlatDir, { recursive: true });
+
+const nodejsDentroZip = join(hostingerDir, 'diagramtec-nodejs-dentro-nodejs.zip');
+const nodejsFilemanagerZip = join(hostingerDir, 'diagramtec-nodejs-filemanager.zip');
+const nodejsBackendZip = join(hostingerDir, 'diagramtec-nodejs-backend.zip');
+
+console.log('     diagramtec-nodejs-dentro-nodejs.zip...');
+createZip(flatOut, nodejsDentroZip, { flat: true });
+console.log('     diagramtec-nodejs-filemanager.zip...');
+createZip(nodejsWrapped, nodejsFilemanagerZip);
+console.log('     diagramtec-nodejs-backend.zip...');
+createZip(backendOut, nodejsBackendZip, { flat: true });
 
 writeFileSync(
   join(outDir, 'LEEME.txt'),

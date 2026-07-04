@@ -15,7 +15,6 @@ export const SHAPE_TYPES = {
 export const palette = [
   { type: SHAPE_TYPES.START, label: 'Inicio' },
   { type: SHAPE_TYPES.END, label: 'Final' },
-  { type: SHAPE_TYPES.CONNECT, label: 'Conexión' },
   { type: SHAPE_TYPES.INPUT, label: 'Entrada / Input' },
   { type: SHAPE_TYPES.PRINT, label: 'Salida / Print' },
   { type: SHAPE_TYPES.PROCESS, label: 'Proceso / Variable' },
