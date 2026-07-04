@@ -30,11 +30,13 @@ export function normalizeConnection(connection) {
   };
 }
 
-export function createConnection(fromId, toId, id) {
+export function createConnection(fromId, toId, id, options = {}) {
   return {
     id: id ?? Date.now(),
     from: normalizeEndpointId(fromId),
     to: normalizeEndpointId(toId),
+    fromSide: options.fromSide,
+    toSide: options.toSide,
   };
 }
 
@@ -88,7 +90,7 @@ export function hasConnectionBetween(connections, fromId, toId) {
  * @param {string|number} targetId
  * @returns {{ connections: Connection[], connectSource: string|number|null, created: boolean, removed: boolean, message?: string }}
  */
-export function handleConnectClick(connections, connectSource, targetId) {
+export function handleConnectClick(connections, connectSource, targetId, options = {}) {
   if (!connectSource) {
     return { connections, connectSource: targetId, created: false, removed: false };
   }
@@ -120,7 +122,7 @@ export function handleConnectClick(connections, connectSource, targetId) {
   }
 
   return {
-    connections: [...connections, createConnection(connectSource, targetId)],
+    connections: [...connections, createConnection(connectSource, targetId, undefined, options)],
     connectSource: null,
     created: true,
     removed: false,

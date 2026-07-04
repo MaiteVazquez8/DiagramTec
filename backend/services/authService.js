@@ -3,9 +3,11 @@ const jwt = require('jsonwebtoken');
 const { findByEmail, createUser, findById, updateUser, deleteUser } = require('../repositories/userRepository');
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
 async function register(db, userData) {
   const { firstName, lastName, email, password, role } = userData;
+  if (!STRONG_PASSWORD_RE.test(password)) throw new Error('PASSWORD_REQUIREMENTS');
   const existing = await findByEmail(db, email);
   if (existing) throw new Error('EMAIL_EXISTS');
   const hash = await bcrypt.hash(password, 10);

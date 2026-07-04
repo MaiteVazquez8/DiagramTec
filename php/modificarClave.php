@@ -1,6 +1,94 @@
 <?php
 
+require_once __DIR__ . '/lib/cors.php';
 include('conexion.php');
+
+$passwordRequirementsMessage = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+
+function passwordMeetsRequirements($password)
+{
+    return is_string($password)
+        && strlen($password) >= 6
+        && preg_match('/[a-z]/', $password)
+        && preg_match('/[A-Z]/', $password)
+        && preg_match('/\d/', $password)
+        && preg_match('/[^A-Za-z0-9]/', $password);
+}
+
+if (
+    ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && str_contains(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json')
+) {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $body = json_decode(file_get_contents('php://input'), true) ?: [];
+    $email = strtolower(trim($body['email'] ?? ''));
+    $token = trim($body['token'] ?? '');
+    $userPassword = $body['password'] ?? '';
+    $userPassword2 = $body['password2'] ?? '';
+
+    if ($email === '' || $token === '' || $userPassword === '' || $userPassword2 === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Complete todos los campos'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if ($userPassword !== $userPassword2) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Las contraseñas no coinciden'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if (!passwordMeetsRequirements($userPassword)) {
+        http_response_code(400);
+        echo json_encode(['error' => $passwordRequirementsMessage], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $mysql->prepare("SELECT * FROM users WHERE email = ? AND token = ?");
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error SQL: ' . $mysql->error], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt->bind_param('ss', $email, $token);
+    $stmt->execute();
+    $user = $stmt->get_result()->fetch_assoc();
+
+    if (!$user) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Correo o token inválido'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if (!empty($user['passwordHash']) && password_verify($userPassword, $user['passwordHash'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'La nueva contraseña no puede ser igual a la actual'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $hash = password_hash($userPassword, PASSWORD_BCRYPT);
+    $nuevoToken = random_int(100000, 999999);
+
+    $update = $mysql->prepare("UPDATE users SET passwordHash = ?, token = ? WHERE id = ?");
+    if (!$update) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Error SQL UPDATE: ' . $mysql->error], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $update->bind_param('ssi', $hash, $nuevoToken, $user['id']);
+
+    if ($update->execute()) {
+        echo json_encode(['message' => 'Contraseña actualizada correctamente'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    http_response_code(500);
+    echo json_encode(['error' => 'Error al actualizar contraseña'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 $message = "";
 
@@ -27,6 +115,10 @@ if (isset($_POST['cambiar'])) {
 
         $message = "Las contraseñas no coinciden";
 
+    } elseif (!passwordMeetsRequirements($userPassword)) {
+
+        $message = $passwordRequirementsMessage;
+
     } else {
 
         $stmt = $mysql->prepare("
@@ -48,6 +140,12 @@ if (isset($_POST['cambiar'])) {
         $user = $resultado->fetch_assoc();
 
         if ($user) {
+
+            if (!empty($user['passwordHash']) && password_verify($userPassword, $user['passwordHash'])) {
+
+                $message = "La nueva contraseña no puede ser igual a la actual";
+
+            } else {
 
             $hash = password_hash(
                 $userPassword,
@@ -80,6 +178,8 @@ if (isset($_POST['cambiar'])) {
             } else {
 
                 $message = "Error al actualizar contraseña";
+
+            }
 
             }
 
