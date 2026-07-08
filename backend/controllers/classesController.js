@@ -118,9 +118,16 @@ async function expelStudent(req, res) {
 async function postComment(req, res) {
   const db = req.app.locals.db;
   const classId = Number(req.params.id);
-  const { content } = req.body;
-  if (!content) return res.status(400).json({ error: 'El contenido es obligatorio' });
-  const comment = await classService.addClassComment(db, classId, req.user.id, content);
+  const { content, designId } = req.body;
+  if (!content?.trim()) return res.status(400).json({ error: 'El contenido es obligatorio' });
+  if (!designId) return res.status(400).json({ error: 'La publicación es obligatoria' });
+  const comment = await classService.addClassComment(
+    db,
+    classId,
+    req.user.id,
+    content.trim(),
+    Number(designId),
+  );
   res.json({ comment });
 }
 

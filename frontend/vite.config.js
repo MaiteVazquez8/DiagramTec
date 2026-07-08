@@ -50,7 +50,7 @@ export default defineConfig({
         target: process.env.VITE_PHP_TARGET || 'http://localhost',
         changeOrigin: true,
         rewrite: (path) =>
-          path.replace(/^\/php-auth/, process.env.VITE_PHP_PATH || '/definito/DiagramTec/php'),
+          path.replace(/^\/php-auth/, process.env.VITE_PHP_PATH || '/nuevonuevo/DiagramTec/php'),
       },
     },
   },

@@ -1,4 +1,6 @@
 const classRepository = require('../repositories/classRepository');
+const designRepository = require('../repositories/designRepository');
+const { encodeDesignComment, mapDesignComments } = require('../utils/designComments');
 const { generateClassCode } = require('../db');
 
 async function listClasses(db, userId) {
@@ -73,11 +75,37 @@ async function leaveClass(db, classId, userId) {
 }
 
 async function getClassComments(db, classId) {
-  return await classRepository.findCommentsByClassId(db, classId);
+  const [rows, designs] = await Promise.all([
+    classRepository.findCommentsByClassId(db, classId),
+    classRepository.findDesignsByClass(db, classId),
+  ]);
+  const publishedIds = new Set(designs.map((design) => Number(design.id)));
+  return mapDesignComments(rows).filter(
+    (comment) => comment.designId != null && publishedIds.has(Number(comment.designId)),
+  );
 }
 
-async function addClassComment(db, classId, userId, content) {
-  return await classRepository.insertClassComment(db, classId, userId, content);
+async function addClassComment(db, classId, userId, content, designId) {
+  const classRow = await classRepository.findClassById(db, classId);
+  if (!classRow) throw new Error('CLASS_NOT_FOUND');
+
+  const design = await designRepository.findDesignById(db, designId);
+  if (!design || Number(design.classId) !== Number(classId)) {
+    throw new Error('DESIGN_NOT_FOUND');
+  }
+
+  const isOwner = Number(classRow.ownerId) === Number(userId);
+  const members = await classRepository.findMembersForClass(db, classId, userId);
+  if (!isOwner && members.length === 0) {
+    throw new Error('UNAUTHORIZED');
+  }
+
+  return await classRepository.insertClassComment(
+    db,
+    classId,
+    userId,
+    encodeDesignComment(designId, content),
+  ).then((row) => mapDesignComments([row])[0]);
 }
 
 async function isUserInClass(db, classId, userId) {

@@ -7,6 +7,8 @@ import Icon from '../components/Icon.jsx';
 import ProfileSilhouette from '../components/ProfileSilhouette.jsx';
 import { AccountPageSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 
+const SUPPORT_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'diagramtec@gmail.com';
+
 export default function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -189,10 +191,13 @@ export default function AccountPage() {
           </button>
 
           <div className="account-sidebar__footer">
-            <button type="button" className="account-help-button">
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Ayuda DiagramTec')}`}
+              className="account-help-button"
+            >
               <Icon name="help" size={18} strokeWidth={2} />
               <span>Ayuda</span>
-            </button>
+            </a>
           </div>
         </aside>
 

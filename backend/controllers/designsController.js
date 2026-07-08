@@ -45,11 +45,19 @@ async function copyDesign(req, res) {
   res.json({ design });
 }
 
+async function getPublicDesign(req, res) {
+  const db = req.app.locals.db;
+  const id = Number(req.params.id);
+  const design = await designService.getPublicDesign(db, id);
+  res.json({ design });
+}
+
 module.exports = { 
     listDesigns, 
     getDesign, 
     createDesign, 
     updateDesign, 
     deleteDesign, 
-    copyDesign 
+    copyDesign,
+    getPublicDesign,
 };

@@ -44,6 +44,7 @@ export {
 export {
   getConnectionLine,
   getConnectionLineFromMap,
+  getContainingContainer,
 } from './math/connections.js';
 
 export {
@@ -75,6 +76,7 @@ export {
   removeConnection,
   getPairKey,
   hasConnectionBetween,
+  canConnectShapes,
   handleConnectClick,
 } from './models/connection.js';
 

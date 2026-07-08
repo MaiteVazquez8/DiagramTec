@@ -18,9 +18,12 @@ export default function EditorSubToolbar({
   canBringToFront,
   canCopyPaste,
   canDelete,
+  duplicateOnCooldown = false,
+  readOnly = false,
 }) {
   return (
     <div className="editor-subtoolbar figma-editor-subtoolbar">
+      {!readOnly && (
       <div className="figma-subtoolbar-group figma-subtoolbar-edit">
         <button
           type="button"
@@ -36,7 +39,7 @@ export default function EditorSubToolbar({
           className="figma-subtool-btn figma-subtool-btn--circle"
           title="Copiar y pegar"
           onClick={onCopyPaste}
-          disabled={!canCopyPaste || isSaving}
+          disabled={!canCopyPaste || isSaving || duplicateOnCooldown}
         >
           <Icon name="paste" size={19} />
         </button>
@@ -68,6 +71,7 @@ export default function EditorSubToolbar({
           <Icon name="redo" size={19} />
         </button>
       </div>
+      )}
 
       <div className="figma-subtoolbar-footer">
         <div className="figma-zoom-group" role="group" aria-label="Zoom">
@@ -83,6 +87,7 @@ export default function EditorSubToolbar({
         </div>
 
         <div className="figma-subtoolbar-group figma-subtoolbar-actions">
+          {!readOnly && (
           <button
             type="button"
             className="figma-clear-canvas-btn"
@@ -93,6 +98,7 @@ export default function EditorSubToolbar({
             <Icon name="trash" size={19} />
             Limpiar Lienzo
           </button>
+          )}
         </div>
       </div>
     </div>

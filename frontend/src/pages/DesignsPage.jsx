@@ -8,6 +8,9 @@ import Icon from '../components/Icon.jsx';
 import { CardsGridSkeleton } from '../components/skeletons/PageSkeletons.jsx';
 import { Button, EmptyState } from '../components/ui/index.js';
 import AppConfirmModal from '../components/AppConfirmModal.jsx';
+import GuestBackupBanner from '../components/GuestBackupBanner.jsx';
+import { useToast } from '../ToastContext.jsx';
+import { peekNewEditorBackup, clearNewEditorBackup } from '../utils/editorBackup.js';
 
 function normalizeDesign(raw) {
   return {
@@ -21,6 +24,7 @@ export default function DesignsPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showError, showMessage } = useToast();
   const [designs, setDesigns] = useState([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [isLoadingDesigns, setIsLoadingDesigns] = useState(false);
@@ -29,6 +33,22 @@ export default function DesignsPage() {
   const [contextDesign, setContextDesign] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [copyingDesignId, setCopyingDesignId] = useState(null);
+  const [guestBackup, setGuestBackup] = useState(null);
+
+  const refreshGuestBackup = useCallback(() => {
+    setGuestBackup(user ? peekNewEditorBackup() : null);
+  }, [user]);
+
+  useEffect(() => {
+    refreshGuestBackup();
+  }, [user, location.key, refreshGuestBackup]);
+
+  const handleDismissGuestBackup = () => {
+    clearNewEditorBackup();
+    setGuestBackup(null);
+    showMessage('Backup local descartado');
+  };
 
   const loadDesigns = useCallback(async () => {
     setIsLoadingDesigns(true);
@@ -90,13 +110,52 @@ export default function DesignsPage() {
   };
 
   const handleCopy = async (id) => {
+    const sourceId = Number(id);
+    if (copyingDesignId === sourceId) return;
+
+    setCopyingDesignId(sourceId);
     try {
       await api.post(`/designs/${id}/copy`);
       loadDesigns();
       setContextDesign(null);
-    } catch {
-      // El interceptor global ya muestra el toast de error.
+    } catch (err) {
+      const message = err?.response?.data?.error;
+      if (message) showError(message);
+    } finally {
+      setCopyingDesignId(null);
     }
+  };
+
+  const copyShareLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch {
+      const input = document.createElement('textarea');
+      input.value = url;
+      input.setAttribute('readonly', '');
+      input.style.position = 'absolute';
+      input.style.left = '-9999px';
+      document.body.appendChild(input);
+      input.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(input);
+      return ok;
+    }
+  };
+
+  const handleShare = async (design) => {
+    const shareUrl = `${window.location.origin}/view/${design.id}`;
+    setContextDesign(null);
+
+    const copied = await copyShareLink(shareUrl);
+    window.setTimeout(() => {
+      if (copied) {
+        showMessage('Enlace copiado. Listo para compartir.');
+      } else {
+        showError('No se pudo copiar el enlace. Intentá de nuevo.');
+      }
+    }, 80);
   };
 
   const getInitials = (name) => {
@@ -152,6 +211,10 @@ export default function DesignsPage() {
             )}
           </div>
         </header>
+
+        {user && guestBackup ? (
+          <GuestBackupBanner backup={guestBackup} onDismiss={handleDismissGuestBackup} />
+        ) : null}
 
         {authLoading && (
           <CardsGridSkeleton count={6} />
@@ -309,9 +372,11 @@ export default function DesignsPage() {
                     type="button"
                     className="context-action"
                     onClick={() => handleCopy(contextDesign.id)}
+                    disabled={copyingDesignId === Number(contextDesign.id)}
                     id="ctx-copy"
                   >
-                    <Icon name="copy" size={16} /> Copiar diseño
+                    <Icon name="copy" size={16} />
+                    {copyingDesignId === Number(contextDesign.id) ? 'Copiando...' : 'Copiar diseño'}
                   </button>
                 </div>
 
@@ -335,7 +400,12 @@ export default function DesignsPage() {
                     year: 'numeric',
                   })}
                 </div>
-                <button type="button" className="context-action design-context-share">
+                <button
+                  type="button"
+                  className="context-action design-context-share"
+                  onClick={() => handleShare(contextDesign)}
+                  id="ctx-share"
+                >
                   <Icon name="share" size={16} /> Compartir
                 </button>
               </div>

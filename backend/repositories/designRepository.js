@@ -57,24 +57,48 @@ async function deleteDesign(db, id) {
   await db.execute('DELETE FROM designs WHERE id = ?', [id]);
 }
 
+async function findCopyByOwnerAndOriginal(db, ownerId, originalId) {
+  const [rows] = await db.execute(
+    'SELECT id, title FROM designs WHERE ownerId = ? AND originalId = ? LIMIT 1',
+    [ownerId, originalId],
+  );
+  return rows[0] || null;
+}
+
 async function copyDesign(db, id, ownerId) {
   const [rows] = await db.execute('SELECT * FROM designs WHERE id = ?', [id]);
   const design = rows[0];
   if (!design) return null;
+
+  const existing = await findCopyByOwnerAndOriginal(db, ownerId, id);
+  if (existing) {
+    return { alreadyExists: true, design: existing };
+  }
+
   const [result] = await db.execute(
-    'INSERT INTO designs (title, ownerId, classId, content, isCopy, originalId) VALUES (?, ?, ?, ?, ?, ?)',
-    [`${design.title} (copia)`, ownerId, null, design.content, true, design.id]
+    'INSERT INTO designs (title, ownerId, classId, content, image, pdf_data, isCopy, originalId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      `${design.title} (copia)`,
+      ownerId,
+      null,
+      design.content,
+      design.image || null,
+      design.pdf_data || null,
+      true,
+      design.id,
+    ],
   );
   const [copied] = await db.execute('SELECT * FROM designs WHERE id = ?', [result.insertId]);
-  return copied[0];
+  return { alreadyExists: false, design: copied[0] };
 }
 
 module.exports = {
   countDesignsByOwner,
   findDesignsByOwner,
   findDesignById,
+  findCopyByOwnerAndOriginal,
   createDesign,
   updateDesign,
   deleteDesign,
-  copyDesign
+  copyDesign,
 };

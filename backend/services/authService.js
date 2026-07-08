@@ -7,25 +7,41 @@ const {
   createGoogleUser,
   setGoogleId,
   findById,
+  findByIdWithPassword,
   updateUser,
+  updateUserWithPassword,
   deleteUser,
   setUserToken,
   findByEmailAndToken,
   updatePassword,
 } = require('../repositories/userRepository');
 const { sendMail } = require('./mailService');
+const { validateEmail } = require('../utils/emailValidation');
+const { validateUserNames } = require('../utils/nameValidation');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
 async function register(db, userData) {
   const { firstName, lastName, email, password, role } = userData;
+  const namesCheck = validateUserNames(firstName, lastName);
+  if (!namesCheck.ok) {
+    const err = new Error('INVALID_USER_NAME');
+    err.clientMessage = namesCheck.error;
+    throw err;
+  }
+  const emailCheck = validateEmail(email);
+  if (!emailCheck.ok) {
+    const err = new Error('INVALID_EMAIL');
+    err.clientMessage = emailCheck.error;
+    throw err;
+  }
   if (!STRONG_PASSWORD_RE.test(password)) throw new Error('PASSWORD_REQUIREMENTS');
-  const existing = await findByEmail(db, email);
+  const existing = await findByEmail(db, emailCheck.email);
   if (existing) throw new Error('EMAIL_EXISTS');
   const hash = await bcrypt.hash(password, 10);
   const userRole = ['student', 'teacher'].includes(role) ? role : 'student';
-  const id = await createUser(db, firstName, lastName, email, hash, userRole);
+  const id = await createUser(db, namesCheck.firstName, namesCheck.lastName, emailCheck.email, hash, userRole);
   const token = jwt.sign({ id, role: userRole }, JWT_SECRET, { expiresIn: '48h' });
   const user = await findById(db, id);
   return { token, user };
@@ -45,7 +61,39 @@ async function getMe(db, id) {
 }
 
 async function updateProfile(db, id, data) {
-  return await updateUser(db, id, data.firstName, data.lastName, data.email);
+  const { firstName, lastName, email, password } = data;
+  const namesCheck = validateUserNames(firstName, lastName);
+  if (!namesCheck.ok) {
+    const err = new Error('INVALID_USER_NAME');
+    err.clientMessage = namesCheck.error;
+    throw err;
+  }
+  const emailCheck = validateEmail(email);
+  if (!emailCheck.ok) {
+    const err = new Error('INVALID_EMAIL');
+    err.clientMessage = emailCheck.error;
+    throw err;
+  }
+
+  const current = await findById(db, id);
+  if (!current) throw new Error('USER_NOT_FOUND');
+  if (emailCheck.email !== current.email.toLowerCase()) {
+    const existing = await findByEmail(db, emailCheck.email);
+    if (existing && existing.id !== id) throw new Error('EMAIL_EXISTS');
+  }
+
+  if (password) {
+    if (!STRONG_PASSWORD_RE.test(password)) throw new Error('PASSWORD_REQUIREMENTS');
+    const withPassword = await findByIdWithPassword(db, id);
+    if (!withPassword) throw new Error('USER_NOT_FOUND');
+    if (withPassword.passwordHash && await bcrypt.compare(password, withPassword.passwordHash)) {
+      throw new Error('PASSWORD_SAME');
+    }
+    const hash = await bcrypt.hash(password, 10);
+    return updateUserWithPassword(db, id, namesCheck.firstName, namesCheck.lastName, emailCheck.email, hash);
+  }
+
+  return updateUser(db, id, namesCheck.firstName, namesCheck.lastName, emailCheck.email);
 }
 
 async function deleteAccount(db, id) {
@@ -81,8 +129,15 @@ async function resetPassword(db, email, token, password, password2) {
   if (password !== password2) throw new Error('PASSWORD_MISMATCH');
   if (!STRONG_PASSWORD_RE.test(password)) throw new Error('PASSWORD_REQUIREMENTS');
 
-  const user = await findByEmailAndToken(db, email, token);
+  const emailCheck = validateEmail(email);
+  if (!emailCheck.ok) throw new Error('INVALID_EMAIL');
+
+  const user = await findByEmailAndToken(db, emailCheck.email, token);
   if (!user) throw new Error('INVALID_TOKEN');
+
+  if (user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
+    throw new Error('PASSWORD_SAME');
+  }
 
   const hash = await bcrypt.hash(password, 10);
   const newToken = generateRecoveryCode();

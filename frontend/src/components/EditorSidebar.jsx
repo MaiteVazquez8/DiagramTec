@@ -11,6 +11,7 @@ export default function EditorSidebar({
   onPaletteDragStart,
   onPaletteTapPlace,
   renderPreview,
+  paletteDisabled = false,
 }) {
   const palettePlacedRef = useRef(false);
   const drawablePalette = palette.filter((item) => item.type !== 'connect');
@@ -40,7 +41,7 @@ export default function EditorSidebar({
         <p>Arrastra para usar</p>
       </div>
 
-      <div className="sidebar-content-scroll figma-sidebar-body">
+      <div className={`sidebar-content-scroll figma-sidebar-body${paletteDisabled ? ' is-palette-disabled' : ''}`}>
         <div className="shapes-palette-fs">
           {drawablePalette.map((item) => (
             <div key={item.type} className="palette-item-fs">
@@ -48,9 +49,16 @@ export default function EditorSidebar({
 
               <div
                 className="shape-wrapper drag-source"
-                onMouseDown={(event) => onPaletteDragStart(event, item.type, markPlaced)}
-                onTouchStart={(event) => onPaletteDragStart(event, item.type, markPlaced)}
+                onMouseDown={(event) => {
+                  if (paletteDisabled) return;
+                  onPaletteDragStart(event, item.type, markPlaced);
+                }}
+                onTouchStart={(event) => {
+                  if (paletteDisabled) return;
+                  onPaletteDragStart(event, item.type, markPlaced);
+                }}
                 onClick={() => {
+                  if (paletteDisabled) return;
                   if (palettePlacedRef.current) {
                     palettePlacedRef.current = false;
                     return;

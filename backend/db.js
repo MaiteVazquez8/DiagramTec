@@ -96,7 +96,10 @@ class PgConnection {
   async execute(sql, params = []) {
     const pgSql = prepareSql(sql);
     const result = await this.pool.query(pgSql, params);
-    const isInsert = /^\s*INSERT\s+INTO\s+/i.test(sql.trim());
+    const trimmed = sql.trim();
+    const isInsert = /^\s*INSERT\s+INTO\s+/i.test(trimmed);
+    const isUpdate = /^\s*UPDATE\s+/i.test(trimmed);
+    const isDelete = /^\s*DELETE\s+/i.test(trimmed);
 
     const header = {
       affectedRows: result.rowCount ?? 0,
@@ -105,6 +108,10 @@ class PgConnection {
 
     if (isInsert && result.rows[0]?.id != null) {
       header.insertId = Number(result.rows[0].id);
+      return [header, undefined];
+    }
+
+    if (isUpdate || isDelete) {
       return [header, undefined];
     }
 

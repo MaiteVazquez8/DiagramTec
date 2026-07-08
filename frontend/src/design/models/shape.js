@@ -17,6 +17,7 @@ import { SHAPE_SIZE_LIMITS } from '../constants/canvas.js';
 const DEFAULT_TITLES = {
   [SHAPE_TYPES.START]: '',
   [SHAPE_TYPES.END]: '',
+  [SHAPE_TYPES.START_END]: '',
   [SHAPE_TYPES.INPUT]: '',
   [SHAPE_TYPES.PRINT]: '',
   [SHAPE_TYPES.PROCESS]: '',
@@ -29,6 +30,7 @@ const DEFAULT_TITLES = {
 const PALETTE_PREVIEW_TITLES = {
   [SHAPE_TYPES.START]: 'inicio',
   [SHAPE_TYPES.END]: 'FINAL',
+  [SHAPE_TYPES.START_END]: 'inicio/final',
   [SHAPE_TYPES.INPUT]: 'INPUT',
   [SHAPE_TYPES.PRINT]: 'PRINT',
   [SHAPE_TYPES.PROCESS]: 'A = B',
@@ -237,7 +239,11 @@ export function fitShapeToTextContent(shape, textEl) {
   let width = textWidth + TEXT_FIT.horizontalPad * 2;
   let height = textHeight + TEXT_FIT.verticalPad * 2;
 
-  if (shape.type === SHAPE_TYPES.START || shape.type === SHAPE_TYPES.END) {
+  if (
+    shape.type === SHAPE_TYPES.START
+    || shape.type === SHAPE_TYPES.END
+    || shape.type === SHAPE_TYPES.START_END
+  ) {
     width = Math.max(width, height * 1.35);
   }
 

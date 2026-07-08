@@ -8,12 +8,14 @@ import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input } from '../components/ui/index.js';
 
+import { resolveAuthRedirect } from '../utils/editorBackup.js';
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, user, loading: authLoading } = useAuth();
   const { showError } = useToast();
-  const redirectTo = location.state?.from || '/designs';
+  const redirectTo = resolveAuthRedirect(location.state?.from);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -83,7 +85,7 @@ export default function LoginPage() {
       <article className="form-card auth-card figma-auth-card figma-login-card ui-slide-up">
         <div className="auth-tabs">
           <span className="active">Iniciar sesion</span>
-          <Link to="/signup">Registrarse</Link>
+          <Link to="/signup" state={location.state}>Registrarse</Link>
         </div>
         <h2>Ingreso de usuario</h2>
 
@@ -124,7 +126,7 @@ export default function LoginPage() {
           </Button>
         </form>
         <p className="small-text">
-          ¿No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
+          ¿No tienes cuenta? <Link to="/signup" state={location.state}>Crear cuenta</Link>
         </p>
       </article>
     </section>

@@ -6,7 +6,8 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 
-import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
+import { requestEditorNavigation } from './utils/editorLeaveGuard.js';
 
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import { ToastProvider } from './ToastContext.jsx';
@@ -92,15 +93,24 @@ function HeaderProfileAvatar() {
 function Header() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const headerRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const isSuperAdminPanel = location.pathname.startsWith('/superadmin');
+  const isEditor = location.pathname.startsWith('/editor') || location.pathname.startsWith('/view');
 
   const toggleMenu = () => setMenuOpen((open) => !open);
   const closeMenu = () => setMenuOpen(false);
   const isSuperAdmin = user?.role === 'superadmin' || user?.role === 'admin';
   const profileTo = !user ? '/login' : isSuperAdmin ? '/superadmin' : '/account';
   const profileLabel = !user ? 'Iniciar sesión' : isSuperAdmin ? 'Panel superadmin' : 'Mi cuenta';
+
+  const handleGuardedNav = (event, targetPath) => {
+    closeMenu();
+    if (!location.pathname.startsWith('/editor')) return;
+    event.preventDefault();
+    requestEditorNavigation(targetPath, navigate);
+  };
 
   useEffect(() => {
     setMenuOpen(false);
@@ -134,15 +144,15 @@ function Header() {
         </>
       ) : (
         <>
-          <NavLink to="/designs" onClick={closeMenu}>Diseños</NavLink>
+          <NavLink to="/designs" onClick={(e) => handleGuardedNav(e, '/designs')}>Diseños</NavLink>
           <span className="figma-nav-divider" aria-hidden />
-          <NavLink to="/" end onClick={closeMenu}>Inicio</NavLink>
+          <NavLink to="/" end onClick={(e) => handleGuardedNav(e, '/')}>Inicio</NavLink>
           <span className="figma-nav-divider" aria-hidden />
-          <NavLink to="/classes" onClick={closeMenu}>Clases</NavLink>
+          <NavLink to="/classes" onClick={(e) => handleGuardedNav(e, '/classes')}>Clases</NavLink>
           {(user?.role === 'superadmin' || user?.role === 'admin') && (
             <>
               <span className="figma-nav-divider" aria-hidden />
-              <NavLink to="/superadmin" onClick={closeMenu}>Superadmin</NavLink>
+              <NavLink to="/superadmin" onClick={(e) => handleGuardedNav(e, '/superadmin')}>Superadmin</NavLink>
             </>
           )}
         </>
@@ -154,7 +164,12 @@ function Header() {
     <header ref={headerRef} className={`app-header figma-header${menuOpen ? ' figma-header--menu-open' : ''}`}>
       <div className="figma-header-inner">
         <div className="figma-header-logo">
-          <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
+          <Link
+            to="/"
+            className="brand figma-brand"
+            onClick={(e) => handleGuardedNav(e, '/')}
+            aria-label="DiagramTec — Inicio"
+          >
             <img src="/logo.png" alt="DiagramTec" className="brand-logo" />
           </Link>
         </div>
@@ -178,7 +193,7 @@ function Header() {
           to={profileTo}
           className="figma-header-profile"
           title={profileLabel}
-          onClick={closeMenu}
+          onClick={(e) => handleGuardedNav(e, profileTo)}
           aria-label={profileLabel}
         >
           <HeaderProfileAvatar />
@@ -225,7 +240,7 @@ function AppShell() {
 
   const location = useLocation();
 
-  const isEditor = location.pathname.startsWith('/editor');
+  const isEditor = location.pathname.startsWith('/editor') || location.pathname.startsWith('/view');
   const isSuperAdmin = location.pathname.startsWith('/superadmin');
 
   let mainClass = 'main-figma';
@@ -266,6 +281,8 @@ function AppShell() {
           <Route path="/editor" element={<EditorPage />} />
 
           <Route path="/editor/:id" element={<EditorPage />} />
+
+          <Route path="/view/:id" element={<EditorPage readOnly />} />
 
           <Route path="/superadmin" element={<AdminRoute><SuperAdminPage /></AdminRoute>} />
 
