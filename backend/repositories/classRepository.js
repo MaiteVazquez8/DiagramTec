@@ -92,7 +92,7 @@ async function leaveClass(db, classId, userId) {
 
 async function findCommentsByClassId(db, classId) {
   const [rows] = await db.execute(`
-    SELECT cm.id, cm.content, cm.createdAt,
+    SELECT cm.id, cm.content, cm.createdAt, cm.userId,
       CONCAT(u.firstName, ' ', u.lastName) AS authorName, u.id AS authorId, u.role AS authorRole
     FROM comments cm LEFT JOIN users u ON u.id = cm.userId
     WHERE cm.classId = ? ORDER BY cm.createdAt ASC
@@ -106,8 +106,8 @@ async function insertClassComment(db, classId, userId, content) {
     [classId, userId, content]
   );
   const [rows] = await db.execute(`
-    SELECT cm.id, cm.content, cm.createdAt,
-      CONCAT(u.firstName, ' ', u.lastName) AS authorName, u.id AS authorId
+    SELECT cm.id, cm.content, cm.createdAt, cm.userId,
+      CONCAT(u.firstName, ' ', u.lastName) AS authorName, u.id AS authorId, u.role AS authorRole
     FROM comments cm LEFT JOIN users u ON u.id = cm.userId WHERE cm.id = ?
   `, [result.insertId]);
   return rows[0];

@@ -8,8 +8,7 @@ import PasswordInput from '../components/PasswordInput.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input } from '../components/ui/index.js';
 
-const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
-const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+import { PASSWORD_REQUIREMENTS_MESSAGE, STRONG_PASSWORD_RE, PASSWORD_REQUIREMENTS } from '../utils/passwordValidation.js';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -102,6 +101,25 @@ export default function ResetPasswordPage() {
             placeholder="Tu contraseña..."
             minLength={6}
           />
+          <div className="password-checklist" aria-live="polite">
+            <p className="password-checklist__title">Tu contraseña debe incluir:</p>
+            <ul>
+              {PASSWORD_REQUIREMENTS.map((requirement) => {
+                const isComplete = requirement.test(password);
+                return (
+                  <li
+                    key={requirement.id}
+                    className={isComplete ? 'is-complete' : ''}
+                  >
+                    <span className="password-checklist__mark" aria-hidden>
+                      {isComplete ? '✓' : '•'}
+                    </span>
+                    <span>{requirement.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
           <Button variant="ghost" type="button" onClick={handleSendCode} loading={resending}>
             Reenviar codigo
           </Button>

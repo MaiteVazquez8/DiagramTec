@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 import Icon from '../components/Icon.jsx';
 
+function scrollToComoEmpezar() {
+  document.getElementById('como-empezar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export default function HomePage() {
   const { user } = useAuth();
   const scrollToTop = () => {
@@ -11,7 +15,7 @@ export default function HomePage() {
 
   const heroActions = [
     { to: '/editor', label: 'Crear diseño', image: '/tarjs/14.png' },
-    { to: '/editor', label: 'Cómo empezar', image: '/tarjs/15.png' },
+    { action: 'como-empezar', label: 'Cómo empezar', image: '/tarjs/15.png' },
     { to: '/designs', label: 'DiagramTec', image: '/tarjs/16.png' },
     { to: '/designs', label: 'Ver diseños', image: '/tarjs/17.png' },
     { to: '/classes', label: 'Unirse a clases', image: '/tarjs/18.png' },
@@ -37,19 +41,37 @@ export default function HomePage() {
             <div className="figma-mini-card-media" aria-hidden>
               <img src={action.image} alt="" className="figma-mini-card-img" />
             </div>
-            <Link className="primary-button figma-mini-card-button" to={action.to}>+ {action.label}</Link>
+            {action.action === 'como-empezar' ? (
+              <button
+                type="button"
+                className="primary-button figma-mini-card-button"
+                onClick={scrollToComoEmpezar}
+              >
+                + {action.label}
+              </button>
+            ) : (
+              <Link className="primary-button figma-mini-card-button" to={action.to}>
+                + {action.label}
+              </Link>
+            )}
           </article>
         ))}
       </div>
 
-      <section className="figma-home-block">
+      <section className="figma-home-block" id="como-empezar">
         <h2>Cómo empezar</h2>
         <p>
           Configura tu perfil, crea tu primer diagrama y colabora con tu equipo. Una guía rápida
           diseñada para que aproveches al máximo todas nuestras funciones de modelado y gestión académica.
         </p>
         <div className="figma-video-placeholder">
-          <button className="primary-button figma-video-button" type="button">+ Video / Tutorial</button>
+          <button
+            className="primary-button figma-video-button"
+            type="button"
+            onClick={scrollToComoEmpezar}
+          >
+            + Video / Tutorial
+          </button>
         </div>
       </section>
 

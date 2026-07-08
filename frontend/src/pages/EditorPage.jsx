@@ -13,7 +13,9 @@ import EditorSidebar from '../components/EditorSidebar';
 import { useToast } from '../ToastContext.jsx';
 import EditorToolbar from '../components/EditorToolbar';
 import EditorSubToolbar from '../components/EditorSubToolbar';
+import EditorLeaveModal from '../components/EditorLeaveModal';
 import RenderShape from '../components/RenderShape';
+import { setEditorLeaveGuard, clearEditorLeaveGuard } from '../utils/editorLeaveGuard.js';
 
 import {
   CANVAS_SIZE,
@@ -55,22 +57,30 @@ import {
   getDiagramBounds,
   ShapePreview,
 } from '../design';
+import { getEditorBackupKey, hasNewEditorBackup, clearNewEditorBackup } from '../utils/editorBackup.js';
 
-const EDITOR_BACKUP_PREFIX = 'diagramtec_editor_backup';
+const DUPLICATE_COOLDOWN_MS = 1000;
+const DEFAULT_DIAGRAM_TITLE = 'mi diagrama';
 
-function getEditorBackupKey(designId) {
-  return `${EDITOR_BACKUP_PREFIX}:${designId || 'new'}`;
+function buildEditorSnapshot(state, title, classId) {
+  return JSON.stringify({
+    content: serializeDiagram(state),
+    title: title.trim() || DEFAULT_DIAGRAM_TITLE,
+    classId: classId || '',
+  });
 }
 
 function hasDiagramContent(state) {
   return (state.shapes?.length ?? 0) > 0 || (state.connections?.length ?? 0) > 0;
 }
 
-export default function EditorPage() {
-  const { user } = useAuth();
+export default function EditorPage({ readOnly = false }) {
+  const { user, loading: authLoading } = useAuth();
   const { showError, showMessage } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [forcedReadOnly, setForcedReadOnly] = useState(false);
+  const isViewOnly = readOnly || forcedReadOnly;
 
   const [shapes, setShapes] = useState([]);
   const [connections, setConnections] = useState([]);
@@ -93,6 +103,19 @@ export default function EditorPage() {
   const [connectionDraft, setConnectionDraft] = useState(null);
   const [connectionHandleSides, setConnectionHandleSides] = useState({});
   const [backupPrompt, setBackupPrompt] = useState(null);
+  const [savedSnapshot, setSavedSnapshot] = useState(null);
+  const [leaveModal, setLeaveModal] = useState(null);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [sharedDesignOwnerId, setSharedDesignOwnerId] = useState(null);
+  const [sharedDesignCopied, setSharedDesignCopied] = useState(false);
+  const [isCopyingShared, setIsCopyingShared] = useState(false);
+  const [duplicateOnCooldown, setDuplicateOnCooldown] = useState(false);
+
+  const saveAbortRef = useRef(null);
+  const lastDuplicateAtRef = useRef(0);
+  const duplicateCooldownTimerRef = useRef(null);
+  const isSavingRef = useRef(isSaving);
+  isSavingRef.current = isSaving;
 
   const canvasRef = useRef(null);
   const canvasWrapperRef = useRef(null);
@@ -111,10 +134,66 @@ export default function EditorPage() {
   const draggingShapeIdSet = useMemo(() => new Set(draggingShapeIds), [draggingShapeIds]);
   const hasShapeSelection = selectedIds.length > 0;
 
+  const isSharedOwner = Boolean(
+    user
+    && sharedDesignOwnerId != null
+    && Number(sharedDesignOwnerId) === Number(user.id),
+  );
+
+  const canCopySharedDesign = Boolean(
+    isViewOnly
+    && user
+    && id
+    && !isSharedOwner
+    && !sharedDesignCopied,
+  );
+
   const diagramState = useMemo(
     () => ({ shapes, connections }),
     [shapes, connections]
   );
+
+  const markSnapshotSaved = useCallback((state, title, classId) => {
+    setSavedSnapshot(buildEditorSnapshot(state, title, classId));
+  }, []);
+
+  const isDirty = useMemo(() => {
+    if (savedSnapshot === null) return false;
+    return buildEditorSnapshot(diagramState, saveTitle, saveClassId) !== savedSnapshot;
+  }, [diagramState, saveTitle, saveClassId, savedSnapshot]);
+
+  const shouldBlockLeave = !isViewOnly && (isDirty || isSaving);
+
+  useEffect(() => {
+    if (isViewOnly) {
+      clearEditorLeaveGuard();
+      return undefined;
+    }
+    setEditorLeaveGuard((targetPath, navigateFn) => {
+      if (isSaving) {
+        setPendingNavigation(targetPath);
+        setLeaveModal('saving');
+        return;
+      }
+      if (isDirty) {
+        setPendingNavigation(targetPath);
+        setLeaveModal('unsaved');
+        return;
+      }
+      navigateFn(targetPath);
+    });
+    return () => clearEditorLeaveGuard();
+  }, [isDirty, isSaving, isViewOnly]);
+
+  useEffect(() => {
+    const onBeforeUnload = (event) => {
+      if (!shouldBlockLeave) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [shouldBlockLeave]);
 
   const saveBrowserBackup = useCallback((reason = 'autosave') => {
     if (!hasDiagramContent(diagramState)) return false;
@@ -164,6 +243,10 @@ export default function EditorPage() {
 
   const clearBrowserBackup = useCallback((designId = id) => {
     try {
+      if (!designId) {
+        clearNewEditorBackup();
+        return;
+      }
       localStorage.removeItem(getEditorBackupKey(designId));
     } catch (err) {
       console.warn('No se pudo limpiar backup local del editor:', err);
@@ -394,17 +477,52 @@ export default function EditorPage() {
   };
 
   useEffect(() => {
-    centerView();
-    const t1 = setTimeout(centerView, 100);
-    const t2 = setTimeout(centerView, 500);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [centerView, sidebarOpen]);
+    setSavedSnapshot(null);
+    backupReadyRef.current = false;
+    setForcedReadOnly(false);
+  }, [id, user?.id]);
 
   useEffect(() => {
-    if (!user && id) {
+    if (!backupReadyRef.current || backupPrompt || savedSnapshot !== null) return;
+    if (!isViewOnly && !id && hasNewEditorBackup()) return;
+    markSnapshotSaved(diagramState, saveTitle, saveClassId);
+  }, [
+    backupPrompt,
+    savedSnapshot,
+    diagramState,
+    saveTitle,
+    saveClassId,
+    markSnapshotSaved,
+    id,
+    isViewOnly,
+  ]);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (isViewOnly && id) {
+      setSharedDesignOwnerId(null);
+      setSharedDesignCopied(false);
+      api.get(`/designs/public/${id}`).then((response) => {
+        const design = response.data.design;
+        setSaveTitle(design.title);
+        setSharedDesignOwnerId(design.ownerId ?? null);
+        const content = parseDiagramContent(design.content);
+        setShapes(content.shapes);
+        setConnections(content.connections);
+        setNextId(nextShapeIdFromList(content.shapes));
+        setHistoryStack(initHistoryWithState(content));
+        markSnapshotSaved(content, design.title, '');
+        backupReadyRef.current = true;
+        setTimeout(centerView, 500);
+      }).catch(() => {
+        showError('No se pudo cargar el diseño compartido');
+        navigate('/', { replace: true });
+      });
+      return;
+    }
+
+    if (!isViewOnly && !user && id) {
       showError('Inicia sesión para abrir diseños guardados');
       navigate('/editor', { replace: true });
       return;
@@ -423,12 +541,16 @@ export default function EditorPage() {
     if (user && id) {
       api.get(`/designs/${id}`).then((response) => {
         const design = response.data.design;
+        const isOwner = user?.role === 'superadmin' || Number(design.ownerId) === Number(user.id);
+        setForcedReadOnly(!isOwner);
         setSaveTitle(design.title);
+        setSaveClassId(design.classId ? String(design.classId) : '');
         const content = parseDiagramContent(design.content);
         setShapes(content.shapes);
         setConnections(content.connections);
         setNextId(nextShapeIdFromList(content.shapes));
         setHistoryStack(initHistoryWithState(content));
+        markSnapshotSaved(content, design.title, design.classId || '');
         showBrowserBackupPrompt(id);
         backupReadyRef.current = true;
         setTimeout(centerView, 500);
@@ -439,10 +561,55 @@ export default function EditorPage() {
       return;
     }
     if (user && !id) {
-      showBrowserBackupPrompt(null);
+      if (!showBrowserBackupPrompt(null)) {
+        const empty = emptyDiagramState();
+        setHistoryStack(initHistoryWithState(empty));
+      }
       backupReadyRef.current = true;
     }
-  }, [user, id, centerView, navigate, showBrowserBackupPrompt, showError]);
+  }, [user, id, authLoading, isViewOnly, centerView, navigate, showBrowserBackupPrompt, showError, markSnapshotSaved]);
+
+  useEffect(() => {
+    if (!isViewOnly || !id || !user) {
+      setSharedDesignCopied(false);
+      return;
+    }
+
+    api.get('/designs').then((response) => {
+      const list = Array.isArray(response.data?.designs) ? response.data.designs : [];
+      const sourceId = Number(id);
+      const alreadyCopied = list.some((design) => Number(design.originalId) === sourceId);
+      setSharedDesignCopied(alreadyCopied);
+    }).catch(() => {
+      setSharedDesignCopied(false);
+    });
+  }, [isViewOnly, id, user]);
+
+  const handleCopySharedDesign = async () => {
+    if (!id || !canCopySharedDesign || isCopyingShared) return;
+
+    setIsCopyingShared(true);
+    try {
+      await api.post(`/designs/${id}/copy`);
+      setSharedDesignCopied(true);
+      showMessage('Diseño copiado a tus diseños personales');
+    } catch (err) {
+      const message = err?.response?.data?.error;
+      if (message) showError(message);
+    } finally {
+      setIsCopyingShared(false);
+    }
+  };
+
+  useEffect(() => {
+    centerView();
+    const t1 = setTimeout(centerView, 100);
+    const t2 = setTimeout(centerView, 500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [centerView, sidebarOpen]);
 
   useEffect(() => {
     if (
@@ -525,8 +692,33 @@ export default function EditorPage() {
     if (copied.length > 0) setClipboardShapes(copied);
   };
 
+  const beginDuplicateCooldown = useCallback(() => {
+    const now = Date.now();
+    if (now - lastDuplicateAtRef.current < DUPLICATE_COOLDOWN_MS) {
+      showMessage('Esperá un momento antes de duplicar de nuevo');
+      return false;
+    }
+    lastDuplicateAtRef.current = now;
+    setDuplicateOnCooldown(true);
+    if (duplicateCooldownTimerRef.current) {
+      clearTimeout(duplicateCooldownTimerRef.current);
+    }
+    duplicateCooldownTimerRef.current = setTimeout(() => {
+      setDuplicateOnCooldown(false);
+      duplicateCooldownTimerRef.current = null;
+    }, DUPLICATE_COOLDOWN_MS);
+    return true;
+  }, [showMessage]);
+
+  useEffect(() => () => {
+    if (duplicateCooldownTimerRef.current) {
+      clearTimeout(duplicateCooldownTimerRef.current);
+    }
+  }, []);
+
   const handlePasteClipboard = () => {
     if (clipboardShapes.length === 0) return;
+    if (!beginDuplicateCooldown()) return;
     let idCounter = nextId;
     const pasted = clipboardShapes.map((shape) =>
       duplicateShape(shape, { x: 24, y: 24 }, idCounter++),
@@ -541,6 +733,7 @@ export default function EditorPage() {
   /** Copia las formas seleccionadas y las pega desplazadas; si hay portapapeles, pega ese. */
   const handleCopyPaste = () => {
     if (selectedIds.length > 0) {
+      if (!beginDuplicateCooldown()) return;
       let idCounter = nextId;
       const pasted = selectedIds
         .map((id) => shapesById.get(id))
@@ -610,6 +803,7 @@ export default function EditorPage() {
   }, [commitHistory]);
 
   const placeShapeAt = (type, clientX, clientY) => {
+    if (isSavingRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const { x, y } = screenToCanvas(clientX, clientY, rect, zoom, DROP_OFFSET);
     const newShape = createShape(type, x, y, nextId);
@@ -621,6 +815,7 @@ export default function EditorPage() {
 
   const handleDrop = (event) => {
     event.preventDefault();
+    if (isSavingRef.current) return;
     const type = event.dataTransfer.getData(PALETTE_DRAG_TYPE_KEY);
     if (!type || type === SHAPE_TYPES.CONNECT) return;
     placeShapeAt(type, event.clientX, event.clientY);
@@ -644,6 +839,7 @@ export default function EditorPage() {
   useEffect(() => () => endPaletteDragSession(), [endPaletteDragSession]);
 
   const handlePaletteDragStart = (event, type, onPlaced) => {
+    if (isSavingRef.current) return;
     if (type === SHAPE_TYPES.CONNECT) return;
 
     const isTouch = event.type === 'touchstart';
@@ -700,7 +896,7 @@ export default function EditorPage() {
       const endPoint = isTouch ? endEvent.changedTouches[0] : endEvent;
       if (!endPoint) return;
 
-      if (isOverCanvas(endPoint.clientX, endPoint.clientY)) {
+      if (isOverCanvas(endPoint.clientX, endPoint.clientY) && !isSavingRef.current) {
         placeShapeAt(placedType, endPoint.clientX, endPoint.clientY);
         onPlaced?.();
       }
@@ -718,6 +914,7 @@ export default function EditorPage() {
   };
 
   const handlePaletteTapPlace = (type) => {
+    if (isSavingRef.current) return;
     placeShapeAt(type, window.innerWidth / 2, window.innerHeight / 2);
   };
 
@@ -797,7 +994,11 @@ export default function EditorPage() {
           const toSide = targetShape && targetElement
             ? getNearestHandleSide(targetShape, endPoint.clientX, endPoint.clientY, targetElement)
             : undefined;
-          const result = handleConnectClick(connections, shape.id, targetShapeId, { fromSide, toSide });
+          const result = handleConnectClick(connections, shape.id, targetShapeId, {
+            fromSide,
+            toSide,
+            shapes,
+          });
           setConnections(result.connections);
           if (result.message) showMessage(result.message);
           if (result.created || result.removed) {
@@ -1018,6 +1219,13 @@ export default function EditorPage() {
     centerView();
   };
 
+  const handleGuestSaveNavigate = () => {
+    if (hasDiagramContent(diagramState)) {
+      saveBrowserBackup('guest-save');
+    }
+    navigate('/login', { state: { from: '/editor' } });
+  };
+
   const handleRestoreBackup = () => {
     if (!backupPrompt?.backup) return;
     restoreBrowserBackup(backupPrompt.backup);
@@ -1033,17 +1241,25 @@ export default function EditorPage() {
     showMessage('Backup local descartado');
   };
 
-  const handleSave = async () => {
-    if (isSaving) return;
+  const handleSave = async (options = {}) => {
+    const { stayOnPage = false } = options;
+    if (isSaving) return false;
     if (!user) {
       saveBrowserBackup('guest-save');
       showError('Inicia sesión para guardar tus diseños en la nube');
       showMessage('Se guardó un backup en este navegador');
-      return;
+      return false;
     }
 
+    const controller = new AbortController();
+    saveAbortRef.current = controller;
     setIsSaving(true);
     try {
+      const resolvedTitle = saveTitle.trim() || DEFAULT_DIAGRAM_TITLE;
+      if (!saveTitle.trim()) {
+        setSaveTitle(resolvedTitle);
+      }
+
       let imageData = null;
       let pdfDataString = null;
 
@@ -1055,23 +1271,33 @@ export default function EditorPage() {
       }
 
       const data = {
-        title: saveTitle,
+        title: resolvedTitle,
         content: serializeDiagram(diagramState),
         image: imageData,
         pdf_data: pdfDataString,
         classId: saveClassId || null,
       };
 
+      const requestConfig = { signal: controller.signal };
+
       if (id) {
-        await api.put(`/designs/${id}`, data);
+        await api.put(`/designs/${id}`, data, requestConfig);
         clearBrowserBackup(id);
       } else {
-        const res = await api.post('/designs', data);
+        const res = await api.post('/designs', data, requestConfig);
         clearBrowserBackup(null);
-        navigate(`/editor/${res.data.design.id}`, { replace: true });
+        if (!stayOnPage) {
+          navigate(`/editor/${res.data.design.id}`, { replace: true });
+        }
       }
+      markSnapshotSaved(diagramState, resolvedTitle, saveClassId);
       showMessage('Diseño guardado en Diseños');
+      return true;
     } catch (err) {
+      if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+        showMessage('Guardado cancelado');
+        return false;
+      }
       console.error('Error al guardar:', err);
       const backedUp = saveBrowserBackup('server-save-failed');
       showError(
@@ -1079,8 +1305,43 @@ export default function EditorPage() {
           ? 'No se pudo guardar en el servidor. Dejamos un backup en este navegador.'
           : 'No se pudo guardar en el servidor ni crear el backup local.',
       );
+      return false;
     } finally {
       setIsSaving(false);
+      saveAbortRef.current = null;
+    }
+  };
+
+  const completePendingNavigation = useCallback(() => {
+    const path = pendingNavigation;
+    setPendingNavigation(null);
+    setLeaveModal(null);
+    if (path) navigate(path);
+  }, [navigate, pendingNavigation]);
+
+  const handleLeaveSave = async () => {
+    const saved = await handleSave({ stayOnPage: true });
+    if (saved) completePendingNavigation();
+  };
+
+  const handleLeaveWithoutSaving = () => {
+    completePendingNavigation();
+  };
+
+  const handleLeaveCancel = () => {
+    setLeaveModal(null);
+    setPendingNavigation(null);
+  };
+
+  const handleWaitSaving = () => {
+    setLeaveModal(null);
+  };
+
+  const handleAbortSaving = () => {
+    saveAbortRef.current?.abort();
+    setLeaveModal(isDirty ? 'unsaved' : null);
+    if (!isDirty) {
+      setPendingNavigation(null);
     }
   };
 
@@ -1178,16 +1439,19 @@ export default function EditorPage() {
 
   return (
     <div
-      className={`editor-fullscreen figma-editor${paletteTouchDrag ? ' is-palette-dragging' : ''}`}
+      className={`editor-fullscreen figma-editor${paletteTouchDrag ? ' is-palette-dragging' : ''}${isSaving ? ' is-saving' : ''}${isViewOnly ? ' editor-view-only' : ''}`}
       id="editor-page"
     >
+      {!isViewOnly && (
       <EditorSidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         onPaletteDragStart={handlePaletteDragStart}
         onPaletteTapPlace={handlePaletteTapPlace}
         renderPreview={(type) => <ShapePreview type={type} />}
+        paletteDisabled={isSaving}
       />
+      )}
 
       <div className="editor-main-fs figma-editor-main">
         <div className="figma-editor-panel">
@@ -1204,6 +1468,13 @@ export default function EditorPage() {
               handleExportPDF={handleExportPDF}
               isSaving={isSaving}
               isGuest={!user}
+              readOnly={isViewOnly}
+              onGuestSaveNavigate={handleGuestSaveNavigate}
+              onCopyDesign={handleCopySharedDesign}
+              canCopyDesign={canCopySharedDesign}
+              alreadyCopiedDesign={sharedDesignCopied}
+              isCopyingDesign={isCopyingShared}
+              isSharedOwner={isSharedOwner}
             />
           </div>
 
@@ -1224,15 +1495,17 @@ export default function EditorPage() {
             canBringToFront={hasShapeSelection}
             canCopyPaste={hasShapeSelection || clipboardShapes.length > 0}
             canDelete={hasShapeSelection || !!selectedConnectionId}
+            duplicateOnCooldown={duplicateOnCooldown}
+            readOnly={isViewOnly}
           />
 
           <div className="figma-editor-canvas-area">
         <div
           className={`editor-canvas-fs figma-canvas-panel ${isPanning ? 'panning' : ''} ${paletteTouchDrag ? 'palette-touch-active' : ''} ${paletteDragOverCanvas ? 'palette-drop-target' : ''}`}
           ref={canvasWrapperRef}
-          onDrop={handleDrop}
-          onDragOver={(event) => event.preventDefault()}
-          onClick={(event) => {
+          onDrop={isViewOnly ? undefined : handleDrop}
+          onDragOver={isViewOnly ? undefined : (event) => event.preventDefault()}
+          onClick={isViewOnly ? undefined : (event) => {
             if (!shouldClearCanvasSelection(event.target)) return;
             setSelectedIds([]);
             setSelectedConnectionId(null);
@@ -1263,14 +1536,14 @@ export default function EditorPage() {
               {connections.map((connection) => {
                 const line = getConnectionLineFromMap(connection, shapesById);
                 if (!line) return null;
-                const isSelected = selectedConnectionId === connection.id;
+                const isSelected = !isViewOnly && selectedConnectionId === connection.id;
                 return (
                   <g
                     key={connection.id}
                     className={`connection-group${isSelected ? ' selected' : ''}`}
-                    onClick={(event) => selectConnection(event, connection.id)}
-                    onMouseDown={(event) => selectConnection(event, connection.id)}
-                    onTouchStart={(event) => selectConnection(event, connection.id)}
+                    onClick={isViewOnly ? undefined : (event) => selectConnection(event, connection.id)}
+                    onMouseDown={isViewOnly ? undefined : (event) => selectConnection(event, connection.id)}
+                    onTouchStart={isViewOnly ? undefined : (event) => selectConnection(event, connection.id)}
                   >
                     <line
                       x1={line.x1}
@@ -1301,7 +1574,9 @@ export default function EditorPage() {
             </svg>
             {shapes.length === 0 && (
               <div className="canvas-bg">
-                <p className="canvas-hint">Arrastra formas aquí para comenzar a editar</p>
+                <p className="canvas-hint">
+                  {isViewOnly ? 'Este diagrama no tiene contenido para mostrar' : 'Arrastra formas aquí para comenzar a editar'}
+                </p>
               </div>
             )}
 
@@ -1309,18 +1584,19 @@ export default function EditorPage() {
               <div
                 key={shape.id}
                 data-shape-id={shape.id}
-                className={`shape-element ${selectedIdSet.has(shape.id) ? 'selected' : ''} ${connectSource === shape.id ? 'connect-source' : ''} ${draggingShapeIdSet.has(shape.id) ? 'is-dragging' : ''}`}
+                className={`shape-element ${!isViewOnly && selectedIdSet.has(shape.id) ? 'selected' : ''} ${!isViewOnly && connectSource === shape.id ? 'connect-source' : ''} ${!isViewOnly && draggingShapeIdSet.has(shape.id) ? 'is-dragging' : ''}${isViewOnly ? ' shape-element--readonly' : ''}`}
                 style={{ left: shape.x, top: shape.y, width: shape.width, height: shape.height }}
-                onMouseMove={(event) => handleShapeMouseMove(event, shape)}
-                onMouseDown={(event) => handleMouseDown(event, shape)}
-                onTouchStart={(event) => handleShapeTouchStart(event, shape)}
+                onMouseMove={isViewOnly ? undefined : (event) => handleShapeMouseMove(event, shape)}
+                onMouseDown={isViewOnly ? undefined : (event) => handleMouseDown(event, shape)}
+                onTouchStart={isViewOnly ? undefined : (event) => handleShapeTouchStart(event, shape)}
               >
                 <RenderShape
                   shape={shape}
-                  onTextChange={(title, textElement) => handleShapeTextChange(shape.id, title, textElement)}
-                  onTextCommit={handleShapeTextCommit}
+                  preview={isViewOnly}
+                  onTextChange={isViewOnly ? undefined : (title, textElement) => handleShapeTextChange(shape.id, title, textElement)}
+                  onTextCommit={isViewOnly ? undefined : handleShapeTextCommit}
                 />
-                {(selectedIdSet.has(shape.id) || connectSource === shape.id) && (
+                {!isViewOnly && (selectedIdSet.has(shape.id) || connectSource === shape.id) && (
                   <button
                     type="button"
                     className="connection-handle"
@@ -1332,7 +1608,7 @@ export default function EditorPage() {
                     onClick={(event) => event.stopPropagation()}
                   />
                 )}
-                {selectedIds.length === 1 && selectedIdSet.has(shape.id) && (
+                {!isViewOnly && selectedIds.length === 1 && selectedIdSet.has(shape.id) && (
                   <div
                     className="resize-handle"
                     onMouseDown={(e) => handleResizeMouseDown(e, shape)}
@@ -1380,6 +1656,17 @@ export default function EditorPage() {
           </div>
         </div>
       )}
+
+      <EditorLeaveModal
+        open={Boolean(leaveModal)}
+        variant={leaveModal}
+        onSave={handleLeaveSave}
+        onLeaveWithoutSaving={handleLeaveWithoutSaving}
+        onCancel={handleLeaveCancel}
+        onWaitSaving={handleWaitSaving}
+        onAbortSaving={handleAbortSaving}
+        busy={isSaving && leaveModal === 'unsaved'}
+      />
     </div>
   );
 }

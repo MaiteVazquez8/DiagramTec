@@ -1,4 +1,6 @@
 const adminRepository = require('../repositories/adminRepository');
+const { validateUserNames } = require('../utils/nameValidation');
+const { validateEmail } = require('../utils/emailValidation');
 
 async function getStats(db) {
   const totalUsers = await adminRepository.countUsers(db);
@@ -20,15 +22,24 @@ async function listStudents(db) {
 }
 
 async function updateUser(db, id, data) {
-  if (!data.firstName?.trim() || !data.lastName?.trim() || !data.email?.trim()) {
-    throw new Error('USER_FIELDS_REQUIRED');
+  const namesCheck = validateUserNames(data.firstName, data.lastName);
+  if (!namesCheck.ok) {
+    const err = new Error('INVALID_USER_NAME');
+    err.clientMessage = namesCheck.error;
+    throw err;
+  }
+  const emailCheck = validateEmail(data.email);
+  if (!emailCheck.ok) {
+    const err = new Error('INVALID_EMAIL');
+    err.clientMessage = emailCheck.error;
+    throw err;
   }
   return await adminRepository.updateUser(
     db,
     id,
-    data.firstName.trim(),
-    data.lastName.trim(),
-    data.email.trim(),
+    namesCheck.firstName,
+    namesCheck.lastName,
+    emailCheck.email,
     data.role,
   );
 }

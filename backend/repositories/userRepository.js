@@ -36,8 +36,24 @@ async function findById(db, id) {
   return rows[0] || null;
 }
 
+async function findByIdWithPassword(db, id) {
+  const [rows] = await db.execute(
+    'SELECT id, firstName, lastName, email, role, passwordHash FROM users WHERE id = ?',
+    [id],
+  );
+  return rows[0] || null;
+}
+
 async function updateUser(db, id, firstName, lastName, email) {
   await db.execute('UPDATE users SET firstName = ?, lastName = ?, email = ? WHERE id = ?', [firstName, lastName, email.toLowerCase(), id]);
+  return findById(db, id);
+}
+
+async function updateUserWithPassword(db, id, firstName, lastName, email, passwordHash) {
+  await db.execute(
+    'UPDATE users SET firstName = ?, lastName = ?, email = ?, passwordHash = ? WHERE id = ?',
+    [firstName, lastName, email.toLowerCase(), passwordHash, id],
+  );
   return findById(db, id);
 }
 
@@ -67,7 +83,9 @@ module.exports = {
   createGoogleUser,
   setGoogleId,
   findById,
+  findByIdWithPassword,
   updateUser,
+  updateUserWithPassword,
   deleteUser,
   setUserToken,
   findByEmailAndToken,

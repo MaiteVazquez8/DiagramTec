@@ -108,7 +108,7 @@ function getShapeArea(shape) {
   return shape.width * shape.height;
 }
 
-function getContainingContainer(shape, shapes) {
+export function getContainingContainer(shape, shapes) {
   return shapes
     .filter((candidate) =>
       candidate.id !== shape.id
@@ -163,7 +163,11 @@ function borderScaleForShape(shape, dx, dy, dist) {
     const polyScale = polygonBorderScale(center, { x: dx, y: dy }, outline);
     if (polyScale !== null) return polyScale;
   }
-  if (shape.type === SHAPE_TYPES.START || shape.type === SHAPE_TYPES.END) {
+  if (
+    shape.type === SHAPE_TYPES.START
+    || shape.type === SHAPE_TYPES.END
+    || shape.type === SHAPE_TYPES.START_END
+  ) {
     return ellipseBorderScale(shape, dx, dy, dist);
   }
   return rectBorderScale(shape, absDx, absDy);
@@ -263,7 +267,11 @@ function getShapeAnchorPoint(shape, side) {
     return { x: cx + dx * scale, y: cy + dy * scale };
   }
 
-  if (shape.type === SHAPE_TYPES.START || shape.type === SHAPE_TYPES.END) {
+  if (
+    shape.type === SHAPE_TYPES.START
+    || shape.type === SHAPE_TYPES.END
+    || shape.type === SHAPE_TYPES.START_END
+  ) {
     const angle = {
       top: -Math.PI / 2,
       bottom: Math.PI / 2,

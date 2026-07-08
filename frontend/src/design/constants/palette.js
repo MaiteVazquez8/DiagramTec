@@ -3,6 +3,7 @@
 export const SHAPE_TYPES = {
   START: 'start',
   END: 'end',
+  START_END: 'startEnd',
   CONNECT: 'connect',
   INPUT: 'input',
   PRINT: 'print',
@@ -13,8 +14,7 @@ export const SHAPE_TYPES = {
 };
 
 export const palette = [
-  { type: SHAPE_TYPES.START, label: 'Inicio' },
-  { type: SHAPE_TYPES.END, label: 'Final' },
+  { type: SHAPE_TYPES.START_END, label: 'inicio/final' },
   { type: SHAPE_TYPES.INPUT, label: 'Entrada / Input' },
   { type: SHAPE_TYPES.PRINT, label: 'Salida / Print' },
   { type: SHAPE_TYPES.PROCESS, label: 'Proceso / Variable' },

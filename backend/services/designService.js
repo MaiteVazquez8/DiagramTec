@@ -1,7 +1,5 @@
 const designRepository = require('../repositories/designRepository');
-const classRepository = require('../repositories/classRepository');
-
-const MAX_DESIGNS_PER_USER = 20;
+const classRepository = require('../repositories/classRepository');const MAX_DESIGNS_PER_USER = 20;
 
 async function listDesigns(db, userId) {
   return await designRepository.findDesignsByOwner(db, userId);
@@ -74,13 +72,36 @@ async function deleteDesign(db, id, userId, userRole) {
 async function copyDesign(db, id, userId) {
   const design = await designRepository.findDesignById(db, id);
   if (!design) throw new Error('DESIGN_NOT_FOUND');
+
+  const existing = await designRepository.findCopyByOwnerAndOriginal(db, userId, id);
+  if (existing) throw new Error('DESIGN_ALREADY_COPIED');
+
   const count = await designRepository.countDesignsByOwner(db, userId);
   if (count >= MAX_DESIGNS_PER_USER) {
     const err = new Error('MAX_DESIGNS_REACHED');
     err.statusCode = 403;
     throw err;
   }
-  return await designRepository.copyDesign(db, id, userId);
+
+  const result = await designRepository.copyDesign(db, id, userId);
+  if (!result) throw new Error('DESIGN_NOT_FOUND');
+  if (result.alreadyExists) throw new Error('DESIGN_ALREADY_COPIED');
+  return result.design;
+}
+
+async function getPublicDesign(db, id) {
+  const design = await designRepository.findDesignById(db, id);
+  if (!design) throw new Error('DESIGN_NOT_FOUND');
+  return {
+    id: design.id,
+    title: design.title,
+    content: design.content,
+    image: design.image,
+    pdf_data: design.pdf_data,
+    createdAt: design.createdAt,
+    ownerId: design.ownerId,
+    ownerName: design.ownerName,
+  };
 }
 
 module.exports = {
@@ -89,5 +110,6 @@ module.exports = {
   createDesign,
   updateDesign,
   deleteDesign,
-  copyDesign
+  copyDesign,
+  getPublicDesign,
 };

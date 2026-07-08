@@ -1,8 +1,7 @@
 const authService = require('../services/authService');
 const googleAuthService = require('../services/googleAuthService');
-
-const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
-const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+const { validateEmail } = require('../utils/emailValidation');
+const { validateUserNames } = require('../utils/nameValidation');
 
 const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
 const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
@@ -13,10 +12,24 @@ async function register(req, res) {
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
+  const namesCheck = validateUserNames(firstName, lastName);
+  if (!namesCheck.ok) {
+    return res.status(400).json({ error: namesCheck.error });
+  }
+  const emailCheck = validateEmail(email);
+  if (!emailCheck.ok) {
+    return res.status(400).json({ error: emailCheck.error });
+  }
   if (!STRONG_PASSWORD_RE.test(password)) {
     return res.status(400).json({ error: PASSWORD_REQUIREMENTS_MESSAGE });
   }
-  const result = await authService.register(db, { firstName, lastName, email, password, role });
+  const result = await authService.register(db, {
+    firstName: namesCheck.firstName,
+    lastName: namesCheck.lastName,
+    email: emailCheck.email,
+    password,
+    role,
+  });
   res.json(result);
 }
 
@@ -43,11 +56,27 @@ async function me(req, res) {
 
 async function updateProfile(req, res) {
   const db = req.app.locals.db;
-  const { firstName, lastName, email } = req.body;
+  const { firstName, lastName, email, password } = req.body;
   if (!firstName || !lastName || !email) {
     return res.status(400).json({ error: 'Faltan datos obligatorios' });
   }
-  const user = await authService.updateProfile(db, req.user.id, { firstName, lastName, email });
+  const namesCheck = validateUserNames(firstName, lastName);
+  if (!namesCheck.ok) {
+    return res.status(400).json({ error: namesCheck.error });
+  }
+  const emailCheck = validateEmail(email);
+  if (!emailCheck.ok) {
+    return res.status(400).json({ error: emailCheck.error });
+  }
+  if (password && !STRONG_PASSWORD_RE.test(password)) {
+    return res.status(400).json({ error: PASSWORD_REQUIREMENTS_MESSAGE });
+  }
+  const user = await authService.updateProfile(db, req.user.id, {
+    firstName: namesCheck.firstName,
+    lastName: namesCheck.lastName,
+    email: emailCheck.email,
+    password,
+  });
   res.json({ user });
 }
 

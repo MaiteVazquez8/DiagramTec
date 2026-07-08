@@ -1,3 +1,5 @@
+import { getContainingContainer } from '../math/connections.js';
+
 /**
  * Conexiones entre formas (clic origen → clic destino) y líneas SVG.
  * @typedef {Object} Connection
@@ -83,6 +85,23 @@ export function hasConnectionBetween(connections, fromId, toId) {
 }
 
 /**
+ * @param {import('../models/shape.js').Shape[]} shapes
+ * @param {string|number} fromId
+ * @param {string|number} toId
+ * @returns {boolean}
+ */
+export function canConnectShapes(shapes, fromId, toId) {
+  const from = shapes.find((shape) => String(shape.id) === String(fromId));
+  const to = shapes.find((shape) => String(shape.id) === String(toId));
+  if (!from || !to) return false;
+
+  const fromContainerId = getContainingContainer(from, shapes)?.id ?? null;
+  const toContainerId = getContainingContainer(to, shapes)?.id ?? null;
+
+  return fromContainerId === toContainerId;
+}
+
+/**
  * Alterna conexión existente o crea una nueva entre dos componentes.
  * Regla: solo una conexión por par (A,B), pero cada componente puede conectar con muchos distintos.
  * @param {Connection[]} connections
@@ -118,6 +137,16 @@ export function handleConnectClick(connections, connectSource, targetId, options
       created: false,
       removed: false,
       message: 'Ya existe una conexión entre estos componentes',
+    };
+  }
+
+  if (options.shapes && !canConnectShapes(options.shapes, connectSource, targetId)) {
+    return {
+      connections,
+      connectSource: null,
+      created: false,
+      removed: false,
+      message: 'Solo podés conectar componentes dentro del mismo if, while o for',
     };
   }
 

@@ -6,29 +6,25 @@ import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
 import { useToast } from '../ToastContext.jsx';
-import { Button, Input, Select } from '../components/ui/index.js';
+import { Button, Input } from '../components/ui/index.js';
 
-const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
-const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
-const PASSWORD_REQUIREMENTS = [
-  { id: 'length', label: 'Mínimo 6 caracteres', test: (value) => value.length >= 6 },
-  { id: 'uppercase', label: 'Una letra mayúscula', test: (value) => /[A-Z]/.test(value) },
-  { id: 'lowercase', label: 'Una letra minúscula', test: (value) => /[a-z]/.test(value) },
-  { id: 'number', label: 'Un número', test: (value) => /\d/.test(value) },
-  { id: 'special', label: 'Un caracter especial', test: (value) => /[^A-Za-z0-9]/.test(value) },
-];
+import { PASSWORD_REQUIREMENTS_MESSAGE, STRONG_PASSWORD_RE, PASSWORD_REQUIREMENTS } from '../utils/passwordValidation.js';
+import { validateEmail } from '../utils/emailValidation.js';
+import { validateUserNames, NAME_MAX_LENGTH } from '../utils/nameValidation.js';
+
+import { resolveAuthRedirect } from '../utils/editorBackup.js';
 
 export default function SignupPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
   const { showError } = useToast();
+  const redirectTo = resolveAuthRedirect(location.state?.from);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -36,8 +32,8 @@ export default function SignupPage() {
     const token = params.get('token');
     if (!token) return;
     login(token);
-    navigate('/', { replace: true });
-  }, [location.search, login, navigate]);
+    navigate(resolveAuthRedirect(location.state?.from), { replace: true });
+  }, [location.search, location.state, login, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -49,23 +45,29 @@ export default function SignupPage() {
       showError('Las contraseñas no coinciden');
       return;
     }
-    if (!role) {
-      showError('Selecciona un rol');
+    const namesCheck = validateUserNames(firstName, lastName);
+    if (!namesCheck.ok) {
+      showError(namesCheck.error);
+      return;
+    }
+    const emailCheck = validateEmail(email);
+    if (!emailCheck.ok) {
+      showError(emailCheck.error);
       return;
     }
 
     setLoading(true);
     try {
       const response = await authApi.post('/registro.php', {
-        firstName,
-        lastName,
-        email,
+        firstName: namesCheck.firstName,
+        lastName: namesCheck.lastName,
+        email: emailCheck.email,
         password,
-        role,
+        role: 'student',
       });
       if (response.data?.token) {
         login(response.data.token);
-        navigate('/');
+        navigate(redirectTo);
       } else {
         showError(response.data?.error || 'No se pudo crear la cuenta');
       }
@@ -80,7 +82,7 @@ export default function SignupPage() {
     <section className="page-container auth-page-wrap ui-fade-in">
       <article className="form-card auth-card figma-auth-card figma-signup-card ui-slide-up">
         <div className="auth-tabs">
-          <Link to="/login">Iniciar sesion</Link>
+          <Link to="/login" state={location.state}>Iniciar sesion</Link>
           <span className="active">Registrarse</span>
         </div>
         <h2>Crear cuenta</h2>
@@ -98,6 +100,7 @@ export default function SignupPage() {
               placeholder="Tu nombre..."
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
+              maxLength={NAME_MAX_LENGTH}
               required
             />
             <Input
@@ -105,6 +108,7 @@ export default function SignupPage() {
               placeholder="Tu apellido..."
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
+              maxLength={NAME_MAX_LENGTH}
               required
             />
           </div>
@@ -151,19 +155,12 @@ export default function SignupPage() {
               })}
             </ul>
           </div>
-          <Select label="Rol" value={role} onChange={(e) => setRole(e.target.value)} required>
-            <option value="" disabled>
-              Rol
-            </option>
-            <option value="student">Estudiante</option>
-            <option value="teacher">Profesor</option>
-          </Select>
           <Button variant="primary" fullWidth type="submit" loading={loading}>
             Registrarse
           </Button>
         </form>
         <p className="small-text">
-          ¿Tenes una cuenta? <Link to="/login">Iniciar sesion</Link>
+          ¿Tenes una cuenta? <Link to="/login" state={location.state}>Iniciar sesion</Link>
         </p>
       </article>
     </section>
