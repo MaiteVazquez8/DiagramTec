@@ -18,7 +18,8 @@ async function register(db, userData) {
 
 async function login(db, email, password) {
   const user = await findByEmail(db, email);
-  if (!user) throw new Error('INVALID_CREDENTIALS');
+  // Usuarios creados con Google no tienen passwordHash (PHP: password_verify sobre null → false).
+  if (!user || !user.passwordHash) throw new Error('INVALID_CREDENTIALS');
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new Error('INVALID_CREDENTIALS');
   const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '48h' });
