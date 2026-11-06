@@ -3,14 +3,16 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import authApi from '../authApi.js';
+import api from '../api.js';
+import { useTurnstile } from '../components/Turnstile.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input } from '../components/ui/index.js';
 
 export default function RecoverPasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showMessage } = useToast();
+  const { showMessage, showError } = useToast();
+  const turnstile = useTurnstile('recovery');
   const [email, setEmail] = useState(
     location.state?.email || localStorage.getItem('recoverEmail') || '',
   );
@@ -18,16 +20,21 @@ export default function RecoverPasswordPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!turnstile.ready) {
+      showError('Completá la verificación anti-bots');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await authApi.post('/token.php', { email });
+      const response = await api.post('/auth/recovery-code', { email, ...turnstile.body });
       localStorage.setItem('recoverEmail', email);
-      showMessage(response.data?.message || 'Se envió el código de verificación a su email');
+      showMessage(response.data?.message || 'Si el correo está registrado, te enviamos un código.');
       navigate('/reset-password', { state: { email } });
     } catch {
       // El interceptor global ya muestra el toast de error.
     } finally {
       setLoading(false);
+      turnstile.reset();
     }
   };
 
@@ -48,6 +55,7 @@ export default function RecoverPasswordPage() {
             required
             placeholder="Tu email..."
           />
+          {turnstile.widget}
           <Button variant="primary" fullWidth type="submit" loading={loading}>
             Enviar código
           </Button>

@@ -1,4 +1,3 @@
-const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
@@ -6,17 +5,16 @@ function getGoogleConfig() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   const redirectUri = process.env.GOOGLE_CALLBACK_URL
-    || `${(process.env.API_PUBLIC_URL || process.env.VITE_API_URL || '').replace(/\/$/, '')}/auth/google/callback`;
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    || `${(process.env.API_PUBLIC_URL || '').replace(/\/$/, '')}/auth/google/callback`;
 
-  if (!clientId || !clientSecret || !redirectUri) {
+  if (!clientId || !clientSecret || !redirectUri.startsWith('http')) {
     throw new Error('GOOGLE_NOT_CONFIGURED');
   }
 
-  return { clientId, clientSecret, redirectUri, frontendUrl };
+  return { clientId, clientSecret, redirectUri };
 }
 
-/** State firmado con JWT — funciona con varias instancias Node en Hostinger. */
+/** State firmado con JWT (sirve con varias instancias) y además guardado en cookie. */
 function createOAuthState() {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error('GOOGLE_NOT_CONFIGURED');
@@ -24,7 +22,7 @@ function createOAuthState() {
   return jwt.sign(
     { oauth: 'google', rnd: crypto.randomBytes(12).toString('hex') },
     secret,
-    { expiresIn: '15m' },
+    { algorithm: 'HS256', expiresIn: '15m' },
   );
 }
 
@@ -32,7 +30,7 @@ function consumeOAuthState(state) {
   if (!state || !process.env.JWT_SECRET) return false;
 
   try {
-    const payload = jwt.verify(String(state), process.env.JWT_SECRET);
+    const payload = jwt.verify(String(state), process.env.JWT_SECRET, { algorithms: ['HS256'] });
     return payload?.oauth === 'google';
   } catch {
     return false;
@@ -56,51 +54,51 @@ function buildGoogleAuthUrl(state) {
 async function exchangeCodeForUser(code) {
   const { clientId, clientSecret, redirectUri } = getGoogleConfig();
 
-  const tokenRes = await axios.post(
-    'https://oauth2.googleapis.com/token',
-    new URLSearchParams({
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    signal: AbortSignal.timeout(10_000),
+    body: new URLSearchParams({
       client_id: clientId,
       client_secret: clientSecret,
       code,
       grant_type: 'authorization_code',
       redirect_uri: redirectUri,
-    }).toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-  );
-
-  const accessToken = tokenRes.data?.access_token;
+    }),
+  });
+  const tokenData = tokenRes.ok ? await tokenRes.json() : null;
+  const accessToken = tokenData?.access_token;
   if (!accessToken) throw new Error('GOOGLE_NO_TOKEN');
 
-  const userRes = await axios.get('https://www.googleapis.com/oauth2/v1/userinfo', {
+  const userRes = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(10_000),
   });
+  const info = userRes.ok ? await userRes.json() : {};
 
-  const googleId = userRes.data?.id;
-  const email = String(userRes.data?.email || '').toLowerCase();
-  const firstName = userRes.data?.given_name || 'Google';
-  const lastName = userRes.data?.family_name || 'User';
+  const googleId = info.id;
+  const email = String(info.email || '').toLowerCase();
+  const firstName = String(info.given_name || 'Google').slice(0, 100);
+  const lastName = String(info.family_name || 'User').slice(0, 100);
 
   if (!googleId || !email) throw new Error('GOOGLE_INCOMPLETE_PROFILE');
+  // Sin email verificado alguien podría vincularse a la cuenta de otro.
+  if (info.verified_email !== true) throw new Error('GOOGLE_EMAIL_NOT_VERIFIED');
 
   return { googleId, email, firstName, lastName };
 }
 
-function signUserToken(user) {
-  return jwt.sign(
-    { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '48h' },
-  );
+function frontendUrl() {
+  return (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim().replace(/\/$/, '');
 }
 
+// El token va en el fragmento (#): no llega a servidores, logs ni Referer.
 function buildFrontendRedirect(token) {
-  const { frontendUrl } = getGoogleConfig();
-  return `${frontendUrl}/login?token=${encodeURIComponent(token)}`;
+  return `${frontendUrl()}/login#token=${encodeURIComponent(token)}`;
 }
 
 function buildFrontendErrorRedirect(errorCode) {
-  const { frontendUrl } = getGoogleConfig();
-  return `${frontendUrl}/login?error=${encodeURIComponent(errorCode)}`;
+  return `${frontendUrl()}/login?error=${encodeURIComponent(errorCode)}`;
 }
 
 module.exports = {
@@ -108,8 +106,6 @@ module.exports = {
   consumeOAuthState,
   buildGoogleAuthUrl,
   exchangeCodeForUser,
-  signUserToken,
   buildFrontendRedirect,
   buildFrontendErrorRedirect,
-  getGoogleConfig,
 };

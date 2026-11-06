@@ -14,8 +14,9 @@ async function findClassesForUser(db, userId) {
 }
 
 async function findAvailableClasses(db, userId) {
+  // Sin c.code: el código es la "llave" para unirse y no debe listarse a desconocidos.
   const [rows] = await db.execute(`
-    SELECT c.id, c.title, c.description, c.ownerId, c.code,
+    SELECT c.id, c.title, c.description, c.ownerId,
       CONCAT(u.firstName, ' ', u.lastName) AS ownerName
     FROM classes c
     LEFT JOIN users u ON u.id = c.ownerId

@@ -3,13 +3,13 @@
  */
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import authApi from '../authApi.js';
+import api from '../api.js';
 import PasswordInput from '../components/PasswordInput.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input } from '../components/ui/index.js';
 
-const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
-const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -20,23 +20,9 @@ export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
 
-  const handleSendCode = async () => {
-    if (!recoverEmail) {
-      showError('No hay un email para reenviar el código');
-      return;
-    }
-    setResending(true);
-    try {
-      const response = await authApi.post('/token.php', { email: recoverEmail });
-      showMessage(response.data?.message || 'Se envió el código de verificación a su email');
-    } catch {
-      // El interceptor global ya muestra el toast de error.
-    } finally {
-      setResending(false);
-    }
-  };
+  // Reenviar pasa por la página de recuperación, que tiene la verificación anti-bots.
+  const handleSendCode = () => navigate('/recover', { state: { email: recoverEmail } });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -53,7 +39,7 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      const response = await authApi.post('/modificarClave.php', {
+      const response = await api.post('/auth/reset-password', {
         email: recoverEmail,
         token,
         password,
@@ -93,16 +79,16 @@ export default function ResetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña..."
-            minLength={6}
+            minLength={8}
           />
           <PasswordInput
             label="Confirmar contraseña"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Tu contraseña..."
-            minLength={6}
+            minLength={8}
           />
-          <Button variant="ghost" type="button" onClick={handleSendCode} loading={resending}>
+          <Button variant="ghost" type="button" onClick={handleSendCode}>
             Reenviar codigo
           </Button>
           <Button variant="primary" fullWidth type="submit" loading={loading}>

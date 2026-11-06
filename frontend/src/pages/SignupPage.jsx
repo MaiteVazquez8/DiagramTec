@@ -1,17 +1,18 @@
-/** Registro de usuario nuevo vía authApi (PHP). */
-import { useEffect, useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import authApi from '../authApi.js';
+/** Registro de usuario nuevo vía la API Node (/auth/register). */
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
+import { useTurnstile } from '../components/Turnstile.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { Button, Input, Select } from '../components/ui/index.js';
 
-const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
-const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+const STRONG_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const PASSWORD_REQUIREMENTS = [
-  { id: 'length', label: 'Mínimo 6 caracteres', test: (value) => value.length >= 6 },
+  { id: 'length', label: 'Mínimo 8 caracteres', test: (value) => value.length >= 8 },
   { id: 'uppercase', label: 'Una letra mayúscula', test: (value) => /[A-Z]/.test(value) },
   { id: 'lowercase', label: 'Una letra minúscula', test: (value) => /[a-z]/.test(value) },
   { id: 'number', label: 'Un número', test: (value) => /\d/.test(value) },
@@ -20,8 +21,8 @@ const PASSWORD_REQUIREMENTS = [
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
+  const turnstile = useTurnstile('signup');
   const { showError } = useToast();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -30,14 +31,6 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const token = params.get('token');
-    if (!token) return;
-    login(token);
-    navigate('/', { replace: true });
-  }, [location.search, login, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -53,15 +46,20 @@ export default function SignupPage() {
       showError('Selecciona un rol');
       return;
     }
+    if (!turnstile.ready) {
+      showError('Completá la verificación anti-bots');
+      return;
+    }
 
     setLoading(true);
     try {
-      const response = await authApi.post('/registro.php', {
+      const response = await api.post('/auth/register', {
         firstName,
         lastName,
         email,
         password,
         role,
+        ...turnstile.body,
       });
       if (response.data?.token) {
         login(response.data.token);
@@ -73,6 +71,7 @@ export default function SignupPage() {
       // El interceptor global ya muestra el toast de error.
     } finally {
       setLoading(false);
+      turnstile.reset();
     }
   };
 
@@ -122,14 +121,14 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Tu contraseña..."
-              minLength={6}
+              minLength={8}
             />
             <PasswordInput
               label="Confirmar contraseña"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Tu contraseña..."
-              minLength={6}
+              minLength={8}
             />
           </div>
           <div className="password-checklist" aria-live="polite">
@@ -158,6 +157,7 @@ export default function SignupPage() {
             <option value="student">Estudiante</option>
             <option value="teacher">Profesor</option>
           </Select>
+          {turnstile.widget}
           <Button variant="primary" fullWidth type="submit" loading={loading}>
             Registrarse
           </Button>

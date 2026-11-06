@@ -6,11 +6,19 @@ hostinger/dist/
 hostinger/nodejs.production.env
 hostinger/diagramtec-public_html/
 backend/data/database.sqlite
-php/vendor/
 .DS_Store
+
+# Secretos: nunca al repo (los .env.example y .env.production públicos sí se suben)
+.env
+.env.local
+.env.*.local
+*.pem
 
 # pnpm
 .pnpm-store/
 .pnpm-debug.log*
 frontend/pnpm-lock.yaml
 backend/pnpm-lock.yaml
+
+# Salidas de npm run build:hostinger (se regeneran; no versionar código viejo)
+hostinger/diagramtec-*

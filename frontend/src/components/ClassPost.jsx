@@ -39,7 +39,8 @@ export default function ClassPost({
   const bodyText = design.description?.trim() || design.title;
 
   const handleDownloadPdf = () => {
-    if (!design.pdf_data) return;
+    // Solo data URLs: un "javascript:..." guardado se ejecutaría al hacer clic.
+    if (!String(design.pdf_data || '').startsWith('data:application/pdf')) return;
     const link = document.createElement('a');
     link.href = design.pdf_data;
     link.download = `${design.title || 'diagrama'}.pdf`;

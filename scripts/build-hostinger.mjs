@@ -35,7 +35,6 @@ loadSiteEnv();
 
 const domain = process.env.HOSTINGER_DOMAIN || 'diagramtec.com';
 const apiUrl = process.env.VITE_API_URL || `https://api.${domain}`;
-const phpUrl = process.env.VITE_PHP_AUTH_URL || `https://${domain}/php`;
 const hostingerDir = join(root, 'hostinger');
 const outDir = join(hostingerDir, 'dist');
 const publicDir = join(outDir, 'public_html');
@@ -43,7 +42,6 @@ const publicDir = join(outDir, 'public_html');
 console.log('DiagramTec — build Hostinger Business');
 console.log(`  Dominio:  ${domain}`);
 console.log(`  API Node: ${apiUrl}`);
-console.log(`  PHP auth: ${phpUrl}`);
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(publicDir, { recursive: true });
@@ -56,8 +54,6 @@ execSync(`${npmCmd} run build`, {
   env: {
     ...process.env,
     VITE_API_URL: apiUrl,
-    VITE_PHP_AUTH_URL: phpUrl,
-    VITE_USE_NODE_AUTH: process.env.VITE_USE_NODE_AUTH || 'true',
   },
 });
 
@@ -70,16 +66,8 @@ rmSync(frontendSoloDir, { recursive: true, force: true });
 cpSync(join(root, 'frontend', 'dist'), frontendSoloDir, { recursive: true });
 cpSync(join(root, 'hostinger', 'public_html', '.htaccess'), join(frontendSoloDir, '.htaccess'));
 
-console.log('\n3/4 Copiar php/ → public_html/php...');
-const phpDest = join(publicDir, 'php');
-cpSync(join(root, 'php'), phpDest, {
-  recursive: true,
-  filter: (src) => !src.includes('node_modules') && !src.endsWith('.env'),
-});
-
+console.log('\n3/4 Copiar .htaccess (cabeceras de seguridad) → public_html...');
 cpSync(join(root, 'hostinger', 'public_html', '.htaccess'), join(publicDir, '.htaccess'));
-cpSync(join(root, 'hostinger', 'public_html', 'php', '.user.ini'), join(phpDest, '.user.ini'));
-cpSync(join(root, 'hostinger', 'php.env.example'), join(phpDest, '.env.example'));
 
 console.log('\n4/4 Preparar backend para Node.js Web App...');
 const backendOut = join(outDir, 'nodejs-backend');
@@ -184,15 +172,15 @@ writeFileSync(
     '',
     `Sitio:  https://${domain}`,
     `API:    ${apiUrl}`,
-    `PHP:    ${phpUrl}`,
     '',
     'PASO 1 — SITIO PRINCIPAL',
     `  Sube el contenido de public_html/ al public_html de ${domain} en hPanel.`,
+    '  Borrá la carpeta public_html/php vieja del servidor si existe (ya no se usa).',
     '',
-    'PASO 2 — PHP (login/registro)',
-    '  cd public_html/php && composer install --no-dev',
-    '  Renombra .env.example → .env y completa DATABASE_URL, JWT_SECRET, Google OAuth',
-    '  hPanel → PHP Configuration → activar pdo_pgsql',
+    'PASO 2 — CLOUDFLARE (recomendado)',
+    '  DNS de diagramtec.com y api.diagramtec.com con proxy naranja, SSL "Full (strict)".',
+    '  Turnstile: crear widget → VITE_TURNSTILE_SITE_KEY (site.env) y TURNSTILE_SECRET (Node).',
+    '  Con proxy naranja poné TRUST_PROXY=2 en las variables de Node.',
     '',
     'PASO 3 — SUBDOMINIO api',
     `  hPanel → Dominios → Subdominios → crear "api" → ${domain}`,
@@ -205,11 +193,10 @@ writeFileSync(
     '  Asignar el subdominio api.diagramtec.com a esta app',
     '',
     'PASO 5 — SUPABASE',
-    '  Ejecutar documents/db/supabase.sql en SQL Editor',
-    '  Misma DATABASE_URL en Node y PHP',
+    '  Ejecutar documents/db/supabase.sql en SQL Editor (Node también lo aplica al arrancar)',
     '',
     'PASO 6 — GOOGLE OAUTH',
-    `  Redirect URI: ${phpUrl}/google_auth.php?action=callback`,
+    `  Redirect URI: ${apiUrl}/auth/google/callback`,
     '',
     'PASO 7 — PROBAR',
     `  ${apiUrl}/health  → {"status":"ok"}`,

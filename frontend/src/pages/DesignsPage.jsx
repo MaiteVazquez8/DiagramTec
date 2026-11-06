@@ -296,9 +296,12 @@ export default function DesignsPage() {
                     type="button"
                     className="context-action"
                     onClick={() => {
+                      const href = contextDesign.pdf_data || contextDesign.image || '';
+                      // Solo data URLs: un "javascript:..." guardado se ejecutaría al hacer clic.
+                      if (!href.startsWith('data:')) return;
                       const link = document.createElement('a');
                       link.download = `${contextDesign.title || 'diagrama'}.pdf`;
-                      link.href = contextDesign.pdf_data || contextDesign.image;
+                      link.href = href;
                       link.click();
                     }}
                     id="ctx-export"

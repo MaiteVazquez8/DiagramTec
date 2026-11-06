@@ -1,34 +1,36 @@
+// Crea o asciende un superadmin. Uso:
+//   ADMIN_EMAIL=vos@dominio.com ADMIN_PASSWORD='Una-Clave-Fuerte-123' node seed_admin.js
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { openDb } = require('./db');
+const { isStrongPassword } = require('./services/authService');
 
-const firstName = 'Super';
-const lastName = 'Admin';
-const email = 'admin@diagramtec.com';
-const password = 'admin123';
-const role = 'superadmin';
-
-const passwordHash = bcrypt.hashSync(password, 10);
+const email = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+const password = process.env.ADMIN_PASSWORD || '';
 
 async function seedAdmin() {
+  if (!email || !isStrongPassword(password)) {
+    console.error('Definí ADMIN_EMAIL y ADMIN_PASSWORD (8+ caracteres, mayúscula, minúscula, número y símbolo).');
+    process.exit(1);
+  }
+
   let db;
   try {
     db = await openDb();
     const [users] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
     if (users.length > 0) {
-      await db.execute('UPDATE users SET role = ? WHERE id = ?', [role, users[0].id]);
-      console.log(`Usuario ${email} actualizado a superadmin.`);
+      await db.execute('UPDATE users SET role = ? WHERE id = ?', ['superadmin', users[0].id]);
+      console.log(`Usuario ${email} ascendido a superadmin (su contraseña no cambió).`);
     } else {
       await db.execute(
         'INSERT INTO users (firstName, lastName, email, passwordHash, role) VALUES (?, ?, ?, ?, ?)',
-        [firstName, lastName, email, passwordHash, role]
+        ['Super', 'Admin', email, await bcrypt.hash(password, 10), 'superadmin'],
       );
-      console.log(`Usuario superadmin creado: ${email} / ${password}`);
+      console.log(`Superadmin creado: ${email}`);
     }
-    process.exit(0);
   } catch (err) {
-    console.error('Error al crear superadmin:', err);
-    process.exit(1);
+    console.error('Error al crear superadmin:', err.message);
+    process.exitCode = 1;
   } finally {
     if (db) await db.end();
   }

@@ -9,8 +9,15 @@ async function listAvailableClasses(db, userId) {
   return await classRepository.findAvailableClasses(db, userId);
 }
 
+function validateClassText(title, description) {
+  if (typeof title !== 'string' || !title.trim() || title.length > 255) throw new Error('TITLE_REQUIRED');
+  if (description != null && (typeof description !== 'string' || description.length > 5000)) {
+    throw new Error('TITLE_REQUIRED');
+  }
+}
+
 async function createClass(db, userId, title, description) {
-  if (!title) throw new Error('TITLE_REQUIRED');
+  validateClassText(title, description);
   let code;
   let attempts = 0;
   let existing;
@@ -46,7 +53,7 @@ async function deleteClass(db, classId) {
 }
 
 async function updateClass(db, classId, requester, title, description) {
-  if (!title) throw new Error('TITLE_REQUIRED');
+  validateClassText(title, description);
 
   const classRow = await classRepository.findClassById(db, classId);
   if (!classRow) throw new Error('CLASS_NOT_FOUND');
@@ -76,8 +83,13 @@ async function getClassComments(db, classId) {
   return await classRepository.findCommentsByClassId(db, classId);
 }
 
-async function addClassComment(db, classId, userId, content) {
-  return await classRepository.insertClassComment(db, classId, userId, content);
+async function addClassComment(db, classId, user, content) {
+  const classRow = await classRepository.findClassById(db, classId);
+  if (!classRow) throw new Error('CLASS_NOT_FOUND');
+  const isOwner = Number(classRow.ownerId) === Number(user.id);
+  const isMember = (await classRepository.findMembersForClass(db, classId, user.id)).length > 0;
+  if (!isOwner && !isMember && user.role !== 'superadmin') throw new Error('UNAUTHORIZED');
+  return await classRepository.insertClassComment(db, classId, user.id, content);
 }
 
 async function isUserInClass(db, classId, userId) {

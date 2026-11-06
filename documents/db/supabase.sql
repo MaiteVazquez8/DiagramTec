@@ -20,8 +20,13 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT NOT NULL UNIQUE,
   "passwordHash" TEXT,
   "googleId"    TEXT UNIQUE,
-  token         VARCHAR(6),
-  role          TEXT NOT NULL DEFAULT 'student'
+  -- Recuperación de contraseña: solo el HMAC del código, con vencimiento e intentos.
+  reset_code_hash     TEXT,
+  reset_code_expires  TIMESTAMPTZ,
+  reset_attempts      INT NOT NULL DEFAULT 0,
+  -- Los JWT emitidos antes de esta fecha dejan de valer.
+  password_changed_at TIMESTAMPTZ,
+  role         TEXT NOT NULL DEFAULT 'student'
                 CHECK (role IN ('student', 'teacher', 'admin', 'superadmin')),
   "createdAt"   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -96,9 +101,11 @@ CREATE INDEX IF NOT EXISTS idx_comments_userId    ON comments ("userId");
 CREATE INDEX IF NOT EXISTS idx_comments_createdAt ON comments ("createdAt");
 
 -- ---------------------------------------------------------------------------
--- Row Level Security (opcional)
--- El backend Node con service_role ignora RLS.
--- Si el frontend habla directo con Supabase, activa políticas aquí.
+-- Row Level Security
+-- Todo pasa por la API Node, que se conecta como "postgres" y no depende de RLS.
+-- RLS activado SIN políticas = la API REST pública de Supabase (clave anon) no
+-- puede leer ni escribir nada. NUNCA crear políticas "USING (true)": exponen
+-- emails y hashes de contraseña a cualquiera.
 -- ---------------------------------------------------------------------------
 ALTER TABLE users         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes       ENABLE ROW LEVEL SECURITY;
@@ -106,23 +113,12 @@ ALTER TABLE class_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE designs       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments      ENABLE ROW LEVEL SECURITY;
 
--- Políticas abiertas solo para desarrollo (reemplazar en producción)
-CREATE POLICY "dev_all_users"         ON users         FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "dev_all_classes"       ON classes       FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "dev_all_class_members" ON class_members FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "dev_all_designs"       ON designs       FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "dev_all_comments"      ON comments      FOR ALL USING (true) WITH CHECK (true);
+-- Si una base vieja tiene las políticas abiertas de desarrollo, se borran:
+DROP POLICY IF EXISTS "dev_all_users"         ON users;
+DROP POLICY IF EXISTS "dev_all_classes"       ON classes;
+DROP POLICY IF EXISTS "dev_all_class_members" ON class_members;
+DROP POLICY IF EXISTS "dev_all_designs"       ON designs;
+DROP POLICY IF EXISTS "dev_all_comments"      ON comments;
 
--- ---------------------------------------------------------------------------
--- Superadmin de desarrollo (opcional)
--- Contraseña: admin123  →  genera el hash con: cd backend && node seed_admin.js
--- y pega el passwordHash resultante, o inserta desde el seed del backend.
--- ---------------------------------------------------------------------------
--- INSERT INTO users ("firstName", "lastName", email, "passwordHash", role)
--- VALUES (
---   'Super',
---   'Admin',
---   'admin@diagramtec.com',
---   '$2a$10$...',  -- bcrypt de admin123
---   'superadmin'
--- );
+-- Superadmin: desde backend/, con variables de entorno (sin contraseñas fijas):
+--   ADMIN_EMAIL=vos@dominio.com ADMIN_PASSWORD='Clave-Fuerte-123' node seed_admin.js

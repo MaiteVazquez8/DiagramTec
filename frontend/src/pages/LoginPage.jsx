@@ -1,7 +1,8 @@
-/** Inicio de sesión vía authApi (Node). Redirige al guardar token en AuthContext. */
+/** Inicio de sesión vía la API Node (/auth/login). Redirige al guardar token en AuthContext. */
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import authApi from '../authApi.js';
+import api from '../api.js';
+import { useTurnstile } from '../components/Turnstile.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
@@ -18,8 +19,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const pendingOAuth = useRef(false);
+  const turnstile = useTurnstile('login');
 
-  // Tras OAuth de Google, el backend redirige aquí con ?token=...
+  // Tras OAuth de Google, el backend redirige aquí con #token=... (el fragmento no viaja al servidor)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const oauthError = params.get('error');
@@ -39,13 +41,13 @@ export default function LoginPage() {
       return;
     }
 
-    const token = params.get('token');
+    const token = new URLSearchParams(location.hash.slice(1)).get('token');
     if (!token || pendingOAuth.current) return;
 
     pendingOAuth.current = true;
     login(token);
     navigate('/login', { replace: true, state: location.state });
-  }, [location.search, location.state, login, navigate, showError]);
+  }, [location.search, location.hash, location.state, login, navigate, showError]);
 
   useEffect(() => {
     if (!pendingOAuth.current || authLoading) return;
@@ -62,9 +64,13 @@ export default function LoginPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!turnstile.ready) {
+      showError('Completá la verificación anti-bots');
+      return;
+    }
     setLoading(true);
     try {
-      const response = await authApi.post('/login.php', { email, password });
+      const response = await api.post('/auth/login', { email, password, ...turnstile.body });
       if (response.data?.token) {
         login(response.data.token);
         navigate(redirectTo);
@@ -75,6 +81,7 @@ export default function LoginPage() {
       // El interceptor global ya muestra el toast de error.
     } finally {
       setLoading(false);
+      turnstile.reset();
     }
   };
 
@@ -119,6 +126,7 @@ export default function LoginPage() {
           >
             Olvide mi contraseña
           </Button>
+          {turnstile.widget}
           <Button variant="primary" fullWidth type="submit" loading={loading}>
             Ingresar
           </Button>

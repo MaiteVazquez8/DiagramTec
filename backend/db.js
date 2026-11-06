@@ -116,8 +116,41 @@ class PgConnection {
   }
 }
 
+function resolveSsl() {
+  if (process.env.DB_SSL === 'false') return false;
+  // Con el certificado de Supabase (Settings → Database → SSL) se verifica el servidor.
+  if (process.env.DB_SSL_CA) {
+    return { ca: require('fs').readFileSync(process.env.DB_SSL_CA, 'utf8'), rejectUnauthorized: true };
+  }
+  console.warn('DB_SSL_CA no configurado: la conexión va cifrada pero sin verificar el certificado.');
+  return { rejectUnauthorized: false };
+}
+
+/**
+ * Migración idempotente al arrancar:
+ * - columnas para la recuperación de contraseña segura y la revocación de sesiones;
+ * - quita las políticas RLS "dev_all_*" que dejaban toda la base abierta a la clave anon
+ *   de Supabase (el backend usa el rol postgres, que no depende de RLS).
+ */
+async function ensureSchema(pool) {
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_code_hash TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMPTZ;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_attempts INT NOT NULL DEFAULT 0;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+  `);
+  for (const table of ['users', 'classes', 'class_members', 'designs', 'comments']) {
+    try {
+      await pool.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+      await pool.query(`DROP POLICY IF EXISTS "dev_all_${table}" ON ${table}`);
+    } catch (err) {
+      console.error(`No se pudo cerrar RLS en ${table} (correr documents/db/supabase.sql a mano):`, err.message);
+    }
+  }
+}
+
 function resolvePoolConfig() {
-  const ssl = process.env.DB_SSL === 'false' ? false : { rejectUnauthorized: false };
+  const ssl = resolveSsl();
   const max = Number(process.env.DB_POOL_MAX || 10);
 
   if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD) {
@@ -159,6 +192,7 @@ async function openDb() {
   const pool = new Pool(resolvePoolConfig());
 
   await pool.query('SELECT 1');
+  await ensureSchema(pool);
 
   return new PgConnection(pool);
 }

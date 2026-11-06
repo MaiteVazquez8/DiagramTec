@@ -27,7 +27,7 @@ async function listStudents(req, res) {
 async function updateUser(req, res) {
   const db = req.app.locals.db;
   const id = Number(req.params.id);
-  const user = await adminService.updateUser(db, id, req.body);
+  const user = await adminService.updateUser(db, id, req.body, req.user);
   res.json({ user });
 }
 
@@ -35,7 +35,7 @@ async function deleteUser(req, res) {
   const db = req.app.locals.db;
   const id = Number(req.params.id);
   if (id === req.user.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
-  await adminService.deleteUser(db, id);
+  await adminService.deleteUser(db, id, req.user);
   res.json({ ok: true });
 }
 

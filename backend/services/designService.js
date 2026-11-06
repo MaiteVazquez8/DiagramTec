@@ -21,8 +21,36 @@ async function getDesign(db, id, user) {
   return design;
 }
 
-async function createDesign(db, userId, data) {
-  if (!data.title || !data.content) throw new Error('TITLE_AND_CONTENT_REQUIRED');
+// Solo data URLs de imagen/PDF: un "javascript:..." en pdf_data se ejecutaría al descargarlo.
+const IMAGE_RE = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+const PDF_RE = /^data:application\/pdf;(?:[a-z-]+=[^;,]*;)*base64,[A-Za-z0-9+/=]+$/;
+
+function validateDesignData(data, { isCreate }) {
+  if (isCreate && (!data.title || !data.content)) throw new Error('TITLE_AND_CONTENT_REQUIRED');
+  if (data.title != null && (typeof data.title !== 'string' || data.title.length > 255)) throw new Error('TITLE_AND_CONTENT_REQUIRED');
+  if (data.description != null && (typeof data.description !== 'string' || data.description.length > 5000)) {
+    throw new Error('TITLE_AND_CONTENT_REQUIRED');
+  }
+  if (data.image && (typeof data.image !== 'string' || !IMAGE_RE.test(data.image))) throw new Error('INVALID_FILE');
+  if (data.pdf_data && (typeof data.pdf_data !== 'string' || !PDF_RE.test(data.pdf_data))) throw new Error('INVALID_FILE');
+}
+
+/** Publicar en una clase: superadmin, o profesor dueño/miembro de esa clase. */
+async function assertCanPublish(db, classId, userId, userRole) {
+  if (!classId) return;
+  const classRow = await classRepository.findClassById(db, classId);
+  if (!classRow) throw new Error('CLASS_NOT_FOUND');
+  const isOwner = Number(classRow.ownerId) === Number(userId);
+  const members = await classRepository.findMembersForClass(db, classId, userId);
+  const canPublish = userRole === 'superadmin' || (userRole === 'teacher' && (isOwner || members.length > 0));
+  if (!canPublish) throw new Error('UNAUTHORIZED');
+}
+
+async function createDesign(db, user, data) {
+  validateDesignData(data, { isCreate: true });
+  const userId = user.id;
+  data = { ...data, classId: data.classId || null };
+  await assertCanPublish(db, data.classId, userId, user.role);
   const count = await designRepository.countDesignsByOwner(db, userId);
   if (count >= MAX_DESIGNS_PER_USER) {
     const err = new Error('MAX_DESIGNS_REACHED');
@@ -48,15 +76,10 @@ async function updateDesign(db, id, userId, userRole, data) {
     throw new Error('UNAUTHORIZED');
   }
 
-  if (data.classId !== undefined && data.classId !== null) {
-    const classRow = await classRepository.findClassById(db, data.classId);
-    if (!classRow) throw new Error('CLASS_NOT_FOUND');
-    const isOwner = Number(classRow.ownerId) === Number(userId);
-    const members = await classRepository.findMembersForClass(db, data.classId, userId);
-    const canPublish =
-      userRole === 'superadmin'
-      || (userRole === 'teacher' && (isOwner || members.length > 0));
-    if (!canPublish) throw new Error('UNAUTHORIZED');
+  validateDesignData(data, { isCreate: false });
+  if (data.classId !== undefined) {
+    data = { ...data, classId: data.classId || null };
+    await assertCanPublish(db, data.classId, userId, userRole);
   }
 
   return await designRepository.updateDesign(db, id, data);
@@ -71,9 +94,10 @@ async function deleteDesign(db, id, userId, userRole) {
   await designRepository.deleteDesign(db, id);
 }
 
-async function copyDesign(db, id, userId) {
-  const design = await designRepository.findDesignById(db, id);
-  if (!design) throw new Error('DESIGN_NOT_FOUND');
+async function copyDesign(db, id, user) {
+  // Misma regla que para verlo: dueño, miembro de su clase o superadmin.
+  await getDesign(db, id, user);
+  const userId = user.id;
   const count = await designRepository.countDesignsByOwner(db, userId);
   if (count >= MAX_DESIGNS_PER_USER) {
     const err = new Error('MAX_DESIGNS_REACHED');

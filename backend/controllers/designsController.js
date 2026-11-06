@@ -15,7 +15,7 @@ async function getDesign(req, res) {
 
 async function createDesign(req, res) {
   const db = req.app.locals.db;
-  const design = await designService.createDesign(db, req.user.id, req.body);
+  const design = await designService.createDesign(db, req.user, req.body);
   res.json({ design });
 }
 
@@ -36,7 +36,7 @@ async function deleteDesign(req, res) {
 async function copyDesign(req, res) {
   const db = req.app.locals.db;
   const id = Number(req.params.id);
-  const design = await designService.copyDesign(db, id, req.user.id);
+  const design = await designService.copyDesign(db, id, req.user);
   if (!design) {
     const err = new Error('DESIGN_NOT_FOUND');
     err.statusCode = 404;

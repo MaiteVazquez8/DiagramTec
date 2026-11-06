@@ -30,7 +30,8 @@ async function getClass(req, res) {
   const db = req.app.locals.db;
   const classId = Number(req.params.id);
   const classRow = await classService.getClass(db, classId, req.user.id);
-  if (!classRow) {
+  // Solo miembros, dueño o superadmin: si no, cualquiera vería el código para unirse.
+  if (!classRow || (!classRow.joined && req.user.role !== 'superadmin')) {
     const err = new Error('CLASS_NOT_FOUND');
     err.statusCode = 404;
     throw err;
@@ -66,7 +67,9 @@ async function updateClass(req, res) {
 async function joinClass(req, res) {
   const db = req.app.locals.db;
   const { code } = req.body;
-  if (!code) return res.status(400).json({ error: 'Código de clase obligatorio' });
+  if (typeof code !== 'string' || !code.trim() || code.length > 32) {
+    return res.status(400).json({ error: 'Código de clase obligatorio' });
+  }
   const result = await classService.joinClass(db, code, req.user.id);
   res.json(result);
 }
@@ -119,8 +122,9 @@ async function postComment(req, res) {
   const db = req.app.locals.db;
   const classId = Number(req.params.id);
   const { content } = req.body;
-  if (!content) return res.status(400).json({ error: 'El contenido es obligatorio' });
-  const comment = await classService.addClassComment(db, classId, req.user.id, content);
+  if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: 'El contenido es obligatorio' });
+  if (content.length > 2000) return res.status(400).json({ error: 'El comentario es demasiado largo (máx. 2000 caracteres)' });
+  const comment = await classService.addClassComment(db, classId, req.user, content.trim());
   res.json({ comment });
 }
 

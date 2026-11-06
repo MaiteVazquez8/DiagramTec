@@ -5,8 +5,10 @@ async function findByEmail(db, email) {
 
 async function findByEmailOrGoogleId(db, email, googleId) {
   const [rows] = await db.execute(
-    'SELECT id, firstName, lastName, email, role, googleId FROM users WHERE email = ? OR googleId = ?',
-    [email.toLowerCase(), googleId],
+    // Si hay dos filas (una por googleId y otra por email) gana la vinculada a Google.
+    `SELECT id, firstName, lastName, email, role, googleId FROM users
+     WHERE email = ? OR googleId = ? ORDER BY (googleId = ?) DESC NULLS LAST LIMIT 1`,
+    [email.toLowerCase(), googleId, googleId],
   );
   return rows[0] || null;
 }
@@ -46,17 +48,34 @@ async function deleteUser(db, id) {
   return result.affectedRows > 0;
 }
 
-async function setUserToken(db, userId, token) {
-  await db.execute('UPDATE users SET token = ? WHERE id = ?', [token, userId]);
+const MAX_RESET_ATTEMPTS = 5;
+
+async function setResetCode(db, userId, codeHash) {
+  await db.execute(
+    `UPDATE users SET reset_code_hash = ?, reset_code_expires = now() + interval '15 minutes', reset_attempts = 0
+     WHERE id = ?`,
+    [codeHash, userId],
+  );
 }
 
-async function findByEmailAndToken(db, email, token) {
-  const [rows] = await db.execute('SELECT * FROM users WHERE email = ? AND token = ?', [email.toLowerCase(), token]);
-  return rows[0] || null;
+/** Suma un intento de forma atómica y devuelve el hash solo si el código sigue vigente. */
+async function claimResetAttempt(db, userId) {
+  const [rows] = await db.execute(
+    `UPDATE users SET reset_attempts = reset_attempts + 1
+     WHERE id = ? AND reset_code_hash IS NOT NULL AND reset_code_expires > now() AND reset_attempts < ${MAX_RESET_ATTEMPTS}
+     RETURNING reset_code_hash`,
+    [userId],
+  );
+  return rows[0]?.reset_code_hash || null;
 }
 
-async function updatePassword(db, userId, passwordHash, token) {
-  await db.execute('UPDATE users SET passwordHash = ?, token = ? WHERE id = ?', [passwordHash, token, userId]);
+async function updatePassword(db, userId, passwordHash) {
+  await db.execute(
+    `UPDATE users SET passwordHash = ?, password_changed_at = now(),
+       reset_code_hash = NULL, reset_code_expires = NULL, reset_attempts = 0
+     WHERE id = ?`,
+    [passwordHash, userId],
+  );
   return true;
 }
 
@@ -69,7 +88,7 @@ module.exports = {
   findById,
   updateUser,
   deleteUser,
-  setUserToken,
-  findByEmailAndToken,
+  setResetCode,
+  claimResetAttempt,
   updatePassword,
 };

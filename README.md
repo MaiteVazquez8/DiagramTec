@@ -86,12 +86,7 @@ diagramtec/
 │   ├── seed_admin.js           # Script de inicialización
 │   ├── package.json
 │   └── .env.example
-├── php/                         # Scripts PHP auxiliares
-│   ├── login.php
-│   ├── registro.php
-│   ├── jwt.php
-│   └── mail.php
-└── documents/                   # Documentación
+└── documents/                   # Documentación (documents/db/supabase.sql = esquema)
 ```
 
 ## Stack Tecnológico
@@ -107,7 +102,7 @@ diagramtec/
 ### Backend
 - **Express** 4.18 - Framework web
 - **Node.js** 18+ - Runtime
-- **MySQL** 5.7+ - Base de datos
+- **PostgreSQL (Supabase)** - Base de datos
 - **JWT** 9.0 - Autenticación
 - **bcryptjs** 2.4 - Hash de contraseñas
 - **CORS** 2.8 - Cross-origin requests
@@ -116,9 +111,12 @@ diagramtec/
 
 ### Autenticación
 ```
-POST   /api/auth/register      # Crear nueva cuenta
-POST   /api/auth/login         # Iniciar sesión
-POST   /api/auth/refresh       # Renovar token
+POST   /api/auth/register        # Crear cuenta (Turnstile)
+POST   /api/auth/login           # Iniciar sesión (Turnstile + límite de intentos)
+POST   /api/auth/recovery-code   # Pedir código por email (Turnstile)
+POST   /api/auth/reset-password  # Cambiar contraseña con el código
+GET    /api/auth/google          # Login con Google (OAuth)
+GET    /api/auth/me              # Usuario actual
 ```
 
 ### Diagramas
@@ -140,30 +138,40 @@ GET    /api/classes/:id/students  # Estudiantes de la clase
 
 ## Seguridad
 
-- Contraseñas hasheadas con bcryptjs
-- Autenticación basada en JWT
-- Validación de permisos en servidor
-- CORS configurado
-- Validación de entrada en cliente y servidor
-- Se recomienda HTTPS en producción
+**En el código**
+- Contraseñas con bcrypt (8+ caracteres con mayúscula, minúscula, número y símbolo).
+- JWT HS256 de 24 h; en cada pedido se relee el usuario: borrar, degradar o cambiar la contraseña corta las sesiones al instante.
+- La API no arranca en producción sin `JWT_SECRET` fuerte (32+ caracteres) ni `FRONTEND_URL`.
+- Cloudflare Turnstile en registro, login y recuperación; límite de intentos por IP y por email.
+- Código de recuperación criptográfico, guardado como HMAC, vence en 15 min, 5 intentos y un solo uso; la respuesta no revela si el correo existe.
+- Google OAuth con `state` atado a una cookie HttpOnly (sin login CSRF), email verificado y token en el fragmento `#`.
+- Permisos en el servidor: solo miembros ven una clase, su código y sus comentarios; copiar diseños exige acceso; solo un superadmin toca cuentas admin.
+- Imágenes y PDF solo como `data:` (bloquea XSS con `javascript:`).
+- CORS con lista blanca, cabeceras de seguridad en la API y CSP/HSTS en el sitio (`.htaccess`).
+- Supabase: RLS activo **sin** políticas; la API REST pública (clave anon) no ve nada. El backend las cierra al arrancar.
+
+**En Cloudflare (panel, una vez)**
+1. DNS de `diagramtec.com` y `api.diagramtec.com` con proxy naranja; SSL/TLS en **Full (strict)**; "Always Use HTTPS".
+2. Turnstile → Add widget (dominios `diagramtec.com`, `localhost`): sitekey en `VITE_TURNSTILE_SITE_KEY` (`hostinger/site.env`) y secret en `TURNSTILE_SECRET` (Node). **Sin eso el login en producción responde 500.**
+3. Con proxy naranja: `TRUST_PROXY=2` en Node (si no, el límite de intentos ve la IP de Cloudflare).
+4. Security → WAF: activar las reglas administradas gratuitas y una regla de rate limiting para `api.diagramtec.com/auth/*` (p. ej. 20 pedidos / 10 s por IP).
+5. Bot Fight Mode activado.
 
 ## Variables de Entorno
 
-Crea un archivo `.env` en la carpeta `backend/` (copiá desde `backend/.env.example`).
+Crea un archivo `.env` en la carpeta `backend/` (copiá desde `backend/.env.example`; nunca lo subas al repo).
 
-**Local (MySQL / Laragon):**
+**Local:**
 
 ```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=
-DB_NAME=tecdiagram
-DB_PORT=3306
+DATABASE_URL=postgresql://...      # Supabase o un Postgres local
+DB_SSL=true
 
 PORT=4002
-JWT_SECRET=tu_secreto_jwt_largo
+JWT_SECRET=                        # node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 
 FRONTEND_URL=http://localhost:5173
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA   # clave de prueba de Cloudflare
 
 EMAIL_USER=diagramtec@gmail.com
 EMAIL_PASS=                    # contraseña de aplicación Gmail (16 caracteres)

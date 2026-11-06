@@ -9,16 +9,29 @@ function errorHandler(err, req, res, next) {
     message = 'El correo ya está registrado';
   } else if (err.message === 'PASSWORD_TOO_SHORT' || err.message === 'PASSWORD_REQUIREMENTS') {
     statusCode = 400;
-    message = 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
+    message = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
   } else if (err.message === 'INVALID_CREDENTIALS') {
     statusCode = 401;
     message = 'Credenciales inválidas';
-  } else if (err.message === 'EMAIL_NOT_FOUND') {
-    statusCode = 404;
-    message = 'El correo no existe. Ingresa un correo registrado.';
   } else if (err.message === 'INVALID_TOKEN') {
     statusCode = 400;
-    message = 'Correo o token inválido';
+    message = 'Código inválido o vencido. Pedí uno nuevo si hace falta.';
+  } else if (err.message === 'INVALID_FILE') {
+    statusCode = 400;
+    message = 'Imagen o PDF con formato inválido';
+  } else if (err.message === 'PASSWORD_SAME_AS_OLD') {
+    statusCode = 400;
+    message = 'La nueva contraseña no puede ser igual a la actual';
+  } else if (err.code === '23505') {
+    // Violación de UNIQUE en Postgres (p. ej. email repetido al editar el perfil).
+    statusCode = 400;
+    message = 'El correo ya está registrado';
+  } else if (err.type === 'entity.too.large') {
+    statusCode = 413;
+    message = 'El contenido es demasiado grande';
+  } else if (err.type === 'entity.parse.failed') {
+    statusCode = 400;
+    message = 'JSON inválido';
   } else if (err.message === 'PASSWORD_MISMATCH') {
     statusCode = 400;
     message = 'Las contraseñas no coinciden';
