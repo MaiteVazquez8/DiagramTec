@@ -1,7 +1,7 @@
-/** Registro de usuario nuevo vía authApi (PHP). */
+/** Registro de usuario nuevo vía el backend Node (/auth). */
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import authApi from '../authApi.js';
+import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
@@ -56,7 +56,7 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const response = await authApi.post('/registro.php', {
+      const response = await api.post('/auth/register', {
         firstName,
         lastName,
         email,

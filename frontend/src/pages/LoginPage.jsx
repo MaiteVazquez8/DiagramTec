@@ -1,7 +1,7 @@
-/** Inicio de sesión vía authApi (PHP). Redirige al guardar token en AuthContext. */
+/** Inicio de sesión vía el backend Node (/auth). Redirige al guardar token en AuthContext. */
 import { useEffect, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import authApi from '../authApi.js';
+import api from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
 import GoogleLoginButton from '../components/GoogleLoginButton.jsx';
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Tras OAuth de Google, PHP redirige aquí con ?token=...
+  // Tras OAuth de Google, el backend redirige aquí con ?token=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get('token');
@@ -31,7 +31,7 @@ export default function LoginPage() {
     event.preventDefault();
     setLoading(true);
     try {
-      const response = await authApi.post('/login.php', { email, password });
+      const response = await api.post('/auth/login', { email, password });
       if (response.data?.token) {
         login(response.data.token);
         navigate(redirectTo);
