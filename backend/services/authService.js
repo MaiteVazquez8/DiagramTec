@@ -108,6 +108,8 @@ async function loginOrRegisterWithGoogle(db, profile) {
   let user = await findByEmailOrGoogleId(db, email, googleId);
 
   if (user) {
+    // La cuenta ya está atada a otra identidad de Google: no se cambia en silencio.
+    if (user.googleId && user.googleId !== googleId) throw new Error('GOOGLE_ACCOUNT_MISMATCH');
     if (!user.googleId) {
       await setGoogleId(db, user.id, googleId);
       user = { ...user, googleId };

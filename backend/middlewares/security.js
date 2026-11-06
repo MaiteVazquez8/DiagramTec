@@ -83,4 +83,10 @@ function turnstile(expectedAction) {
   };
 }
 
-module.exports = { securityHeaders, rateLimit, emailKey, turnstile };
+// router.param('id', validateIdParam): ids no numéricos → 400 en vez de llegar a la base.
+function validateIdParam(req, res, next, id) {
+  if (!/^\d{1,15}$/.test(id)) return res.status(400).json({ error: 'Identificador inválido' });
+  next();
+}
+
+module.exports = { securityHeaders, rateLimit, emailKey, turnstile, validateIdParam };

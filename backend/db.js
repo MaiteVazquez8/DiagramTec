@@ -126,25 +126,47 @@ function resolveSsl() {
   return { rejectUnauthorized: false };
 }
 
+const TABLES = ['users', 'classes', 'class_members', 'designs', 'comments'];
+const RESET_COLUMNS = {
+  reset_code_hash: 'TEXT',
+  reset_code_expires: 'TIMESTAMPTZ',
+  reset_attempts: 'INT NOT NULL DEFAULT 0',
+  password_changed_at: 'TIMESTAMPTZ',
+};
+
 /**
- * Migración idempotente al arrancar:
+ * Migración idempotente al arrancar. Primero revisa y solo modifica lo que falta, así
+ * funciona también con un usuario de API que no es dueño de las tablas (recomendado):
  * - columnas para la recuperación de contraseña segura y la revocación de sesiones;
- * - quita las políticas RLS "dev_all_*" que dejaban toda la base abierta a la clave anon
- *   de Supabase (el backend usa el rol postgres, que no depende de RLS).
+ * - RLS activo y sin las políticas "dev_all_*" que dejaban la base abierta a la clave anon;
+ * - sin permisos para los roles públicos de Supabase (anon / authenticated).
  */
 async function ensureSchema(pool) {
-  await pool.query(`
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_code_hash TEXT;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_code_expires TIMESTAMPTZ;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_attempts INT NOT NULL DEFAULT 0;
-    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
-  `);
-  for (const table of ['users', 'classes', 'class_members', 'designs', 'comments']) {
+  const { rows: cols } = await pool.query(
+    "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users'",
+  );
+  const have = new Set(cols.map((r) => r.column_name));
+  for (const [name, type] of Object.entries(RESET_COLUMNS)) {
+    if (!have.has(name)) await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${name} ${type}`);
+  }
+
+  const { rows: tables } = await pool.query(`
+    SELECT c.relname AS name, c.relrowsecurity AS rls,
+      EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname = 'public' AND p.tablename = c.relname
+              AND p.policyname LIKE 'dev\\_all\\_%') AS open_policy,
+      EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')
+        AND (has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
+          OR has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE')) AS public_grants
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public' AND c.relname = ANY($1)`, [TABLES]);
+
+  for (const t of tables) {
     try {
-      await pool.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
-      await pool.query(`DROP POLICY IF EXISTS "dev_all_${table}" ON ${table}`);
+      if (!t.rls) await pool.query(`ALTER TABLE ${t.name} ENABLE ROW LEVEL SECURITY`);
+      if (t.open_policy) await pool.query(`DROP POLICY IF EXISTS "dev_all_${t.name}" ON ${t.name}`);
+      if (t.public_grants) await pool.query(`REVOKE ALL ON ${t.name} FROM anon, authenticated`);
     } catch (err) {
-      console.error(`No se pudo cerrar RLS en ${table} (correr documents/db/supabase.sql a mano):`, err.message);
+      console.error(`SEGURIDAD: ${t.name} sigue expuesta (correr documents/db/supabase.sql a mano):`, err.message);
     }
   }
 }

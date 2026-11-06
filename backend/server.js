@@ -47,8 +47,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   maxAge: 600,
 }));
-// Los diseños guardan imagen y PDF en base64.
-app.use(express.json({ limit: '15mb' }));
+// Solo los diseños necesitan cuerpos grandes (imagen y PDF en base64); el resto, 100 KB.
+app.use('/designs', express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '100kb' }));
 
 app.get('/health', (req, res) => {
   res.json({

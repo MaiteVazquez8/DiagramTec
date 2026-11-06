@@ -154,8 +154,10 @@ GET    /api/classes/:id/students  # Estudiantes de la clase
 1. DNS de `diagramtec.com` y `api.diagramtec.com` con proxy naranja; SSL/TLS en **Full (strict)**; "Always Use HTTPS".
 2. Turnstile → Add widget (dominios `diagramtec.com`, `localhost`): sitekey en `VITE_TURNSTILE_SITE_KEY` (`hostinger/site.env`) y secret en `TURNSTILE_SECRET` (Node). **Sin eso el login en producción responde 500.**
 3. Con proxy naranja: `TRUST_PROXY=2` en Node (si no, el límite de intentos ve la IP de Cloudflare).
-4. Security → WAF: activar las reglas administradas gratuitas y una regla de rate limiting para `api.diagramtec.com/auth/*` (p. ej. 20 pedidos / 10 s por IP).
-5. Bot Fight Mode activado.
+4. Security → WAF: Free Managed Ruleset activo y la regla de rate limiting del plan Free con `starts_with(http.request.uri.path, "/auth/")` (p. ej. 20 pedidos / 10 s).
+5. **No** activar Bot Fight Mode: puede desafiar las llamadas a la API y no admite excepciones.
+
+Detalle completo (ataques que se previenen, pruebas y pendientes): [docs/SEGURIDAD.md](docs/SEGURIDAD.md). Pruebas: `cd backend && npm test`.
 
 ## Variables de Entorno
 

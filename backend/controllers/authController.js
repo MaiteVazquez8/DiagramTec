@@ -98,7 +98,8 @@ const stateCookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
-  path: '/auth/google',
+  // "/" y no "/auth/google": detrás de un proxy con prefijo (Vite usa /api) la ruta cambia.
+  path: '/',
 };
 
 function googleRedirect(req, res) {

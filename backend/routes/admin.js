@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+router.param('id', require('../middlewares/security').validateIdParam);
 const admin = require('../controllers/adminController');
 const { authMiddleware, adminMiddleware } = require('../middlewares/auth');
 const asyncHandler = require('../middlewares/asyncHandler');

@@ -113,12 +113,26 @@ ALTER TABLE class_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE designs       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments      ENABLE ROW LEVEL SECURITY;
 
+-- Defensa en profundidad: aunque alguien agregue una política por error, los roles
+-- públicos de Supabase no tienen permisos sobre las tablas.
+REVOKE ALL ON users, classes, class_members, designs, comments FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+
 -- Si una base vieja tiene las políticas abiertas de desarrollo, se borran:
 DROP POLICY IF EXISTS "dev_all_users"         ON users;
 DROP POLICY IF EXISTS "dev_all_classes"       ON classes;
 DROP POLICY IF EXISTS "dev_all_class_members" ON class_members;
 DROP POLICY IF EXISTS "dev_all_designs"       ON designs;
 DROP POLICY IF EXISTS "dev_all_comments"      ON comments;
+
+-- Usuario propio de la API (recomendado en lugar de "postgres"). Generá el hash SCRAM de
+-- una contraseña aleatoria en tu PC y pegá solo el hash; la contraseña va en DATABASE_URL
+-- como diagramtec_api.<project_ref> en el Session pooler.
+--   CREATE ROLE diagramtec_api LOGIN BYPASSRLS NOINHERIT PASSWORD 'SCRAM-SHA-256$4096:...';
+--   GRANT USAGE ON SCHEMA public TO diagramtec_api;
+--   GRANT SELECT, INSERT, UPDATE, DELETE ON users, classes, class_members, designs, comments TO diagramtec_api;
+--   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO diagramtec_api;
+--   ALTER ROLE diagramtec_api SET statement_timeout = '15s';
 
 -- Superadmin: desde backend/, con variables de entorno (sin contraseñas fijas):
 --   ADMIN_EMAIL=vos@dominio.com ADMIN_PASSWORD='Clave-Fuerte-123' node seed_admin.js

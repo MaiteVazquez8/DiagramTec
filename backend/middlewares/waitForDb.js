@@ -14,7 +14,7 @@ function waitForDb(options = {}) {
     while (!req.app.locals.dbReady) {
       if (Date.now() - start >= timeoutMs) {
         if (options.redirectOnTimeout) {
-          const frontendUrl = (process.env.FRONTEND_URL || 'https://diagramtec.com').replace(/\/$/, '');
+          const frontendUrl = (process.env.FRONTEND_URL || 'https://diagramtec.com').split(',')[0].trim().replace(/\/$/, '');
           return res.redirect(`${frontendUrl}/login?error=db_unavailable`);
         }
         return res.status(503).json({ error: 'Base de datos no disponible' });

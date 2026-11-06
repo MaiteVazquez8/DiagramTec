@@ -29,8 +29,19 @@ async function createGoogleUser(db, firstName, lastName, email, googleId, role =
   return result.insertId;
 }
 
+/**
+ * Vincula Google a una cuenta existente. Como el email de esa cuenta nunca se verificó,
+ * se borra su contraseña y se cortan sus sesiones: si alguien la había creado con el
+ * email de otra persona ("pre-hijacking"), pierde el acceso. El dueño real entra con
+ * Google y puede volver a definir contraseña con "Olvidé mi contraseña".
+ */
 async function setGoogleId(db, userId, googleId) {
-  await db.execute('UPDATE users SET googleId = ? WHERE id = ?', [googleId, userId]);
+  await db.execute(
+    `UPDATE users SET googleId = ?, passwordHash = NULL, password_changed_at = now(),
+       reset_code_hash = NULL, reset_code_expires = NULL, reset_attempts = 0
+     WHERE id = ?`,
+    [googleId, userId],
+  );
 }
 
 async function findById(db, id) {
@@ -44,8 +55,9 @@ async function updateUser(db, id, firstName, lastName, email) {
 }
 
 async function deleteUser(db, id) {
-  const [result] = await db.execute('DELETE FROM users WHERE id = ?', [id]);
-  return result.affectedRows > 0;
+  // RETURNING: la capa Postgres devuelve filas (no affectedRows) en los DELETE.
+  const [rows] = await db.execute('DELETE FROM users WHERE id = ? RETURNING id', [id]);
+  return rows.length > 0;
 }
 
 const MAX_RESET_ATTEMPTS = 5;
