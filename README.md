@@ -51,7 +51,45 @@ npm run dev
 
 Luego abre http://localhost:5173 en tu navegador.
 
-## 📁 Estructura del Proyecto
+## Crear usuarios con rol (superadmin, admin, teacher)
+
+El registro público solo permite `student` / `teacher` (el de profesor exige código de invitación de un superadmin). Las cuentas `admin` y `superadmin` se crean aparte, por cualquiera de estos dos caminos.
+
+**Opción A — seed desde el backend (recomendada)**
+
+```bash
+cd backend
+ADMIN_EMAIL=vos@dominio.com ADMIN_PASSWORD='Clave-Fuerte-123!' node seed_admin.js
+```
+
+Crea el superadmin, o si el email ya existe, lo asciende a `superadmin` sin tocar su contraseña. La clave debe ser fuerte: 8+ caracteres con mayúscula, minúscula, número y símbolo.
+
+**Opción B — SQL directo en Supabase (SQL Editor)**
+
+```sql
+-- Requiere la extensión pgcrypto (el esquema ya la crea).
+INSERT INTO users ("firstName", "lastName", email, "passwordHash", role, email_verified_at)
+VALUES
+  ('Profe', 'Ejemplo', 'profe@diagramtec.com',    crypt('Cambiar-123!', gen_salt('bf', 10)), 'teacher',    now()),
+  ('Admin', 'Ejemplo', 'admin@diagramtec.com',    crypt('Cambiar-123!', gen_salt('bf', 10)), 'admin',      now()),
+  ('Super', 'Admin',   'superadmin@diagramtec.com', crypt('Cambiar-123!', gen_salt('bf', 10)), 'superadmin', now())
+ON CONFLICT (email) DO UPDATE
+  SET role = EXCLUDED.role,
+      "passwordHash" = EXCLUDED."passwordHash",
+      email_verified_at = COALESCE(users.email_verified_at, now());
+```
+
+Notas:
+
+- `crypt(..., gen_salt('bf', 10))` genera un hash bcrypt compatible con el `bcrypt.compare` del backend; **nunca** guardes la contraseña en texto plano.
+- `ON CONFLICT (email) DO UPDATE` hace la consulta idempotente: si el email ya existe, actualiza rol y contraseña.
+- `email_verified_at = now()` deja la cuenta verificada (necesario para publicar en clases, comentar, etc.; el login en sí no lo exige).
+- La fortaleza de la clave no se valida en este camino (eso lo hacen el registro y `seed_admin.js`), así que elegí una clave fuerte igual.
+- Roles válidos (constraint `CHECK`): `student | teacher | admin | superadmin`.
+- Ejecutá el SQL con un rol con privilegios (p. ej. `postgres` en el SQL Editor de Supabase): con `anon`/`authenticated` las tablas tienen RLS activado sin políticas y no hay permisos.
+- No subas al repo ningún script con contraseñas reales.
+
+## Estructura del Proyecto
 
 ```
 diagramtec/
@@ -190,4 +228,4 @@ Probar SMTP local: `node backend/scripts/test-mail.js`
 
 ---
 
-**⭐ Si te gusta DiagramTec, por favor considera darle una estrella en GitHub!**
+**Si te gusta DiagramTec, por favor considera darle una estrella en GitHub!**
