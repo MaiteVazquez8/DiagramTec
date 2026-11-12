@@ -1,0 +1,8 @@
+node_modules
+.env
+.env.*
+tests
+scripts
+*.log
+.git
+Dockerfile

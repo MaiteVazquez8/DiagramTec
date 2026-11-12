@@ -9,7 +9,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from './AuthContext.jsx';
-import { ToastProvider } from './ToastContext.jsx';
+import { ToastProvider, useToast } from './ToastContext.jsx';
+import api from './api.js';
 
 import HomePage from './pages/HomePage.jsx';
 
@@ -40,6 +41,7 @@ import SuperAdminTeachersPage from './pages/SuperAdminTeachersPage.jsx';
 import SuperAdminClassesPage from './pages/SuperAdminClassesPage.jsx';
 
 import NotFoundPage from './pages/NotFoundPage.jsx';
+import PrivacyPage from './pages/PrivacyPage.jsx';
 
 
 
@@ -238,6 +240,8 @@ function AppShell() {
 
       <Header />
 
+      <VerifyEmailBanner />
+
       <main className={mainClass}>
 
         <Routes>
@@ -250,6 +254,7 @@ function AppShell() {
 
           <Route path="/recover" element={<RecoverPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/privacidad" element={<PrivacyPage />} />
 
           <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
 
@@ -290,6 +295,39 @@ function AppShell() {
 }
 
 
+
+/** Aviso para cuentas sin email verificado (o con un cambio de email pendiente). */
+function VerifyEmailBanner() {
+  const { user } = useAuth();
+  const { showMessage } = useToast();
+  const [sending, setSending] = useState(false);
+  if (!user || (user.emailVerified && !user.pendingEmail)) return null;
+
+  const resend = async () => {
+    setSending(true);
+    try {
+      const response = await api.post('/auth/resend-verification');
+      showMessage(response.data?.message || 'Te enviamos un enlace nuevo.');
+    } catch {
+      // El interceptor global ya muestra el toast de error.
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="verify-email-banner" role="status">
+      <span>
+        {user.pendingEmail
+          ? `Confirmá tu nuevo email (${user.pendingEmail}) desde el enlace que te enviamos.`
+          : 'Verificá tu email para usar las clases. Te enviamos un enlace a tu correo.'}
+      </span>
+      <button type="button" onClick={resend} disabled={sending}>
+        {sending ? 'Enviando...' : 'Reenviar enlace'}
+      </button>
+    </div>
+  );
+}
 
 export default function App() {
   return (

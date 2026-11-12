@@ -1,0 +1,47 @@
+[Unit]
+Description=DiagramTec API (Node.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=diagramtec
+Group=diagramtec
+WorkingDirectory=/opt/diagramtec/backend
+EnvironmentFile=/etc/diagramtec/api.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+
+# --- Endurecimiento ---
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+# No se activa MemoryDenyWriteExecute: rompe el JIT de V8 (Node).
+# Con ProtectSystem=strict todo el sistema es de solo lectura. La API no escribe en disco;
+# si algún día necesita escribir (por ejemplo subidas), agregar solo esa ruta acá:
+# ReadWritePaths=/var/lib/diagramtec
+ReadOnlyPaths=/opt/diagramtec /etc/diagramtec
+
+[Install]
+WantedBy=multi-user.target

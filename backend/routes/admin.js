@@ -2,8 +2,11 @@ const express = require('express');
 const router = express.Router();
 router.param('id', require('../middlewares/security').validateIdParam);
 const admin = require('../controllers/adminController');
-const { authMiddleware, adminMiddleware } = require('../middlewares/auth');
+const { authMiddleware, adminMiddleware, superadminMiddleware } = require('../middlewares/auth');
 const asyncHandler = require('../middlewares/asyncHandler');
+
+// Códigos de invitación de un solo uso para registrarse como profesor.
+router.post('/invites', authMiddleware, superadminMiddleware, asyncHandler(admin.createInvite));
 
 router.get('/stats', authMiddleware, adminMiddleware, asyncHandler(admin.stats));
 router.get('/users', authMiddleware, adminMiddleware, asyncHandler(admin.listUsers));

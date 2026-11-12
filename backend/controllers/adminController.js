@@ -1,5 +1,10 @@
 const adminService = require('../services/adminService');
 
+async function createInvite(req, res) {
+  const db = req.app.locals.db;
+  res.json(await adminService.createInvite(db, req.user.id));
+}
+
 async function stats(req, res) {
   const db = req.app.locals.db;
   const stats = await adminService.getStats(db);
@@ -52,8 +57,9 @@ async function deleteClass(req, res) {
   res.json({ ok: true });
 }
 
-module.exports = { 
-    stats, 
+module.exports = {
+    createInvite,
+    stats,
     listUsers,
     listTeachers,
     listStudents,

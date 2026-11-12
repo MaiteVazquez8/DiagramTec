@@ -16,6 +16,18 @@ function errorHandler(err, req, res, next) {
   } else if (err.message === 'INVALID_TOKEN') {
     statusCode = 400;
     message = 'Código inválido o vencido. Pedí uno nuevo si hace falta.';
+  } else if (err.message === 'INVALID_INVITE') {
+    statusCode = 400;
+    message = 'Para registrarte como profesor necesitás un código de invitación válido (pedíselo a un administrador).';
+  } else if (err.message === 'EMAIL_NOT_VERIFIED') {
+    statusCode = 403;
+    message = 'Verificá tu email para publicar en clases.';
+  } else if (err.message === 'CURRENT_PASSWORD_REQUIRED') {
+    statusCode = 400;
+    message = 'Ingresá tu contraseña actual para confirmar este cambio.';
+  } else if (err.message === 'CURRENT_PASSWORD_INVALID') {
+    statusCode = 401;
+    message = 'La contraseña actual no es correcta.';
   } else if (err.message === 'INVALID_FILE') {
     statusCode = 400;
     message = 'Imagen o PDF con formato inválido';

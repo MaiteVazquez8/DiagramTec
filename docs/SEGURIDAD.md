@@ -1,17 +1,17 @@
 # Seguridad de DiagramTec
 
-Revisión de seguridad de la rama `host` (la que está publicada en diagramtec.com), hecha en la rama `feat/seguridad-host` en noviembre de 2026. Este documento cuenta qué fallos había, qué ataques permitían, cómo quedaron resueltos, cómo se probó y qué falta hacer fuera del código.
+Revisión de seguridad de la rama `host` (la que está publicada en diagramtec.qd.je), hecha en la rama `feat/seguridad-host` en noviembre de 2026. Este documento cuenta qué fallos había, qué ataques permitían, cómo quedaron resueltos, cómo se probó y qué falta hacer fuera del código.
 
-**Resultado:** 66 de 66 pruebas automáticas OK contra un PostgreSQL real (`npm test` en `backend/`), más una revisión manual en el navegador con la misma CSP que usa Hostinger.
+**Resultado:** 95 de 95 pruebas automáticas OK contra un PostgreSQL real (`npm test` en `backend/`), más pruebas manuales en el navegador (CSP de producción, registro, verificación de email, borrado de cuenta y todas las rutas con React Router 7).
 
 ---
 
 ## 1. Arquitectura y por dónde puede entrar un ataque
 
 ```
-Navegador ──► diagramtec.com (Apache en Hostinger: React compilado + .htaccess)
+Navegador ──► diagramtec.qd.je (Apache en Hostinger: React compilado + .htaccess)
     │
-    └────────► api.diagramtec.com (Node/Express en Hostinger) ──► Supabase (PostgreSQL)
+    └────────► api.diagramtec.qd.je (Node/Express en Hostinger) ──► Supabase (PostgreSQL)
                     │                                              ▲
                     ├─► Cloudflare Turnstile (siteverify)          │ API REST pública de Supabase
                     ├─► Google OAuth                               │ (clave "anon", accesible por cualquiera)
@@ -147,7 +147,7 @@ Requiere internet para hablar con `challenges.cloudflare.com`, con las claves de
 
 ### 3.2 Pruebas de humo contra un servidor corriendo
 
-`npm run test:integration` (`backend/scripts/run_integration_tests.js`): health, cabeceras, CORS, 401 sin token, token falsificado y ausencia del proxy PHP. Sirve para chequear un despliegue: `API_BASE=https://api.diagramtec.com npm run test:integration`.
+`npm run test:integration` (`backend/scripts/run_integration_tests.js`): health, cabeceras, CORS, 401 sin token, token falsificado y ausencia del proxy PHP. Sirve para chequear un despliegue: `API_BASE=https://api.diagramtec.qd.je npm run test:integration`.
 
 ### 3.3 Revisión manual en el navegador
 
@@ -161,7 +161,7 @@ El frontend se compiló con la clave pública de prueba de Turnstile y se sirvi�
 ### 3.4 Dependencias
 
 - `npm audit` del backend: **0 vulnerabilidades**.
-- Frontend: quedan 4 (esbuild/Vite, solo afecta al servidor de desarrollo; React Router, no explotable acá porque el destino de `navigate` sale del historial). Se resuelven subiendo a Vite 8 y React Router 7.
+- `npm audit` del frontend: **0 vulnerabilidades**, tras actualizar a Vite 8.3, @vitejs/plugin-react 6.3 y React Router 7.18.
 
 ### 3.5 Base nueva en Supabase (proyecto `diagramtec`, sa-east-1)
 
@@ -186,9 +186,9 @@ Creada en la cuenta propia (plan Free) con el esquema de `documents/db/supabase.
 
 Desde el código no se ven los ataques reales en producción: hace falta acceso a los paneles. Dónde mirar:
 
-- **Cloudflare → Security → Events** (con el dominio detrás de Cloudflare): pedidos bloqueados por WAF, rate limiting y bots, con IP, país, ruta y regla.
+- **VPS**: `sudo fail2ban-client status nginx-limit-req` (IPs baneadas por exceder límites), `grep 'limiting requests' /var/log/nginx/error.log` y `/var/log/nginx/access.log` (respuestas 429 y escaneos).
 - **Cloudflare → Turnstile → Analytics**: cuántos desafíos se resuelven o fallan (bots).
-- **Logs de la app Node en Hostinger**:
+- **Logs de la API** (`sudo journalctl -u diagramtec-api`):
   - `[turnstile]`: fallos al verificar;
   - respuestas `429`: alguien probando contraseñas o códigos;
   - `[google] Estado OAuth inválido`: posibles intentos de login CSRF;
@@ -197,26 +197,25 @@ Desde el código no se ven los ataques reales en producción: hace falta acceso 
 
 ---
 
-## 5. Configuración de Cloudflare (panel)
+## 5. Dominio, HTTPS y Turnstile
 
-Según la documentación oficial de Cloudflare (WAF, rate limiting, Bot Fight Mode y Turnstile), para el plan **Free**:
+El dominio es `diagramtec.qd.je` (DigitalPlat). **No pasa por el proxy de Cloudflare**: el plan Free lo rechaza como
+subdominio porque `qd.je` no está en la Public Suffix List (se probó en el panel). El tráfico llega directo al VPS.
 
-1. **DNS:** `diagramtec.com` y `api.diagramtec.com` con proxy naranja.
-2. **SSL/TLS:** modo **Full (strict)**, "Always Use HTTPS" y "Minimum TLS 1.2".
-3. **Turnstile:** crear un widget (modo Managed) con los dominios `diagramtec.com`, `www.diagramtec.com` y `localhost`.
-   - La **sitekey** (pública) va en `VITE_TURNSTILE_SITE_KEY`, en `hostinger/site.env`; después hay que recompilar con `npm run build:hostinger`.
-   - El **secret** va en `TURNSTILE_SECRET`, en las variables de la app Node en hPanel.
-   - `TURNSTILE_HOSTNAMES=diagramtec.com,www.diagramtec.com`.
-   - ⚠️ En producción, sin `TURNSTILE_SECRET` el login, el registro y la recuperación responden 500 a propósito: es preferible fallar cerrado.
-4. **`TRUST_PROXY=2`** en Node cuando la API está detrás del proxy naranja. Si no, el límite de intentos ve la IP de Cloudflare en lugar de la del usuario.
-5. **WAF → Managed rules:** activar el **Cloudflare Free Managed Ruleset** (está disponible en Free; confirmá en el panel que esté activo).
-6. **WAF → Rate limiting rules:** el plan Free permite **1 regla**, con periodo y bloqueo de **10 s**, conteo por IP y filtro solo por **ruta**. Por ejemplo:
-   - Expresión: `starts_with(http.request.uri.path, "/auth/")`.
-   - Umbral: 20 pedidos cada 10 s, bloqueo de 10 s.
-   - Filtrar por método o por host necesita Business o superior. El backend ya tiene su propio límite más fino por IP y email.
-7. **WAF → Custom rules** (hasta 5 en Free): por ejemplo, bloquear `starts_with(http.request.uri.path, "/php/")` o rutas que empiecen con `/.`, para cortar escaneos antes de llegar a Hostinger.
-8. **No activar Bot Fight Mode** en esta zona. Según Cloudflare puede desafiar el tráfico de APIs y no admite excepciones (Skip/Allow no tienen efecto), así que rompería las llamadas del frontend a `api.diagramtec.com`. Turnstile cubre los formularios. Si hace falta más, existe Super Bot Fight Mode (Pro), que sí admite excepciones.
-9. **Speed → Optimization:** dejar **Rocket Loader desactivado**, porque reescribe los scripts y choca con la CSP y con los módulos de Vite.
+1. **DNS (DigitalPlat):** registros A de `diagramtec.qd.je`, `www` y `api` con la IP del VPS.
+2. **Servidor real:** el VPS (AlmaLinux 9) ya tiene Docker y Traefik para otros proyectos. DiagramTec corre como dos
+   contenedores endurecidos (solo lectura, sin capabilities, sin root) detrás de ese Traefik. Ver `deploy/docker/README.md`.
+3. **HTTPS:** certificado de Google Trust Services emitido por Traefik (Let's Encrypt limita a 50 certificados por semana
+   para **todo** `qd.je` y el cupo estaba agotado), uno solo para `diagramtec.qd.je`, `www` y `api`, con renovación automática.
+   HTTP redirige a HTTPS y `www` al dominio principal; HSTS en el sitio; CAA solo permite `letsencrypt.org` y `pki.goog`.
+4. **Turnstile** (no necesita que el dominio esté en Cloudflare): widget **DiagramTec**, modo Managed, hostnames
+   `diagramtec.qd.je` y `www.diagramtec.qd.je`. Sitekey en `VITE_TURNSTILE_SITE_KEY` (`frontend/.env.production`);
+   secret en `TURNSTILE_SECRET` del `api.env` del servidor. Sin el secret, login, registro y recuperación responden 500 (falla cerrado).
+5. **Reemplazo del rate limiting de Cloudflare:** límites por IP en Traefik (10 req/s en la API, **10 por minuto** en login,
+   registro y recuperación, 30 req/s en el sitio), además de los límites de Node por IP y por email. `TRUST_PROXY=1`.
+   Probado en producción: después de la ráfaga, el login responde 429.
+6. **Lo que se pierde sin Cloudflare:** WAF administrado, mitigación de DDoS volumétrico y ocultar la IP del VPS. Si el sitio
+   recibe un ataque grande, la salida es mudarlo a un dominio que Cloudflare acepte (por ejemplo `*.dpdns.org`).
 
 ---
 
@@ -231,12 +230,27 @@ Según la documentación oficial de Cloudflare (WAF, rate limiting, Bot Fight Mo
 
 | Riesgo | Por qué queda | Mitigación actual / siguiente paso |
 |--------|---------------|------------------------------------|
-| El token vive en `localStorage` | Pasarlo a cookie HttpOnly obliga a rediseñar la sesión y agregar protección CSRF | La CSP estricta y la validación de `data:` reducen el riesgo de XSS |
-| El límite de intentos está en memoria | Con varias instancias cada una cuenta aparte | La regla de rate limiting de Cloudflare (sección 5.6) |
-| Cualquiera puede registrarse como profesor | Decisión de producto | Aprobación manual o código de invitación para profesores |
-| Cambiar el email o borrar la cuenta no pide la contraseña | Con una sesión robada se puede cambiar el email y después recuperar la contraseña | Pedir la contraseña actual en esas dos acciones |
-| No se verifica el email al registrarse | No hay flujo de verificación | Mitigado para Google (punto 8); agregar verificación por correo |
-| Frontend con Vite 5 y React Router 6 | Requieren subir de versión mayor | Ninguna alerta es explotable en producción hoy |
+| El límite de intentos está en memoria | Con varias instancias cada una cuenta aparte | Límites por IP de Traefik (sección 5.5), delante de todas las instancias |
+| Sin WAF ni protección DDoS de Cloudflare | `qd.je` no se puede agregar al plan Free | Límites de Traefik; mudar a `*.dpdns.org` si hace falta |
+| Sin autenticación en dos pasos | No implementada | 2FA para profesores y administradores |
+| Sin copias de seguridad propias | El plan Free de Supabase no incluye backups restaurables | Volcado diario (`pg_dump`) a un almacenamiento externo |
+
+Resueltos en la sección 9: sesión en `localStorage`, registro libre como profesor, email sin verificar, acciones sensibles sin contraseña y dependencias desactualizadas del frontend.
+
+## 9. Mejoras de cuenta implementadas
+
+| Mejora | Ataque que previene | Dónde | Pruebas |
+|--------|---------------------|-------|---------|
+| **Sesión en cookie HttpOnly** (`__Host-dt_session` en producción, Secure, SameSite=Lax, 24 h). El frontend ya no guarda el token y borra el que había en `localStorage`. | Robo de la sesión con un XSS: JavaScript no puede leer la cookie. | `middlewares/auth.js`, `AuthContext.jsx`, `api.js` | Cookie HttpOnly y SameSite; el token no aparece en el cuerpo; en el navegador `document.cookie` no la ve |
+| **Chequeo de origen (CSRF)**: los pedidos que modifican datos con la cookie deben venir del frontend (`Origin` en `FRONTEND_URL`). | Que otra página haga acciones en nombre del usuario logueado. | `middlewares/security.js` (`requireSameOrigin`) | Otro origen → 403; sin Origin → 403 |
+| **Cerrar sesión en el servidor** (`POST /auth/logout`). | Cookies que quedan vivas al salir. | `controllers/authController.js` | La cookie se borra |
+| **Verificación de email**: enlace de 24 h (solo se guarda su sha256). Sin verificar no se puede crear, unirse ni comentar en clases, ni publicar diseños en ellas. Las cuentas de Google y las existentes se dan por verificadas. | Cuentas con emails ajenos o inventados. | `services/authService.js`, `routes/classes.js`, aviso en `App.jsx` | Sin verificar → 403; enlace inventado → inválido; enlace válido → verificado |
+| **Contraseña actual para acciones sensibles**: cambiar el email, cambiar la contraseña y borrar la cuenta. El email nuevo queda pendiente hasta confirmarlo desde ese correo y se avisa al anterior. Límite de 10 intentos cada 15 min. | Quedarse con una cuenta usando una sesión robada. | `services/authService.js`, `EditProfilePage.jsx`, `AccountPage.jsx` | Sin contraseña → 400; incorrecta → 401; email pendiente hasta confirmar; borrar con contraseña → 204 |
+| **Cambiar la contraseña desde el perfil**: antes la página la mandaba pero el backend la ignoraba. Ahora funciona, corta las otras sesiones y renueva la del navegador. | Bug funcional con impacto en seguridad. | `services/authService.js` | Login con la nueva; sesión vieja → 401; la renovada → 200 |
+| **Código de invitación para profesores**: lo genera solo un superadmin (`POST /admin/invites`), es de un solo uso, vence en 7 días y solo se guarda su hash. | Que cualquiera se dé permisos de profesor. | `services/adminService.js`, `SignupPage.jsx`, `SuperAdminTeachersPage.jsx` | Sin código o inventado → 400; válido → profesor; reutilizado → 400; un admin común no puede generarlos |
+| **Frontend actualizado** a Vite 8 y React Router 7. | Alertas de esbuild (servidor de desarrollo) y de redirecciones abiertas. | `frontend/package.json` | `npm audit` 0; build OK; todas las rutas probadas en el navegador |
+
+**Configuración del VPS** (en `deploy/vps/`, para HostGator con Ubuntu): Nginx con las mismas cabeceras y CSP, la API como servicio systemd endurecido y con un usuario sin privilegios, HTTPS con Let's Encrypt, límites por IP en nginx, firewall con solo 22/80/443, fail2ban (incluye baneo por exceso de pedidos), SSH solo con llave, actualizaciones automáticas y scripts de instalación y despliegue. Ver `deploy/vps/README.md`.
 
 ---
 

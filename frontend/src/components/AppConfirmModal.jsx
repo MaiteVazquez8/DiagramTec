@@ -73,6 +73,7 @@ export default function AppConfirmModal({
   onConfirm,
   busy = false,
   titleId = 'app-confirm-modal-title',
+  children = null,
 }) {
   const message = getConfirmMessage(variant, highlightName);
   if (!message) return null;
@@ -85,6 +86,8 @@ export default function AppConfirmModal({
       onConfirm={onConfirm}
       busy={busy}
       titleId={titleId}
-    />
+    >
+      {children}
+    </ConfirmModal>
   );
 }

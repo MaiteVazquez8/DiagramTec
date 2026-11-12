@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const googleAuthService = require('../services/googleAuthService');
+const { setSessionCookie, clearSessionCookie, readCookie } = require('../middlewares/auth');
 
 const PASSWORD_REQUIREMENTS_MESSAGE = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un caracter especial';
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
@@ -17,16 +18,17 @@ function profileError({ firstName, lastName, email }) {
 
 async function register(req, res) {
   const db = req.app.locals.db;
-  const { firstName, lastName, email, password, role } = req.body;
+  const { firstName, lastName, email, password, role, inviteCode } = req.body;
   const error = profileError({ firstName, lastName, email });
   if (error) return res.status(400).json({ error });
   if (!authService.isStrongPassword(password)) {
     return res.status(400).json({ error: PASSWORD_REQUIREMENTS_MESSAGE });
   }
-  const result = await authService.register(db, {
-    firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), password, role,
+  const user = await authService.register(db, {
+    firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), password, role, inviteCode,
   });
-  res.json(result);
+  setSessionCookie(res, user);
+  res.json({ user, message: 'Cuenta creada. Te enviamos un enlace para verificar tu email.' });
 }
 
 async function login(req, res) {
@@ -35,8 +37,14 @@ async function login(req, res) {
   if (!isText(email, 254) || !isText(password, 200)) {
     return res.status(400).json({ error: 'Email y contraseña requeridos' });
   }
-  const result = await authService.login(db, email.trim(), password);
-  res.json(result);
+  const user = await authService.login(db, email.trim(), password);
+  setSessionCookie(res, user);
+  res.json({ user });
+}
+
+function logout(req, res) {
+  clearSessionCookie(res);
+  res.status(204).send();
 }
 
 async function me(req, res) {
@@ -48,20 +56,39 @@ async function me(req, res) {
 
 async function updateProfile(req, res) {
   const db = req.app.locals.db;
-  const { firstName, lastName, email } = req.body;
+  const { firstName, lastName, email, currentPassword, newPassword } = req.body;
   const error = profileError({ firstName, lastName, email });
   if (error) return res.status(400).json({ error });
-  const user = await authService.updateProfile(db, req.user.id, {
-    firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(),
+  const result = await authService.updateProfile(db, req.user.id, {
+    firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), currentPassword, newPassword,
   });
-  res.json({ user });
+  // Cambiar la contraseña invalida los tokens viejos: esta sesión recibe uno nuevo.
+  if (result.passwordChanged) setSessionCookie(res, result.user);
+  res.json({ user: result.user, message: result.message });
 }
 
 async function deleteAccount(req, res) {
   const db = req.app.locals.db;
-  const deleted = await authService.deleteAccount(db, req.user.id);
+  const deleted = await authService.deleteAccount(db, req.user.id, req.body?.password);
   if (!deleted) throw new Error('USER_NOT_FOUND');
+  clearSessionCookie(res);
   res.status(204).send();
+}
+
+async function verifyEmail(req, res) {
+  const db = req.app.locals.db;
+  let result = 'invalid';
+  try {
+    result = (await authService.verifyEmail(db, req.query.token)) ? 'ok' : 'invalid';
+  } catch (err) {
+    result = err.message === 'EMAIL_EXISTS' ? 'taken' : 'invalid';
+  }
+  res.redirect(googleAuthService.buildFrontendRedirect({ verified: result }));
+}
+
+async function resendVerification(req, res) {
+  const db = req.app.locals.db;
+  res.json(await authService.resendVerification(db, req.user.id));
 }
 
 async function requestRecoveryCode(req, res) {
@@ -87,11 +114,6 @@ async function resetPassword(req, res) {
   }
   const result = await authService.resetPassword(db, email.trim(), token.trim(), password);
   res.json(result);
-}
-
-function readCookie(req, name) {
-  const pair = (req.headers.cookie || '').split(';').map((c) => c.trim()).find((c) => c.startsWith(`${name}=`));
-  return pair ? decodeURIComponent(pair.slice(name.length + 1)) : null;
 }
 
 const stateCookieOptions = {
@@ -125,29 +147,34 @@ async function googleCallback(req, res) {
   res.clearCookie(STATE_COOKIE, stateCookieOptions);
 
   if (typeof code !== 'string' || typeof state !== 'string') {
-    return res.redirect(googleAuthService.buildFrontendErrorRedirect('google_params'));
+    return res.redirect(googleAuthService.buildFrontendRedirect({ error: 'google_params' }));
   }
   if (state !== cookieState || !googleAuthService.consumeOAuthState(state)) {
     console.warn('[google] Estado OAuth inválido o expirado');
-    return res.redirect(googleAuthService.buildFrontendErrorRedirect('oauth_state'));
+    return res.redirect(googleAuthService.buildFrontendRedirect({ error: 'oauth_state' }));
   }
 
   try {
     const profile = await googleAuthService.exchangeCodeForUser(code);
     const user = await authService.loginOrRegisterWithGoogle(db, profile);
-    res.redirect(googleAuthService.buildFrontendRedirect(authService.signToken(user)));
+    // La sesión queda en la cookie HttpOnly; la URL no lleva ningún token.
+    setSessionCookie(res, user);
+    res.redirect(googleAuthService.buildFrontendRedirect({ google: 'ok' }));
   } catch (err) {
     console.error('Google callback error:', err.message);
-    res.redirect(googleAuthService.buildFrontendErrorRedirect('google'));
+    res.redirect(googleAuthService.buildFrontendRedirect({ error: 'google' }));
   }
 }
 
 module.exports = {
   register,
   login,
+  logout,
   me,
   updateProfile,
   deleteAccount,
+  verifyEmail,
+  resendVerification,
   requestRecoveryCode,
   resetPassword,
   googleRedirect,

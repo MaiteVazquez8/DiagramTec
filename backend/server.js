@@ -5,7 +5,7 @@ const cors = require('cors');
 const { openDb } = require('./db');
 const errorHandler = require('./middlewares/errorHandler');
 const waitForDb = require('./middlewares/waitForDb');
-const { securityHeaders } = require('./middlewares/security');
+const { securityHeaders, requireSameOrigin } = require('./middlewares/security');
 
 let probeSupabaseConnection = async () => true;
 try {
@@ -45,8 +45,10 @@ app.use(cors({
   origin: FRONTEND_ORIGINS.length ? FRONTEND_ORIGINS : false,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true, // la sesión viaja en una cookie HttpOnly
   maxAge: 600,
 }));
+app.use(requireSameOrigin(FRONTEND_ORIGINS));
 // Solo los diseños necesitan cuerpos grandes (imagen y PDF en base64); el resto, 100 KB.
 app.use('/designs', express.json({ limit: '15mb' }));
 app.use(express.json({ limit: '100kb' }));

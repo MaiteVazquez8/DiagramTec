@@ -3,7 +3,7 @@
  *
  * Uso:
  *   npm run build:hostinger
- *   HOSTINGER_DOMAIN=diagramtec.com npm run build:hostinger
+ *   HOSTINGER_DOMAIN=diagramtec.qd.je npm run build:hostinger
  */
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
@@ -33,7 +33,7 @@ function loadSiteEnv() {
 
 loadSiteEnv();
 
-const domain = process.env.HOSTINGER_DOMAIN || 'diagramtec.com';
+const domain = process.env.HOSTINGER_DOMAIN || 'diagramtec.qd.je';
 const apiUrl = process.env.VITE_API_URL || `https://api.${domain}`;
 const hostingerDir = join(root, 'hostinger');
 const outDir = join(hostingerDir, 'dist');
@@ -112,8 +112,8 @@ const fileManagerInstructions = [
   '===================================================',
   '',
   'OPCIÓN A — ZIP con carpeta nodejs/ (diagramtec-nodejs-filemanager.zip)',
-  '  1. Panel api.diagramtec.com → Gestor de archivos',
-  '  2. Andá a la carpeta PADRE de nodejs (domains/api.diagramtec.com/)',
+  '  1. Panel api.diagramtec.qd.je → Gestor de archivos',
+  '  2. Andá a la carpeta PADRE de nodejs (domains/api.diagramtec.qd.je/)',
   '  3. Subí el ZIP y extraelo → reemplaza/llena la carpeta nodejs/',
   '',
   'OPCIÓN B — ZIP plano (diagramtec-nodejs-dentro-nodejs.zip)',
@@ -123,11 +123,9 @@ const fileManagerInstructions = [
   '',
   'NO subas nada en la raíz de la cuenta (donde está DO_NOT_UPLOAD_HERE).',
   '',
-  'Variables de entorno (hPanel → api.diagramtec.com):',
-  '  PGHOST=aws-1-us-west-2.pooler.supabase.com',
-  '  PGUSER=postgres.tyoskyyaetsyqocjzxib',
-  '  PGPASSWORD=tu_contraseña (con * sin codificar)',
-  '  PGDATABASE=postgres  PGPORT=5432  DB_SSL=true',
+  'Variables de entorno (hPanel → api.diagramtec.qd.je):',
+  '  Copiá las de hostinger/nodejs.production.env (node scripts/generate-hostinger-node-env.mjs).',
+  '  DATABASE_URL apunta a Supabase (diagramtec, sa-east-1). Borrá PGHOST/PGUSER/PGPASSWORD viejas.',
   '  Sin PORT. Ver node.env.example',
   '',
   'Después: reiniciá la app (Deployments → Redeploy o Restart).',
@@ -167,7 +165,7 @@ createZip(backendOut, nodejsBackendZip, { flat: true });
 writeFileSync(
   join(outDir, 'LEEME.txt'),
   [
-    'DESPLIEGUE HOSTINGER — diagramtec.com',
+    'DESPLIEGUE HOSTINGER — diagramtec.qd.je',
     '====================================',
     '',
     `Sitio:  https://${domain}`,
@@ -177,10 +175,10 @@ writeFileSync(
     `  Sube el contenido de public_html/ al public_html de ${domain} en hPanel.`,
     '  Borrá la carpeta public_html/php vieja del servidor si existe (ya no se usa).',
     '',
-    'PASO 2 — CLOUDFLARE (recomendado)',
-    '  DNS de diagramtec.com y api.diagramtec.com con proxy naranja, SSL "Full (strict)".',
+    'PASO 2 — DNS Y TURNSTILE',
+    '  DNS de diagramtec.qd.je y api.diagramtec.qd.je en DigitalPlat (qd.je no entra en Cloudflare Free).',
     '  Turnstile: crear widget → VITE_TURNSTILE_SITE_KEY (site.env) y TURNSTILE_SECRET (Node).',
-    '  Con proxy naranja poné TRUST_PROXY=2 en las variables de Node.',
+    '  Sin proxy de Cloudflare delante: TRUST_PROXY=1 en las variables de Node.',
     '',
     'PASO 3 — SUBDOMINIO api',
     `  hPanel → Dominios → Subdominios → crear "api" → ${domain}`,
@@ -190,7 +188,7 @@ writeFileSync(
     '  Sube nodejs-backend/ (o GitHub, rootDir: backend)',
     '  Entry: server.js | Start: npm start',
     '  Variables: ver nodejs-backend/.env.example',
-    '  Asignar el subdominio api.diagramtec.com a esta app',
+    '  Asignar el subdominio api.diagramtec.qd.je a esta app',
     '',
     'PASO 5 — SUPABASE',
     '  Ejecutar documents/db/supabase.sql en SQL Editor (Node también lo aplica al arrancar)',
@@ -213,7 +211,7 @@ console.log('  nodejs/                             → carpeta para ZIP file man
 console.log('  nodejs-flat/                        → archivos sueltos para dentro de nodejs/');
 console.log('  LEEME.txt                           → instrucciones');
 console.log('\nZIPs en hostinger/:');
-console.log('  diagramtec-frontend-solo.zip          → extraer en public_html/ de diagramtec.com');
-console.log('  diagramtec-nodejs-filemanager.zip   → extraer en domains/api.diagramtec.com/');
+console.log('  diagramtec-frontend-solo.zip          → extraer en public_html/ de diagramtec.qd.je');
+console.log('  diagramtec-nodejs-filemanager.zip   → extraer en domains/api.diagramtec.qd.je/');
 console.log('  diagramtec-nodejs-dentro-nodejs.zip → extraer DENTRO de nodejs/');
 console.log('  diagramtec-nodejs-backend.zip       → panel Redeploy (si lo encontrás)');

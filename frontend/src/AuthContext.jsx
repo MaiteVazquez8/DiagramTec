@@ -1,101 +1,86 @@
 /**
- * Contexto global de sesión: user, token, login, logout, loading.
- * Token en localStorage (clave: tecdiagram_token).
- * Sincroniza login/logout entre pestañas con el evento storage.
+ * Contexto global de sesión: user, login, logout, loading.
+ * La sesión vive en una cookie HttpOnly que maneja la API (JavaScript no puede leerla,
+ * así que un XSS no puede robarla). Acá solo se pide /auth/me para saber quién es.
+ * Sincroniza login/logout entre pestañas con un aviso en localStorage (sin datos sensibles).
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import api, { setAuthToken } from './api.js';
+import api from './api.js';
 
-const AUTH_TOKEN_KEY = 'tecdiagram_token';
+const AUTH_EVENT_KEY = 'tecdiagram_auth_event';
+// Restos de la versión anterior, que guardaba el token en localStorage.
+try {
+  localStorage.removeItem('tecdiagram_token');
+} catch {
+  // sin localStorage no hay nada que limpiar
+}
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(() => localStorage.getItem(AUTH_TOKEN_KEY) || '');
 
-  const clearSessionState = useCallback(() => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    setToken('');
-    setUser(null);
-    setAuthToken(null);
-    setLoading(false);
+  const refresh = useCallback(async (attempt = 0) => {
+    setLoading(true);
+    try {
+      const response = await api.get('/auth/me', { skipErrorToast: true });
+      setUser(response.data?.user || null);
+      return response.data?.user || null;
+    } catch (err) {
+      const status = err.response?.status;
+      // La API puede estar arrancando: reintenta unas veces antes de dar la sesión por cerrada.
+      if ((status === 503 || !err.response) && attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+        return refresh(attempt + 1);
+      }
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Validar token y cargar usuario
   useEffect(() => {
-    if (!token) {
-      setUser(null);
-      setAuthToken(null);
-      setLoading(false);
-      return;
-    }
+    refresh();
+  }, [refresh]);
 
-    setAuthToken(token);
-    let cancelled = false;
-
-    async function fetchMe(attempt = 0) {
-      setLoading(true);
-      try {
-        const response = await api.get('/auth/me', { skipErrorToast: true });
-        if (cancelled) return;
-        if (response.data?.user) {
-          setUser(response.data.user);
-        } else {
-          throw new Error('NO_USER');
-        }
-      } catch (err) {
-        if (cancelled) return;
-        const status = err.response?.status;
-        const retryable = status === 503 || !err.response;
-        if (retryable && attempt < 3) {
-          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
-          return fetchMe(attempt + 1);
-        }
-        clearSessionState();
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetchMe();
-    return () => {
-      cancelled = true;
-    };
-  }, [token, clearSessionState]);
-
-  // Otra pestaña inició o cerró sesión (storage no se dispara en la misma pestaña)
+  // Otra pestaña inició o cerró sesión (storage no se dispara en la misma pestaña).
   useEffect(() => {
     const onStorage = (event) => {
-      if (event.key !== AUTH_TOKEN_KEY) return;
-
-      const nextToken = event.newValue || '';
-      if (!nextToken) {
-        clearSessionState();
-        return;
-      }
-
-      setToken(nextToken);
+      if (event.key === AUTH_EVENT_KEY) refresh();
     };
-
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [clearSessionState]);
+  }, [refresh]);
 
-  const login = (newToken) => {
-    localStorage.setItem(AUTH_TOKEN_KEY, newToken);
-    setUser(null);
-    setLoading(true);
-    setToken(newToken);
+  const notifyOtherTabs = () => {
+    try {
+      localStorage.setItem(AUTH_EVENT_KEY, String(Date.now()));
+    } catch {
+      // sin localStorage no hay sincronización entre pestañas
+    }
   };
 
-  const logout = () => {
-    clearSessionState();
+  /** Después de que la API puso la cookie (login, registro, Google): carga el usuario. */
+  const login = async () => {
+    const loaded = await refresh();
+    notifyOtherTabs();
+    return loaded;
+  };
+
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout', null, { skipErrorToast: true });
+    } catch {
+      // aunque falle la red, la sesión local se limpia
+    }
+    setUser(null);
+    notifyOtherTabs();
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, setUser, refresh }}>
       {children}
     </AuthContext.Provider>
   );

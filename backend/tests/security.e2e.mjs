@@ -62,18 +62,28 @@ async function waitReady(api) {
   throw new Error(`El backend en ${api} no conectó a la base`);
 }
 
+// La sesión viaja en la cookie HttpOnly "dt_session"; `token` la envía como lo haría el navegador
+// (con el Origin del frontend, que el chequeo CSRF exige en pedidos que modifican datos).
 function client(api) {
   return async (method, path, { body, token, headers = {}, raw } = {}) => {
     const r = await fetch(`${api}${path}`, {
       method, redirect: 'manual',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Cookie: `dt_session=${token}`, Origin: 'http://localhost:5173' } : {}),
+        ...headers,
+      },
       body: raw ?? (body ? JSON.stringify(body) : undefined),
     });
     let data = null;
     try { data = await r.clone().json(); } catch { /* sin JSON */ }
-    return { status: r.status, data, headers: r.headers };
+    const setCookie = r.headers.get('set-cookie') || '';
+    const session = /dt_session=([^;]+)/.exec(setCookie)?.[1] || null;
+    return { status: r.status, data, headers: r.headers, setCookie, session };
   };
 }
+
+const sha256 = (v) => crypto.createHash('sha256').update(v).digest('hex');
 
 const servers = [];
 let sql;
@@ -104,8 +114,8 @@ try {
   const rls = (await sql.query("select count(*)::int n from pg_tables where schemaname='public' and rowsecurity")).rows[0].n;
   check('Supabase', 'Migración al arrancar agrega las columnas de recuperación', ['reset_code_hash', 'reset_code_expires', 'reset_attempts', 'password_changed_at'].every((c) => cols.includes(c)));
   check('Supabase', 'Borra las políticas RLS abiertas "dev_all_*"', policies === 0, `quedan ${policies}`);
-  check('Supabase', 'RLS activo en las 5 tablas', rls === 5, `${rls}/5`);
-  const anonPriv = (await sql.query(`select count(*)::int n from (values ('users'),('classes'),('class_members'),('designs'),('comments')) t(n)
+  check('Supabase', 'RLS activo en las 6 tablas (incluida teacher_invites)', rls === 6, `${rls}/6`);
+  const anonPriv = (await sql.query(`select count(*)::int n from (values ('users'),('classes'),('class_members'),('designs'),('comments'),('teacher_invites')) t(n)
     where has_table_privilege('anon', 'public.'||n, 'SELECT') or has_table_privilege('authenticated', 'public.'||n, 'INSERT')`)).rows[0].n;
   check('Supabase', 'Los roles públicos (anon/authenticated) pierden todo permiso sobre las tablas', anonPriv === 0, `${anonPriv} tablas con permiso`);
 
@@ -113,13 +123,24 @@ try {
   check('Bots', 'Registro sin token de Turnstile → 403', (await call('POST', '/auth/register', { body: { firstName: 'A', lastName: 'B', email: 'x@test.com', password: PASS } })).status === 403);
   check('Contraseñas', 'Contraseña débil (6 caracteres) → 400', (await call('POST', '/auth/register', { body: { firstName: 'A', lastName: 'B', email: 'x@test.com', password: 'Ab1!xy', ...TS } })).status === 400);
   check('Validación', 'Email inválido → 400', (await call('POST', '/auth/register', { body: { firstName: 'A', lastName: 'B', email: 'no-es-email', password: PASS, ...TS } })).status === 400);
-  const regT = await call('POST', '/auth/register', { body: { firstName: 'Tea', lastName: 'Cher', email: 'teacher@test.com', password: PASS, role: 'teacher', ...TS } });
+  // Invitaciones de profesor: se carga un código conocido (solo su hash, como hace la API).
+  const INVITE = 'A1B2C3D4E5F6';
+  await sql.query("insert into teacher_invites (code_hash, expires_at) values ($1, now() + interval '7 days')", [sha256(INVITE)]);
+  const teacherBody = (extra) => ({ firstName: 'Tea', lastName: 'Cher', email: 'teacher@test.com', password: PASS, role: 'teacher', ...TS, ...extra });
+  check('Escalada de privilegios', 'Registrarse como profesor sin código de invitación → 400', (await call('POST', '/auth/register', { body: teacherBody({}) })).status === 400);
+  check('Escalada de privilegios', 'Registrarse como profesor con un código inventado → 400', (await call('POST', '/auth/register', { body: teacherBody({ inviteCode: 'FFFFFFFFFFFF' }) })).status === 400);
+  const regT = await call('POST', '/auth/register', { body: teacherBody({ inviteCode: INVITE }) });
+  check('Invitaciones', 'Con un código válido la cuenta se crea como profesor', regT.status === 200 && regT.data?.user?.role === 'teacher');
+  check('Invitaciones', 'El código es de un solo uso', (await call('POST', '/auth/register', { body: { ...teacherBody({ inviteCode: INVITE }), email: 'teacher2@test.com' } })).status === 400);
   const regS = await call('POST', '/auth/register', { body: { firstName: 'Stu', lastName: 'Dent', email: 'student@test.com', password: PASS, role: 'student', ...TS } });
   const regO = await call('POST', '/auth/register', { body: { firstName: 'Otro', lastName: 'Alumno', email: 'otro@test.com', password: PASS, role: 'superadmin', ...TS } });
-  check('Registro', 'Registro válido devuelve token', regT.status === 200 && regS.status === 200 && regT.data?.token, `${regT.status}/${regS.status}`);
+  check('Registro', 'Registro válido abre sesión', regT.status === 200 && regS.status === 200 && regT.session, `${regT.status}/${regS.status}`);
+  check('Sesión en cookie', 'La sesión va en una cookie HttpOnly y SameSite=Lax', /HttpOnly/i.test(regT.setCookie) && /SameSite=Lax/i.test(regT.setCookie));
+  check('Sesión en cookie', 'El token no aparece en el cuerpo de la respuesta (JavaScript no lo ve)', !JSON.stringify(regT.data).includes(regT.session));
+  check('Verificación de email', 'La cuenta nueva queda sin verificar', regT.data?.user?.emailVerified === false);
   check('Escalada de privilegios', 'No se puede registrar como superadmin', regO.data?.user?.role === 'student');
   check('Contraseñas', 'Se guarda con bcrypt', /^\$2[aby]\$10\$/.test((await sql.query("select \"passwordHash\" h from users where email='teacher@test.com'")).rows[0].h));
-  const tT = regT.data.token; const tS = regS.data.token; const tO = regO.data.token;
+  const tT = regT.session; const tS = regS.session; const tO = regO.session;
 
   // ---------- Login y fuerza bruta
   check('Login', 'Login correcto', (await call('POST', '/auth/login', { body: { email: 'teacher@test.com', password: PASS, ...TS } })).status === 200);
@@ -148,7 +169,7 @@ try {
   check('Recuperación', 'Código válido cambia la contraseña', (await call('POST', '/auth/reset-password', { body: resetBody('333333') })).status === 200);
   check('Recuperación', 'El código es de un solo uso', (await call('POST', '/auth/reset-password', { body: resetBody('333333', 'Otra-Clave-789') })).status === 400);
   check('Sesiones', 'Cambiar la contraseña revoca los tokens anteriores', (await call('GET', '/auth/me', { token: tT })).status === 401);
-  const tT2 = (await call('POST', '/auth/login', { body: { email: 'teacher@test.com', password: 'Nueva-Clave-456', ...TS } })).data?.token;
+  const tT2 = (await call('POST', '/auth/login', { body: { email: 'teacher@test.com', password: 'Nueva-Clave-456', ...TS } })).session;
   check('Recuperación', 'Login con la contraseña nueva', !!tT2);
 
   // ---------- Tokens
@@ -157,6 +178,23 @@ try {
   const [, payload] = tS.split('.');
   const noneToken = `${Buffer.from('{"alg":"none","typ":"JWT"}').toString('base64url')}.${payload}.`;
   check('Falsificación de tokens', 'Token con alg "none" → 401', (await call('GET', '/auth/me', { token: noneToken })).status === 401);
+
+  // ---------- Verificación de email
+  check('Verificación de email', 'Sin verificar no se pueden crear clases', (await call('POST', '/classes', { token: tT2, body: { title: 'x' } })).data?.code === 'EMAIL_NOT_VERIFIED');
+  check('Verificación de email', 'Sin verificar no se puede unir a clases', (await call('POST', '/classes/join', { token: tS, body: { code: 'ABCDEF12' } })).status === 403);
+  const bad = await call('GET', `/auth/verify-email?token=${'0'.repeat(64)}`);
+  check('Verificación de email', 'Un enlace inventado no verifica nada', /verified=invalid/.test(bad.headers.get('location') || ''));
+  const verify = async (email) => {
+    const tok = crypto.randomBytes(32).toString('hex');
+    await sql.query("update users set verify_token_hash=$1, verify_token_expires=now()+interval '24 hours' where email=$2", [sha256(tok), email]);
+    return call('GET', `/auth/verify-email?token=${tok}`);
+  };
+  const okVerify = await verify('teacher@test.com');
+  check('Verificación de email', 'El enlace válido verifica la cuenta', /verified=ok/.test(okVerify.headers.get('location') || '')
+    && (await call('GET', '/auth/me', { token: tT2 })).data?.user?.emailVerified === true);
+  check('Verificación de email', 'El enlace guarda solo el sha256 del token', /^[0-9a-f]{64}$/.test((await sql.query("select verify_token_hash h from users where email='teacher@test.com'")).rows[0].h));
+  await verify('student@test.com');
+  await verify('otro@test.com');
 
   // ---------- Clases (control de acceso)
   const cls = await call('POST', '/classes', { token: tT2, body: { title: 'Clase 1', description: 'd' } });
@@ -200,8 +238,8 @@ try {
   // ---------- Administración
   const adminHash = await bcrypt.hash(PASS, 4);
   await sql.query(`insert into users ("firstName","lastName",email,"passwordHash",role) values ('Ad','Min','admin@test.com',$1,'admin'),('Su','Per','super@test.com',$1,'superadmin')`, [adminHash]);
-  const tA = (await call('POST', '/auth/login', { body: { email: 'admin@test.com', password: PASS, ...TS } })).data.token;
-  const tSu = (await call('POST', '/auth/login', { body: { email: 'super@test.com', password: PASS, ...TS } })).data.token;
+  const tA = (await call('POST', '/auth/login', { body: { email: 'admin@test.com', password: PASS, ...TS } })).session;
+  const tSu = (await call('POST', '/auth/login', { body: { email: 'super@test.com', password: PASS, ...TS } })).session;
   const superId = (await sql.query("select id from users where email='super@test.com'")).rows[0].id;
   const sid = regS.data.user.id;
   check('Escalada de privilegios', 'Un alumno no entra al panel admin', (await call('GET', '/admin/users', { token: tS })).status === 403);
@@ -214,8 +252,42 @@ try {
   await call('DELETE', `/admin/users/${regO.data.user.id}`, { token: tSu });
   check('Sesiones', 'El token de un usuario borrado deja de valer', (await call('GET', '/auth/me', { token: tO })).status === 401);
   const self = await call('POST', '/auth/register', { body: { firstName: 'Se', lastName: 'Va', email: 'baja@test.com', password: PASS, ...TS } });
-  check('Cuentas', 'Borrar la propia cuenta → 204 y el token deja de valer', (await call('DELETE', '/auth/me', { token: self.data.token })).status === 204
-    && (await call('GET', '/auth/me', { token: self.data.token })).status === 401);
+  check('Acciones sensibles', 'Borrar la cuenta sin contraseña → 400', (await call('DELETE', '/auth/me', { token: self.session, body: {} })).status === 400);
+  check('Acciones sensibles', 'Borrar la cuenta con contraseña incorrecta → 401', (await call('DELETE', '/auth/me', { token: self.session, body: { password: 'Mala-123!x' } })).status === 401);
+  const bye = await call('DELETE', '/auth/me', { token: self.session, body: { password: PASS } });
+  check('Acciones sensibles', 'Con la contraseña correcta se borra (204) y la sesión deja de valer', bye.status === 204
+    && (await call('GET', '/auth/me', { token: self.session })).status === 401);
+
+  // ---------- Invitaciones desde la API
+  check('Invitaciones', 'Un admin común no genera códigos de invitación', (await call('POST', '/admin/invites', { token: tA })).status === 403);
+  const inv = await call('POST', '/admin/invites', { token: tSu });
+  check('Invitaciones', 'Un superadmin genera un código de 12 caracteres que vence', inv.status === 200 && /^[0-9A-F]{12}$/.test(inv.data?.code) && !!inv.data?.expiresAt);
+  check('Invitaciones', 'En la base solo queda el hash del código', (await sql.query('select count(*)::int n from teacher_invites where code_hash=$1', [sha256(inv.data.code)])).rows[0].n === 1
+    && (await sql.query('select count(*)::int n from teacher_invites where code_hash=$1', [inv.data.code])).rows[0].n === 0);
+  check('Invitaciones', 'Ese código permite registrarse como profesor', (await call('POST', '/auth/register', { body: { ...teacherBody({ inviteCode: inv.data.code.toLowerCase() }), email: 'teacher3@test.com' } })).data?.user?.role === 'teacher');
+
+  // ---------- CSRF y cierre de sesión
+  check('CSRF', 'Un pedido con la cookie desde otro origen → 403', (await call('POST', '/classes', { token: tT2, body: { title: 'csrf' }, headers: { Origin: 'https://evil.example' } })).status === 403);
+  check('CSRF', 'Un pedido con la cookie sin Origin → 403', (await call('POST', '/classes', { token: tT2, body: { title: 'csrf' }, headers: { Origin: '' } })).status === 403);
+  const out = await call('POST', '/auth/logout', { token: tT2 });
+  check('Sesión en cookie', 'Cerrar sesión borra la cookie', out.status === 204 && /dt_session=;/.test(out.setCookie) && /Expires=Thu, 01 Jan 1970/i.test(out.setCookie));
+
+  // ---------- Perfil: email y contraseña exigen la contraseña actual
+  const prof = await call('POST', '/auth/register', { body: { firstName: 'Pe', lastName: 'Rfil', email: 'perfil@test.com', password: PASS, ...TS } });
+  const profBody = (extra) => ({ firstName: 'Pe', lastName: 'Rfil', email: 'perfil@test.com', ...extra });
+  check('Acciones sensibles', 'Cambiar el email sin la contraseña actual → 400', (await call('PUT', '/auth/me', { token: prof.session, body: profBody({ email: 'nuevo@test.com' }) })).status === 400);
+  check('Acciones sensibles', 'Cambiar el email con una contraseña incorrecta → 401', (await call('PUT', '/auth/me', { token: prof.session, body: profBody({ email: 'nuevo@test.com', currentPassword: 'Mala-123!x' }) })).status === 401);
+  const chg = await call('PUT', '/auth/me', { token: prof.session, body: profBody({ email: 'nuevo@test.com', currentPassword: PASS }) });
+  check('Acciones sensibles', 'El email nuevo queda pendiente hasta confirmarlo', chg.status === 200 && chg.data?.user?.email === 'perfil@test.com' && chg.data?.user?.pendingEmail === 'nuevo@test.com');
+  const confirm = await verify('perfil@test.com');
+  check('Acciones sensibles', 'Al confirmar desde el correo nuevo, el cambio se aplica', /verified=ok/.test(confirm.headers.get('location') || '')
+    && (await call('GET', '/auth/me', { token: prof.session })).data?.user?.email === 'nuevo@test.com');
+  await new Promise((r) => setTimeout(r, 1100));
+  const pw = await call('PUT', '/auth/me', { token: prof.session, body: { firstName: 'Pe', lastName: 'Rfil', email: 'nuevo@test.com', currentPassword: PASS, newPassword: 'Otra-Clave-999' } });
+  check('Acciones sensibles', 'Cambiar la contraseña desde el perfil funciona (antes se ignoraba)', pw.status === 200
+    && (await call('POST', '/auth/login', { body: { email: 'nuevo@test.com', password: 'Otra-Clave-999', ...TS } })).status === 200);
+  check('Sesiones', 'Tras cambiarla, la sesión vieja se corta y la del navegador se renueva', (await call('GET', '/auth/me', { token: prof.session })).status === 401
+    && (await call('GET', '/auth/me', { token: pw.session })).status === 200);
 
   // ---------- Google OAuth
   const g = await call('GET', '/auth/google');
@@ -236,7 +308,7 @@ try {
   await new Promise((r) => setTimeout(r, 1100));
   const linked = await authService.loginOrRegisterWithGoogle(db, { googleId: 'g-victima', email: 'victima@test.com', firstName: 'Vic', lastName: 'Tima' });
   check('Robo de cuenta previo', 'Al vincular Google, la contraseña puesta por un tercero deja de servir', linked && (await call('POST', '/auth/login', { body: { email: 'victima@test.com', password: PASS, ...TS } })).status === 401);
-  check('Robo de cuenta previo', 'Y su sesión abierta se corta', (await call('GET', '/auth/me', { token: attacker.data.token })).status === 401);
+  check('Robo de cuenta previo', 'Y su sesión abierta se corta', (await call('GET', '/auth/me', { token: attacker.session })).status === 401);
   let mismatch = false;
   try { await authService.loginOrRegisterWithGoogle(db, { googleId: 'g-otro', email: 'victima@test.com', firstName: 'X', lastName: 'Y' }); } catch (e) { mismatch = e.message === 'GOOGLE_ACCOUNT_MISMATCH'; }
   check('Robo de cuenta previo', 'Otra identidad de Google con el mismo email → rechazada', mismatch);

@@ -92,13 +92,9 @@ function frontendUrl() {
   return (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim().replace(/\/$/, '');
 }
 
-// El token va en el fragmento (#): no llega a servidores, logs ni Referer.
-function buildFrontendRedirect(token) {
-  return `${frontendUrl()}/login#token=${encodeURIComponent(token)}`;
-}
-
-function buildFrontendErrorRedirect(errorCode) {
-  return `${frontendUrl()}/login?error=${encodeURIComponent(errorCode)}`;
+// Vuelve al login del frontend con un aviso (la sesión, si la hay, ya va en la cookie).
+function buildFrontendRedirect(params) {
+  return `${frontendUrl()}/login?${new URLSearchParams(params)}`;
 }
 
 module.exports = {
@@ -107,5 +103,4 @@ module.exports = {
   buildGoogleAuthUrl,
   exchangeCodeForUser,
   buildFrontendRedirect,
-  buildFrontendErrorRedirect,
 };

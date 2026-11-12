@@ -78,7 +78,36 @@ async function deleteClass(db, id) {
   await db.execute('DELETE FROM classes WHERE id = ?', [id]);
 }
 
+// ---- Códigos de invitación para profesores (solo se guarda el hash del código).
+async function createInvite(db, codeHash, createdBy) {
+  // En los INSERT la capa Postgres devuelve solo insertId.
+  const [result] = await db.execute(
+    "INSERT INTO teacher_invites (code_hash, created_by, expires_at) VALUES (?, ?, now() + interval '7 days')",
+    [codeHash, createdBy],
+  );
+  const [rows] = await db.execute('SELECT id, expires_at FROM teacher_invites WHERE id = ?', [result.insertId]);
+  return rows;
+}
+
+/** Marca el código como usado de forma atómica; devuelve su id solo si estaba vigente y sin usar. */
+async function claimInvite(db, codeHash) {
+  const [rows] = await db.execute(
+    `UPDATE teacher_invites SET used_at = now()
+     WHERE code_hash = ? AND used_at IS NULL AND expires_at > now()
+     RETURNING id`,
+    [codeHash],
+  );
+  return rows[0]?.id || null;
+}
+
+async function setInviteUser(db, inviteId, userId) {
+  await db.execute('UPDATE teacher_invites SET used_by = ? WHERE id = ?', [userId, inviteId]);
+}
+
 module.exports = {
+  createInvite,
+  claimInvite,
+  setInviteUser,
   countUsers,
   countClasses,
   countDesigns,

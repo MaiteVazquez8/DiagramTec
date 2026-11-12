@@ -20,6 +20,11 @@ const recoveryLimit = [
 ];
 const resetLimit = rateLimit({ windowMs: 15 * MIN, max: 20 });
 const googleLimit = rateLimit({ windowMs: 15 * MIN, max: 60 });
+const verifyLimit = rateLimit({ windowMs: 15 * MIN, max: 30 });
+const userKey = (req) => `u${req.user.id}`;
+// Editar/borrar la cuenta pide la contraseña actual: sin límite se podría adivinar.
+const sensitiveLimit = rateLimit({ windowMs: 15 * MIN, max: 10, key: userKey });
+const resendLimit = rateLimit({ windowMs: 15 * MIN, max: 3, key: userKey });
 
 router.get('/google', googleLimit, authController.googleRedirect);
 router.get('/google/callback', googleLimit, waitForDb({ redirectOnTimeout: true }), asyncHandler(authController.googleCallback));
@@ -28,8 +33,11 @@ router.post('/register', registerLimit, turnstile('signup'), db, asyncHandler(au
 router.post('/login', loginLimit, turnstile('login'), db, asyncHandler(authController.login));
 router.post('/recovery-code', recoveryLimit, turnstile('recovery'), db, asyncHandler(authController.requestRecoveryCode));
 router.post('/reset-password', resetLimit, db, asyncHandler(authController.resetPassword));
+router.post('/logout', authController.logout);
+router.get('/verify-email', verifyLimit, db, asyncHandler(authController.verifyEmail));
+router.post('/resend-verification', db, authMiddleware, resendLimit, asyncHandler(authController.resendVerification));
 router.get('/me', db, authMiddleware, asyncHandler(authController.me));
-router.put('/me', db, authMiddleware, asyncHandler(authController.updateProfile));
-router.delete('/me', db, authMiddleware, asyncHandler(authController.deleteAccount));
+router.put('/me', db, authMiddleware, sensitiveLimit, asyncHandler(authController.updateProfile));
+router.delete('/me', db, authMiddleware, sensitiveLimit, asyncHandler(authController.deleteAccount));
 
 module.exports = router;

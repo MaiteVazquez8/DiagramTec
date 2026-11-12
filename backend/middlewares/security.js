@@ -83,10 +83,26 @@ function turnstile(expectedAction) {
   };
 }
 
+/**
+ * CSRF: si un pedido que modifica datos viaja con la cookie de sesión, tiene que venir del
+ * frontend (cabecera Origin en la lista de FRONTEND_URL). SameSite=Lax ya frena casi todo;
+ * esto cubre además a otros subdominios del mismo sitio.
+ */
+function requireSameOrigin(allowedOrigins) {
+  const { hasSessionCookie } = require('./auth');
+  return (req, res, next) => {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || !hasSessionCookie(req)) return next();
+    if (allowedOrigins.length === 0 && !IS_PROD) return next();
+    const origin = req.headers.origin || (req.headers.referer ? new URL(req.headers.referer).origin : '');
+    if (!allowedOrigins.includes(origin)) return res.status(403).json({ error: 'Origen no permitido' });
+    next();
+  };
+}
+
 // router.param('id', validateIdParam): ids no numéricos → 400 en vez de llegar a la base.
 function validateIdParam(req, res, next, id) {
   if (!/^\d{1,15}$/.test(id)) return res.status(400).json({ error: 'Identificador inválido' });
   next();
 }
 
-module.exports = { securityHeaders, rateLimit, emailKey, turnstile, validateIdParam };
+module.exports = { securityHeaders, rateLimit, emailKey, turnstile, validateIdParam, requireSameOrigin };

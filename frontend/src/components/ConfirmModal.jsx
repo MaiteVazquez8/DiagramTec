@@ -11,6 +11,7 @@ export default function ConfirmModal({
   cancelLabel = 'No',
   busy = false,
   titleId = 'confirm-modal-title',
+  children = null,
 }) {
   if (!open) return null;
 
@@ -41,6 +42,7 @@ export default function ConfirmModal({
         <p id={titleId} className="confirm-modal__message">
           {message}
         </p>
+        {children}
         <div className="confirm-modal__actions">
           <button
             type="button"

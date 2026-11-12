@@ -1,0 +1,91 @@
+# DiagramTec en el VPS (Docker + Traefik ya existente, red n8n-traefik_app_network).
+# En el servidor vive en /opt/diagramtec con esta estructura:
+#   docker-compose.yml  web.conf  diagramtec-headers.conf  api.env (600)  web/ (frontend/dist)  backend/
+# Traefik termina HTTPS con Let's Encrypt (resolver "le") y aplica límites por IP.
+# Un solo certificado para los tres nombres: Let's Encrypt limita a 50 certificados por semana
+# para TODO qd.je (no está en la Public Suffix List), así que conviene pedir uno solo.
+name: diagramtec
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  networks: [traefik]
+
+services:
+  api:
+    <<: *hardening
+    build: ./backend
+    image: diagramtec-api
+    container_name: diagramtec-api
+    env_file: ./api.env
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n-traefik_app_network
+      - traefik.http.services.diagramtec-api.loadbalancer.server.port=3000
+      # HTTP -> HTTPS
+      - traefik.http.routers.diagramtec-api-http.rule=Host(`api.diagramtec.qd.je`)
+      - traefik.http.routers.diagramtec-api-http.entrypoints=web
+      - traefik.http.routers.diagramtec-api-http.middlewares=diagramtec-https
+      # API general: 10 req/s por IP, ráfaga de 40
+      - traefik.http.routers.diagramtec-api.rule=Host(`api.diagramtec.qd.je`)
+      - traefik.http.routers.diagramtec-api.entrypoints=websecure
+      - traefik.http.routers.diagramtec-api.tls.certresolver=gts
+      - traefik.http.routers.diagramtec-api.tls.domains[0].main=diagramtec.qd.je
+      - traefik.http.routers.diagramtec-api.tls.domains[0].sans=www.diagramtec.qd.je,api.diagramtec.qd.je
+      - traefik.http.routers.diagramtec-api.service=diagramtec-api
+      - traefik.http.routers.diagramtec-api.middlewares=diagramtec-api-rl
+      - traefik.http.middlewares.diagramtec-api-rl.ratelimit.average=10
+      - traefik.http.middlewares.diagramtec-api-rl.ratelimit.burst=40
+      # Login, registro y recuperación: 10 por minuto por IP, ráfaga de 10
+      - traefik.http.routers.diagramtec-auth.rule=Host(`api.diagramtec.qd.je`) && PathRegexp(`^/auth/(login|register|recovery-code|reset-password|resend-verification)$$`)
+      - traefik.http.routers.diagramtec-auth.entrypoints=websecure
+      - traefik.http.routers.diagramtec-auth.tls.certresolver=gts
+      - traefik.http.routers.diagramtec-auth.tls.domains[0].main=diagramtec.qd.je
+      - traefik.http.routers.diagramtec-auth.tls.domains[0].sans=www.diagramtec.qd.je,api.diagramtec.qd.je
+      - traefik.http.routers.diagramtec-auth.service=diagramtec-api
+      - traefik.http.routers.diagramtec-auth.middlewares=diagramtec-auth-rl
+      - traefik.http.middlewares.diagramtec-auth-rl.ratelimit.average=10
+      - traefik.http.middlewares.diagramtec-auth-rl.ratelimit.period=1m
+      - traefik.http.middlewares.diagramtec-auth-rl.ratelimit.burst=10
+
+  web:
+    <<: *hardening
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    container_name: diagramtec-web
+    tmpfs: [/tmp]
+    mem_limit: 128m
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - ./web.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./diagramtec-headers.conf:/etc/nginx/snippets/diagramtec-headers.conf:ro
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=n8n-traefik_app_network
+      - traefik.http.services.diagramtec-web.loadbalancer.server.port=8080
+      - traefik.http.middlewares.diagramtec-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.diagramtec-https.redirectscheme.permanent=true
+      # www -> dominio principal
+      - traefik.http.middlewares.diagramtec-www.redirectregex.regex=^https://www\.diagramtec\.qd\.je/(.*)
+      - traefik.http.middlewares.diagramtec-www.redirectregex.replacement=https://diagramtec.qd.je/$${1}
+      - traefik.http.middlewares.diagramtec-www.redirectregex.permanent=true
+      # Sitio: 30 req/s por IP, ráfaga de 60
+      - traefik.http.middlewares.diagramtec-web-rl.ratelimit.average=30
+      - traefik.http.middlewares.diagramtec-web-rl.ratelimit.burst=60
+      - traefik.http.routers.diagramtec-web-http.rule=Host(`diagramtec.qd.je`) || Host(`www.diagramtec.qd.je`)
+      - traefik.http.routers.diagramtec-web-http.entrypoints=web
+      - traefik.http.routers.diagramtec-web-http.middlewares=diagramtec-https
+      - traefik.http.routers.diagramtec-web.rule=Host(`diagramtec.qd.je`) || Host(`www.diagramtec.qd.je`)
+      - traefik.http.routers.diagramtec-web.entrypoints=websecure
+      - traefik.http.routers.diagramtec-web.tls.certresolver=gts
+      - traefik.http.routers.diagramtec-web.tls.domains[0].main=diagramtec.qd.je
+      - traefik.http.routers.diagramtec-web.tls.domains[0].sans=www.diagramtec.qd.je,api.diagramtec.qd.je
+      - traefik.http.routers.diagramtec-web.middlewares=diagramtec-www,diagramtec-web-rl
+
+networks:
+  traefik:
+    name: n8n-traefik_app_network
+    external: true

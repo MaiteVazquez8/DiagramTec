@@ -15,6 +15,7 @@ async function getDesign(req, res) {
 
 async function createDesign(req, res) {
   const db = req.app.locals.db;
+  if (req.body.classId && !req.user.emailVerified) throw new Error('EMAIL_NOT_VERIFIED');
   const design = await designService.createDesign(db, req.user, req.body);
   res.json({ design });
 }
@@ -22,6 +23,8 @@ async function createDesign(req, res) {
 async function updateDesign(req, res) {
   const db = req.app.locals.db;
   const id = Number(req.params.id);
+  // Publicar en una clase exige email verificado.
+  if (req.body.classId && !req.user.emailVerified) throw new Error('EMAIL_NOT_VERIFIED');
   const design = await designService.updateDesign(db, id, req.user.id, req.user.role, req.body);
   res.json({ design });
 }

@@ -150,12 +150,10 @@ GET    /api/classes/:id/students  # Estudiantes de la clase
 - CORS con lista blanca, cabeceras de seguridad en la API y CSP/HSTS en el sitio (`.htaccess`).
 - Supabase: RLS activo **sin** políticas; la API REST pública (clave anon) no ve nada. El backend las cierra al arrancar.
 
-**En Cloudflare (panel, una vez)**
-1. DNS de `diagramtec.com` y `api.diagramtec.com` con proxy naranja; SSL/TLS en **Full (strict)**; "Always Use HTTPS".
-2. Turnstile → Add widget (dominios `diagramtec.com`, `localhost`): sitekey en `VITE_TURNSTILE_SITE_KEY` (`hostinger/site.env`) y secret en `TURNSTILE_SECRET` (Node). **Sin eso el login en producción responde 500.**
-3. Con proxy naranja: `TRUST_PROXY=2` en Node (si no, el límite de intentos ve la IP de Cloudflare).
-4. Security → WAF: Free Managed Ruleset activo y la regla de rate limiting del plan Free con `starts_with(http.request.uri.path, "/auth/")` (p. ej. 20 pedidos / 10 s).
-5. **No** activar Bot Fight Mode: puede desafiar las llamadas a la API y no admite excepciones.
+**Infraestructura (VPS, ver [deploy/docker/README.md](deploy/docker/README.md))**
+1. DNS en DigitalPlat: `diagramtec.qd.je`, `www` y `api` → `69.6.206.117`, más CAA solo para Let's Encrypt (sin Cloudflare: el plan Free no acepta `qd.je`).
+2. Dos contenedores (sitio y API) detrás del Traefik del VPS, con HTTPS de Let's Encrypt y límites por IP; `TRUST_PROXY=1`.
+3. Turnstile: widget **DiagramTec**; sitekey en `frontend/.env.production`, secret en el `api.env` del servidor. **Sin el secret el login en producción responde 500.**
 
 Detalle completo (ataques que se previenen, pruebas y pendientes): [docs/SEGURIDAD.md](docs/SEGURIDAD.md). Pruebas: `cd backend && npm test`.
 
@@ -182,7 +180,7 @@ EMAIL_PORT=587
 EMAIL_SECURE=false
 ```
 
-**Producción (Supabase / Hostinger):** ver `hostinger/node.env.example`. Las credenciales de email van en hPanel → api.diagramtec.com → Environment variables, no en el ZIP.
+**Producción (Supabase / Hostinger):** ver `hostinger/node.env.example`. Las credenciales de email van en hPanel → api.diagramtec.qd.je → Environment variables, no en el ZIP.
 
 Generar contraseña de aplicación: https://myaccount.google.com/apppasswords
 

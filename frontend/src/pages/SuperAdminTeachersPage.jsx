@@ -8,10 +8,29 @@ import SuperAdminUserManageList from '../components/superadmin/SuperAdminUserMan
 import SuperAdminUserConfirmModal from '../components/superadmin/SuperAdminUserConfirmModal.jsx';
 import Icon from '../components/Icon';
 import { useToast } from '../ToastContext.jsx';
+import { useAuth } from '../AuthContext.jsx';
 import { userSearchBlob } from '../utils/userFields.js';
 
 export default function SuperAdminTeachersPage() {
   const { showMessage } = useToast();
+  const { user } = useAuth();
+  const [invite, setInvite] = useState(null);
+
+  // Solo un superadmin genera códigos de invitación (de un solo uso, vencen en 7 días).
+  const handleCreateInvite = async () => {
+    try {
+      const { data } = await api.post('/admin/invites');
+      setInvite(data);
+      try {
+        await navigator.clipboard.writeText(data.code);
+        showMessage('Código copiado al portapapeles');
+      } catch {
+        // si no hay portapapeles, igual queda visible en pantalla
+      }
+    } catch {
+      // El interceptor global ya muestra el toast de error.
+    }
+  };
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -122,6 +141,20 @@ export default function SuperAdminTeachersPage() {
             <Icon name="search" size={20} className="superadmin-manage__search-icon" />
           </div>
         </header>
+
+        {user?.role === 'superadmin' && (
+          <div className="invite-box">
+            <button type="button" className="primary-button" onClick={handleCreateInvite}>
+              Generar código de invitación para profesor
+            </button>
+            {invite && (
+              <p className="invite-box__code">
+                Código: <strong>{invite.code}</strong> — un solo uso, vence el{' '}
+                {new Date(invite.expiresAt).toLocaleDateString('es-AR')}. Compartilo solo con el profesor.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="superadmin-manage__card">
           <SuperAdminUserManageList

@@ -1,4 +1,4 @@
-/** Inicio de sesión vía la API Node (/auth/login). Redirige al guardar token en AuthContext. */
+/** Inicio de sesión vía la API Node (/auth/login). La sesión queda en una cookie HttpOnly. */
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import api from '../api.js';
@@ -12,55 +12,46 @@ import { Button, Input } from '../components/ui/index.js';
 export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, user, loading: authLoading } = useAuth();
-  const { showError } = useToast();
+  const { login } = useAuth();
+  const { showError, showMessage } = useToast();
   const redirectTo = location.state?.from || '/designs';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const pendingOAuth = useRef(false);
+  const handledParams = useRef('');
   const turnstile = useTurnstile('login');
 
-  // Tras OAuth de Google, el backend redirige aquí con #token=... (el fragmento no viaja al servidor)
+  // Avisos que llegan en la URL: vuelta de Google (la cookie ya está puesta) o enlace de verificación.
   useEffect(() => {
+    if (!location.search || handledParams.current === location.search) return;
+    handledParams.current = location.search;
     const params = new URLSearchParams(location.search);
-    const oauthError = params.get('error');
-    if (oauthError === 'google') {
-      showError('No se pudo iniciar sesión con Google. Intentá de nuevo.');
-      navigate('/login', { replace: true });
-      return;
-    }
-    if (oauthError === 'oauth_state') {
-      showError('La sesión de Google expiró. Volvé a intentar iniciar sesión.');
-      navigate('/login', { replace: true });
-      return;
-    }
-    if (oauthError === 'db_unavailable') {
-      showError('El servidor aún se está conectando. Esperá unos segundos e intentá de nuevo.');
-      navigate('/login', { replace: true });
-      return;
-    }
-
-    const token = new URLSearchParams(location.hash.slice(1)).get('token');
-    if (!token || pendingOAuth.current) return;
-
-    pendingOAuth.current = true;
-    login(token);
+    const errors = {
+      google: 'No se pudo iniciar sesión con Google. Intentá de nuevo.',
+      google_params: 'No se pudo iniciar sesión con Google. Intentá de nuevo.',
+      oauth_state: 'La sesión de Google expiró. Volvé a intentar iniciar sesión.',
+      db_unavailable: 'El servidor aún se está conectando. Esperá unos segundos e intentá de nuevo.',
+    };
+    const verified = {
+      ok: ['Email verificado. ¡Listo!', showMessage],
+      invalid: ['El enlace de verificación no es válido o venció. Pedí uno nuevo desde tu cuenta.', showError],
+      taken: ['Ese email ya lo usa otra cuenta.', showError],
+    };
     navigate('/login', { replace: true, state: location.state });
-  }, [location.search, location.hash, location.state, login, navigate, showError]);
 
-  useEffect(() => {
-    if (!pendingOAuth.current || authLoading) return;
-
-    if (user) {
-      pendingOAuth.current = false;
-      navigate(redirectTo, { replace: true });
-      return;
+    if (errors[params.get('error')]) {
+      showError(errors[params.get('error')]);
+    } else if (verified[params.get('verified')]) {
+      const [text, show] = verified[params.get('verified')];
+      show(text);
+      login();
+    } else if (params.get('google') === 'ok') {
+      login().then((loaded) => {
+        if (loaded) navigate(redirectTo, { replace: true });
+        else showError('No se pudo validar la sesión. Intentá iniciar sesión de nuevo.');
+      });
     }
-
-    pendingOAuth.current = false;
-    showError('No se pudo validar la sesión. Intentá iniciar sesión de nuevo.');
-  }, [authLoading, user, navigate, redirectTo, showError]);
+  }, [location.search, location.state, login, navigate, redirectTo, showError, showMessage]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -70,12 +61,11 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const response = await api.post('/auth/login', { email, password, ...turnstile.body });
-      if (response.data?.token) {
-        login(response.data.token);
+      await api.post('/auth/login', { email, password, ...turnstile.body });
+      if (await login()) {
         navigate(redirectTo);
       } else {
-        showError(response.data?.error || 'No se pudo iniciar sesión');
+        showError('No se pudo iniciar sesión');
       }
     } catch {
       // El interceptor global ya muestra el toast de error.

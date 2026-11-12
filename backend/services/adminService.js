@@ -1,4 +1,13 @@
+const crypto = require('crypto');
 const adminRepository = require('../repositories/adminRepository');
+
+/** Código de 12 caracteres, de un solo uso, vence en 7 días. Solo se guarda su hash. */
+async function createInvite(db, creatorId) {
+  const code = crypto.randomBytes(6).toString('hex').toUpperCase();
+  const hash = crypto.createHash('sha256').update(code).digest('hex');
+  const [row] = await adminRepository.createInvite(db, hash, creatorId);
+  return { code, expiresAt: row.expires_at };
+}
 const { findUserRole } = require('../repositories/classRepository');
 
 async function getStats(db) {
@@ -69,6 +78,7 @@ async function deleteClass(db, id) {
 }
 
 module.exports = {
+  createInvite,
   getStats,
   listUsers,
   listTeachers,

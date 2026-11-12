@@ -23,7 +23,8 @@ export default function SignupPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const turnstile = useTurnstile('signup');
-  const { showError } = useToast();
+  const { showError, showMessage } = useToast();
+  const [inviteCode, setInviteCode] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -46,6 +47,10 @@ export default function SignupPage() {
       showError('Selecciona un rol');
       return;
     }
+    if (role === 'teacher' && !inviteCode.trim()) {
+      showError('Para registrarte como profesor necesitás un código de invitación');
+      return;
+    }
     if (!turnstile.ready) {
       showError('Completá la verificación anti-bots');
       return;
@@ -59,14 +64,12 @@ export default function SignupPage() {
         email,
         password,
         role,
+        ...(role === 'teacher' ? { inviteCode: inviteCode.trim() } : {}),
         ...turnstile.body,
       });
-      if (response.data?.token) {
-        login(response.data.token);
-        navigate('/');
-      } else {
-        showError(response.data?.error || 'No se pudo crear la cuenta');
-      }
+      showMessage(response.data?.message || 'Cuenta creada. Revisá tu email para verificarla.');
+      await login();
+      navigate('/');
     } catch {
       // El interceptor global ya muestra el toast de error.
     } finally {
@@ -157,6 +160,17 @@ export default function SignupPage() {
             <option value="student">Estudiante</option>
             <option value="teacher">Profesor</option>
           </Select>
+          {role === 'teacher' && (
+            <Input
+              label="Código de invitación"
+              placeholder="Te lo da un administrador"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              maxLength={12}
+              autoComplete="off"
+              required
+            />
+          )}
           {turnstile.widget}
           <Button variant="primary" fullWidth type="submit" loading={loading}>
             Registrarse

@@ -12,6 +12,7 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const [confirmModal, setConfirmModal] = useState(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   const [designs, setDesigns] = useState([]);
   const [classes, setClasses] = useState([]);
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
@@ -233,23 +234,40 @@ export default function AccountPage() {
         open={confirmModal === 'delete'}
         variant="deleteAccount"
         onClose={() => {
-          if (!confirmBusy) setConfirmModal(null);
+          if (!confirmBusy) {
+            setConfirmModal(null);
+            setDeletePassword('');
+          }
         }}
         onConfirm={async () => {
+          if (user?.hasPassword && !deletePassword) return;
           setConfirmBusy(true);
           try {
-            await api.delete('/auth/me');
+            // Borrar la cuenta exige la contraseña actual (las cuentas solo-Google no tienen).
+            await api.delete('/auth/me', { data: { password: deletePassword } });
+            setDeletePassword('');
             logout();
-          } catch (err) {
-            console.error(err);
-            setConfirmModal(null);
+          } catch {
+            // El interceptor global ya muestra el toast de error (p. ej. contraseña incorrecta).
           } finally {
             setConfirmBusy(false);
           }
         }}
         busy={confirmBusy}
         titleId="account-delete-confirm-title"
-      />
+      >
+        {user?.hasPassword && (
+          <input
+            type="password"
+            className="confirm-modal__password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            placeholder="Tu contraseña actual"
+            aria-label="Contraseña actual para eliminar la cuenta"
+            autoComplete="current-password"
+          />
+        )}
+      </AppConfirmModal>
     </section>
   );
 }

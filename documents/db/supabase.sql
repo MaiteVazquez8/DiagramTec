@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS users (
   reset_attempts      INT NOT NULL DEFAULT 0,
   -- Los JWT emitidos antes de esta fecha dejan de valer.
   password_changed_at TIMESTAMPTZ,
+  -- Verificación de email (enlace de 24 h; solo se guarda su sha256) y cambio de email pendiente.
+  email_verified_at    TIMESTAMPTZ,
+  verify_token_hash    TEXT,
+  verify_token_expires TIMESTAMPTZ,
+  pending_email        TEXT,
   role         TEXT NOT NULL DEFAULT 'student'
                 CHECK (role IN ('student', 'teacher', 'admin', 'superadmin')),
   "createdAt"   TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -101,6 +106,23 @@ CREATE INDEX IF NOT EXISTS idx_comments_userId    ON comments ("userId");
 CREATE INDEX IF NOT EXISTS idx_comments_createdAt ON comments ("createdAt");
 
 -- ---------------------------------------------------------------------------
+-- Códigos de invitación para registrarse como profesor (un solo uso, 7 días).
+-- Solo se guarda el sha256 del código.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS teacher_invites (
+  id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  code_hash   TEXT NOT NULL UNIQUE,
+  created_by  BIGINT REFERENCES users (id) ON DELETE SET NULL,
+  used_by     BIGINT REFERENCES users (id) ON DELETE SET NULL,
+  used_at     TIMESTAMPTZ,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_teacher_invites_created_by ON teacher_invites (created_by);
+CREATE INDEX IF NOT EXISTS idx_teacher_invites_used_by    ON teacher_invites (used_by);
+CREATE INDEX IF NOT EXISTS idx_users_verify_token         ON users (verify_token_hash);
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security
 -- Todo pasa por la API Node, que se conecta como "postgres" y no depende de RLS.
 -- RLS activado SIN políticas = la API REST pública de Supabase (clave anon) no
@@ -112,10 +134,11 @@ ALTER TABLE classes       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE class_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE designs       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_invites ENABLE ROW LEVEL SECURITY;
 
 -- Defensa en profundidad: aunque alguien agregue una política por error, los roles
 -- públicos de Supabase no tienen permisos sobre las tablas.
-REVOKE ALL ON users, classes, class_members, designs, comments FROM anon, authenticated;
+REVOKE ALL ON users, classes, class_members, designs, comments, teacher_invites FROM anon, authenticated;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
 
 -- Si una base vieja tiene las políticas abiertas de desarrollo, se borran:
@@ -130,7 +153,7 @@ DROP POLICY IF EXISTS "dev_all_comments"      ON comments;
 -- como diagramtec_api.<project_ref> en el Session pooler.
 --   CREATE ROLE diagramtec_api LOGIN BYPASSRLS NOINHERIT PASSWORD 'SCRAM-SHA-256$4096:...';
 --   GRANT USAGE ON SCHEMA public TO diagramtec_api;
---   GRANT SELECT, INSERT, UPDATE, DELETE ON users, classes, class_members, designs, comments TO diagramtec_api;
+--   GRANT SELECT, INSERT, UPDATE, DELETE ON users, classes, class_members, designs, comments, teacher_invites TO diagramtec_api;
 --   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO diagramtec_api;
 --   ALTER ROLE diagramtec_api SET statement_timeout = '15s';
 

@@ -19,11 +19,11 @@ async function seedAdmin() {
     db = await openDb();
     const [users] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
     if (users.length > 0) {
-      await db.execute('UPDATE users SET role = ? WHERE id = ?', ['superadmin', users[0].id]);
+      await db.execute('UPDATE users SET role = ?, email_verified_at = COALESCE(email_verified_at, now()) WHERE id = ?', ['superadmin', users[0].id]);
       console.log(`Usuario ${email} ascendido a superadmin (su contraseña no cambió).`);
     } else {
       await db.execute(
-        'INSERT INTO users (firstName, lastName, email, passwordHash, role) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO users (firstName, lastName, email, passwordHash, role, email_verified_at) VALUES (?, ?, ?, ?, ?, now())',
         ['Super', 'Admin', email, await bcrypt.hash(password, 10), 'superadmin'],
       );
       console.log(`Superadmin creado: ${email}`);

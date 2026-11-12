@@ -126,18 +126,23 @@ function resolveSsl() {
   return { rejectUnauthorized: false };
 }
 
-const TABLES = ['users', 'classes', 'class_members', 'designs', 'comments'];
-const RESET_COLUMNS = {
+const TABLES = ['users', 'classes', 'class_members', 'designs', 'comments', 'teacher_invites'];
+const USER_COLUMNS = {
   reset_code_hash: 'TEXT',
   reset_code_expires: 'TIMESTAMPTZ',
   reset_attempts: 'INT NOT NULL DEFAULT 0',
   password_changed_at: 'TIMESTAMPTZ',
+  email_verified_at: 'TIMESTAMPTZ',
+  verify_token_hash: 'TEXT',
+  verify_token_expires: 'TIMESTAMPTZ',
+  pending_email: 'TEXT',
 };
 
 /**
  * Migración idempotente al arrancar. Primero revisa y solo modifica lo que falta, así
  * funciona también con un usuario de API que no es dueño de las tablas (recomendado):
- * - columnas para la recuperación de contraseña segura y la revocación de sesiones;
+ * - columnas para la recuperación de contraseña, la revocación de sesiones y la verificación
+ *   de email, y la tabla de códigos de invitación para profesores;
  * - RLS activo y sin las políticas "dev_all_*" que dejaban la base abierta a la clave anon;
  * - sin permisos para los roles públicos de Supabase (anon / authenticated).
  */
@@ -146,8 +151,25 @@ async function ensureSchema(pool) {
     "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users'",
   );
   const have = new Set(cols.map((r) => r.column_name));
-  for (const [name, type] of Object.entries(RESET_COLUMNS)) {
+  for (const [name, type] of Object.entries(USER_COLUMNS)) {
     if (!have.has(name)) await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${name} ${type}`);
+  }
+  // Las cuentas que ya existían antes de la verificación de email se dan por verificadas.
+  if (!have.has('email_verified_at')) {
+    await pool.query('UPDATE users SET email_verified_at = now() WHERE email_verified_at IS NULL');
+  }
+
+  const { rows: inviteTable } = await pool.query("SELECT to_regclass('public.teacher_invites') AS t");
+  if (!inviteTable[0].t) {
+    await pool.query(`CREATE TABLE IF NOT EXISTS teacher_invites (
+      id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      code_hash   TEXT NOT NULL UNIQUE,
+      created_by  BIGINT REFERENCES users (id) ON DELETE SET NULL,
+      used_by     BIGINT REFERENCES users (id) ON DELETE SET NULL,
+      used_at     TIMESTAMPTZ,
+      expires_at  TIMESTAMPTZ NOT NULL,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`);
   }
 
   const { rows: tables } = await pool.query(`
@@ -175,7 +197,8 @@ function resolvePoolConfig() {
   const ssl = resolveSsl();
   const max = Number(process.env.DB_POOL_MAX || 10);
 
-  if (process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD) {
+  // DATABASE_URL manda: así unas PG* viejas olvidadas en el panel no conectan a otra base.
+  if (!process.env.DATABASE_URL && process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD) {
     const config = {
       host: process.env.PGHOST.trim(),
       user: process.env.PGUSER.trim(),
