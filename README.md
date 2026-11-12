@@ -4,6 +4,8 @@
 
 DiagramTec es una plataforma educativa colaborativa que permite a estudiantes y docentes crear, editar y gestionar diagramas de flujo de datos de manera intuitiva. Con un editor visual, sistema de autenticación y capacidades de exportación, DiagramTec facilita el aprendizaje del modelado de datos.
 
+**Sitio en producción:** https://diagramtec.qd.je/
+
 ## Para iniciar
 
 ### Requisitos Previos
