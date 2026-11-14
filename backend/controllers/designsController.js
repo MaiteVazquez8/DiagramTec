@@ -13,6 +13,13 @@ async function getDesign(req, res) {
   res.json({ design });
 }
 
+async function getDesignPdf(req, res) {
+  const db = req.app.locals.db;
+  const id = Number(req.params.id);
+  const pdfData = await designService.getDesignPdf(db, id, req.user);
+  res.json({ pdf_data: pdfData });
+}
+
 async function createDesign(req, res) {
   const db = req.app.locals.db;
   const design = await designService.createDesign(db, req.user.id, req.body);
@@ -48,6 +55,7 @@ async function copyDesign(req, res) {
 module.exports = { 
     listDesigns, 
     getDesign, 
+    getDesignPdf,
     createDesign, 
     updateDesign, 
     deleteDesign, 

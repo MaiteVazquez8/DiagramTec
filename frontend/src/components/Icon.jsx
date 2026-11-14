@@ -1,4 +1,9 @@
-import { Icon as IconifyIcon } from '@iconify/react';
+import { Icon as IconifyIcon, addCollection } from '@iconify/react';
+import iconsBundle from './icons-bundle.json';
+
+// Iconos empaquetados en la app (sin pedirlos a api.iconify.design en cada visita).
+// Si agregas un icono nuevo a ICONIFY_ICONS, ejecuta `npm run icons`.
+iconsBundle.forEach((collection) => addCollection(collection));
 
 
 

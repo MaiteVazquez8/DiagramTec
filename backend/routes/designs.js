@@ -5,6 +5,7 @@ const { authMiddleware } = require('../middlewares/auth');
 const asyncHandler = require('../middlewares/asyncHandler');
 
 router.get('/', authMiddleware, asyncHandler(designs.listDesigns));
+router.get('/:id/pdf', authMiddleware, asyncHandler(designs.getDesignPdf));
 router.get('/:id', authMiddleware, asyncHandler(designs.getDesign));
 router.post('/', authMiddleware, asyncHandler(designs.createDesign));
 router.put('/:id', authMiddleware, asyncHandler(designs.updateDesign));

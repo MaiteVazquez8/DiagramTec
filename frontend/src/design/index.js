@@ -112,6 +112,7 @@ export {
   canvasToJpegDataUrl,
   canvasToPngDataUrl,
   resetZoomLayerInClone,
+  loadHtml2Canvas,
 } from './export/capture.js';
 
 export {

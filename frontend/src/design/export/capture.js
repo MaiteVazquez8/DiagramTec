@@ -1,9 +1,14 @@
 /**
  * Captura del lienzo como imagen (preview PNG transparente y alta resolución para PDF).
  */
-import html2canvas from 'html2canvas';
 import { getDiagramBounds, captureRegionFromBounds } from '../math/bounds.js';
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
+
+/** html2canvas pesa ~200 KB: se descarga solo la primera vez que se exporta. */
+export async function loadHtml2Canvas() {
+  const mod = await import('html2canvas');
+  return mod.default;
+}
 
 /**
  * Quita transform de zoom en el clon de html2canvas.
@@ -41,6 +46,7 @@ export async function captureDiagramPreview(canvasElement, shapes, options = {})
       ? options.backgroundColor
       : EXPORT_DEFAULTS.previewBackground;
 
+  const html2canvas = await loadHtml2Canvas();
   return html2canvas(canvasElement, {
     backgroundColor,
     scale: options.scale ?? EXPORT_DEFAULTS.previewScale,
@@ -67,6 +73,7 @@ export async function captureDiagramHighRes(canvasElement, shapes, options = {})
   });
   const region = captureRegionFromBounds(bounds, { padding });
 
+  const html2canvas = await loadHtml2Canvas();
   return html2canvas(canvasElement, {
     backgroundColor: options.backgroundColor ?? EXPORT_DEFAULTS.pdfBackground,
     scale: options.scale ?? EXPORT_DEFAULTS.pdfScale,

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api.js';
+import { downloadDesignPdf } from '../utils/designPdf.js';
 import { useAuth } from '../AuthContext.jsx';
 
 import Icon from '../components/Icon.jsx';
@@ -284,10 +285,9 @@ export default function DesignsPage() {
                     type="button"
                     className="context-action"
                     onClick={() => {
-                      const link = document.createElement('a');
-                      link.download = `${contextDesign.title || 'diagrama'}.pdf`;
-                      link.href = contextDesign.pdf_data || contextDesign.image;
-                      link.click();
+                      downloadDesignPdf(contextDesign, { fallbackToImage: true }).catch(() => {
+                        // El interceptor global ya muestra el toast de error.
+                      });
                     }}
                     id="ctx-export"
                   >

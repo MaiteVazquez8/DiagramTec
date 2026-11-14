@@ -115,7 +115,8 @@ async function insertClassComment(db, classId, userId, content) {
 
 async function findDesignsByClass(db, classId) {
   const [rows] = await db.execute(`
-    SELECT d.id, d.title, d.ownerId, d.classId, d.createdAt, d.isCopy, d.originalId, d.image, d.pdf_data, d.description,
+    SELECT d.id, d.title, d.ownerId, d.classId, d.createdAt, d.isCopy, d.originalId, d.image, d.description,
+      (d.pdf_data IS NOT NULL AND d.pdf_data <> '') AS hasPdf,
       CONCAT(u.firstName, ' ', u.lastName) AS ownerName, u.role AS ownerRole
     FROM designs d LEFT JOIN users u ON u.id = d.ownerId
     WHERE d.classId = ? ORDER BY d.createdAt DESC

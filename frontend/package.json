@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "icons": "node scripts/build-icons.mjs"
   },
   "dependencies": {
     "@iconify/react": "^6.0.2",
@@ -19,6 +20,10 @@
     "react-router-dom": "^6.15.0"
   },
   "devDependencies": {
+    "@iconify-json/fluent": "^1.2.61",
+    "@iconify-json/mdi": "^1.2.3",
+    "@iconify-json/tabler": "^1.2.45",
+    "@iconify/utils": "^2.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.1"
   }

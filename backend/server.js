@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +23,8 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
+// Comprime las respuestas (gzip): los JSON de listas pesan mucho menos al viajar.
+app.use(compression());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -116,6 +119,18 @@ app.get('/health', (req, res) => {
 
 app.use('/php', require('./routes/phpProxy'));
 app.use('/php-auth', require('./routes/phpProxy'));
+// Caché HTTP de la API: el navegador guarda la respuesta y en cada visita
+// pregunta al servidor si cambió (ETag). Si no cambió, responde 304 sin volver
+// a mandar los datos (las miniaturas de diseños pesan mucho). "private" evita
+// que proxies compartidos guarden datos de un usuario.
+app.use((req, res, next) => {
+  if (req.method === 'GET') {
+    res.set('Cache-Control', 'private, no-cache');
+    res.vary('Authorization');
+  }
+  next();
+});
+
 app.use('/auth', require('./routes/auth'));
 app.use('/classes', require('./routes/classes'));
 app.use('/designs', require('./routes/designs'));

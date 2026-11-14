@@ -5,6 +5,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api.js';
+import { notifyError } from '../utils/toastBridge.js';
+import { extractApiError } from '../utils/apiError.js';
 import { useAuth } from '../AuthContext.jsx';
 
 import { SendIcon, TrashIcon } from '../components/EditorUI.jsx';
@@ -58,23 +60,23 @@ export default function ClassDetailPage() {
 
   const loadClassData = async () => {
     setLoading(true);
-    try {
-      const res = await api.get(`/classes/${id}`);
-      setClassInfo(res.data.class);
-    } catch {
-      setLoading(false);
-      return;
-    }
+    // Las dos peticiones van en paralelo (antes una esperaba a la otra).
+    // La de diseños no muestra toast propio: si la clase falla, ya se avisó una vez.
+    const [classResult, designsResult] = await Promise.allSettled([
+      api.get(`/classes/${id}`),
+      api.get(`/classes/${id}/designs`, { skipErrorToast: true }),
+    ]);
 
-    try {
-      const designsRes = await api.get(`/classes/${id}/designs`);
-      setDesigns(designsRes.data.designs || []);
-      setComments(designsRes.data.comments || []);
-    } catch {
-      // El interceptor global ya muestra el toast de error.
-    } finally {
-      setLoading(false);
+    if (classResult.status === 'fulfilled') {
+      setClassInfo(classResult.value.data.class);
+      if (designsResult.status === 'fulfilled') {
+        setDesigns(designsResult.value.data.designs || []);
+        setComments(designsResult.value.data.comments || []);
+      } else {
+        notifyError(extractApiError(designsResult.reason));
+      }
     }
+    setLoading(false);
   };
 
   const loadUserDesigns = async () => {

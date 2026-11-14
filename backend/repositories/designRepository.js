@@ -5,7 +5,8 @@ async function countDesignsByOwner(db, ownerId) {
 
 async function findDesignsByOwner(db, ownerId) {
   const [rows] = await db.execute(`
-    SELECT d.id, d.title, d.ownerId, d.classId, d.createdAt, d.isCopy, d.originalId, d.image, d.pdf_data, d.description,
+    SELECT d.id, d.title, d.ownerId, d.classId, d.createdAt, d.isCopy, d.originalId, d.image, d.description,
+      (d.pdf_data IS NOT NULL AND d.pdf_data <> '') AS hasPdf,
       CONCAT(u.firstName, ' ', u.lastName) AS ownerName
     FROM designs d LEFT JOIN users u ON u.id = d.ownerId
     WHERE d.ownerId = ? ORDER BY d.createdAt DESC
@@ -13,12 +14,28 @@ async function findDesignsByOwner(db, ownerId) {
   return rows;
 }
 
+// Las listas y el editor no necesitan el PDF (base64 de varios cientos de KB por diseño):
+// solo se indica si existe (hasPdf) y se descarga aparte con findDesignPdfById.
 async function findDesignById(db, id) {
   const [rows] = await db.execute(`
-    SELECT d.*, CONCAT(u.firstName, ' ', u.lastName) AS ownerName
+    SELECT d.id, d.title, d.ownerId, d.classId, d.content, d.image, d.description,
+      d.isCopy, d.originalId, d.createdAt,
+      (d.pdf_data IS NOT NULL AND d.pdf_data <> '') AS hasPdf,
+      CONCAT(u.firstName, ' ', u.lastName) AS ownerName
     FROM designs d LEFT JOIN users u ON u.id = d.ownerId WHERE d.id = ?
   `, [id]);
   return rows[0] || null;
+}
+
+/** Solo los campos necesarios para comprobar permisos (sin contenido, imagen ni PDF). */
+async function findDesignAccessById(db, id) {
+  const [rows] = await db.execute('SELECT id, ownerId, classId FROM designs WHERE id = ?', [id]);
+  return rows[0] || null;
+}
+
+async function findDesignPdfById(db, id) {
+  const [rows] = await db.execute('SELECT pdf_data FROM designs WHERE id = ?', [id]);
+  return rows[0]?.pdf_data || null;
 }
 
 async function createDesign(db, data) {
@@ -73,6 +90,8 @@ module.exports = {
   countDesignsByOwner,
   findDesignsByOwner,
   findDesignById,
+  findDesignAccessById,
+  findDesignPdfById,
   createDesign,
   updateDesign,
   deleteDesign,
