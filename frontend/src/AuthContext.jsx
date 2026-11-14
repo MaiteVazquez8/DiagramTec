@@ -5,7 +5,7 @@
  * Sincroniza login/logout entre pestañas con un aviso en localStorage (sin datos sensibles).
  */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import api from './api.js';
+import api, { clearApiCache } from './api.js';
 
 const AUTH_EVENT_KEY = 'tecdiagram_auth_event';
 // Restos de la versión anterior, que guardaba el token en localStorage.
@@ -23,6 +23,8 @@ export function AuthProvider({ children }) {
 
   const refresh = useCallback(async (attempt = 0) => {
     setLoading(true);
+    // La sesión pudo cambiar (login, logout u otra pestaña): nada cacheado de antes sirve.
+    clearApiCache();
     try {
       const response = await api.get('/auth/me', { skipErrorToast: true });
       setUser(response.data?.user || null);

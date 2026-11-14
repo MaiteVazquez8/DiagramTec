@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext.jsx';
 import api from '../api.js';
-import html2canvas from 'html2canvas';
 
 import Icon from '../components/Icon.jsx';
 import EditorSidebar from '../components/EditorSidebar';
@@ -53,6 +52,7 @@ import {
   buildInlinePdfDataUrl,
   downloadDiagramPdf,
   getDiagramBounds,
+  loadHtml2Canvas,
   ShapePreview,
 } from '../design';
 
@@ -421,7 +421,8 @@ export default function EditorPage() {
       api.get('/classes/available').then((r) => setClasses(r.data.classes)).catch(() => setClasses([]));
     }
     if (user && id) {
-      api.get(`/designs/${id}`).then((response) => {
+      // Sin caché: el editor siempre debe abrir la última versión guardada.
+      api.get(`/designs/${id}`, { cache: false }).then((response) => {
         const design = response.data.design;
         setSaveTitle(design.title);
         const content = parseDiagramContent(design.content);
@@ -1108,12 +1109,18 @@ export default function EditorPage() {
 
   const handleExport = () => {
     if (!canvasRef.current) return;
-    html2canvas(canvasRef.current, { backgroundColor: '#ffffff', scale: 2 }).then((canvas) => {
-      const link = document.createElement('a');
-      link.download = 'diagrama-dfd.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    });
+    loadHtml2Canvas()
+      .then((html2canvas) => html2canvas(canvasRef.current, { backgroundColor: '#ffffff', scale: 2 }))
+      .then((canvas) => {
+        const link = document.createElement('a');
+        link.download = 'diagrama-dfd.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      })
+      .catch((err) => {
+        console.error('Error PNG:', err);
+        showError('Error al exportar la imagen');
+      });
   };
 
   const isCanvasBackgroundTarget = (target) =>

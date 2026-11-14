@@ -1,6 +1,7 @@
 /** Tarjeta de publicación en detalle de clase (mock Figma). */
 import { useState, useRef, useEffect } from 'react';
 import Icon from './Icon';
+import { downloadDesignPdf } from '../utils/designPdf.js';
 
 function sameId(a, b) {
   if (a == null || b == null) return false;
@@ -39,12 +40,10 @@ export default function ClassPost({
   const bodyText = design.description?.trim() || design.title;
 
   const handleDownloadPdf = () => {
-    // Solo data URLs: un "javascript:..." guardado se ejecutaría al hacer clic.
-    if (!String(design.pdf_data || '').startsWith('data:application/pdf')) return;
-    const link = document.createElement('a');
-    link.href = design.pdf_data;
-    link.download = `${design.title || 'diagrama'}.pdf`;
-    link.click();
+    if (!design.hasPdf) return;
+    downloadDesignPdf(design).catch(() => {
+      // El interceptor global ya muestra el toast de error.
+    });
   };
 
   useEffect(() => {
@@ -164,8 +163,8 @@ export default function ClassPost({
                 type="button"
                 className="figma-class-post__action-btn"
                 onClick={handleDownloadPdf}
-                disabled={!design.pdf_data}
-                title={design.pdf_data ? 'Descargar PDF' : 'PDF no disponible'}
+                disabled={!design.hasPdf}
+                title={design.hasPdf ? 'Descargar PDF' : 'PDF no disponible'}
                 aria-label="Descargar PDF"
               >
                 <Icon name="download" size={22} strokeWidth={2} />

@@ -29,6 +29,7 @@ const LOWER_TO_CAMEL = {
   iscopy: 'isCopy',
   originalid: 'originalId',
   ownername: 'ownerName',
+  haspdf: 'hasPdf',
   ownerrole: 'ownerRole',
   fullname: 'fullName',
   authorname: 'authorName',

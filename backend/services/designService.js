@@ -7,18 +7,29 @@ async function listDesigns(db, userId) {
   return await designRepository.findDesignsByOwner(db, userId);
 }
 
+/** Lanza error si el usuario no puede ver el diseño (dueño, superadmin o miembro de su clase). */
+async function assertCanView(db, design, user) {
+  if (Number(design.ownerId) === Number(user.id) || user.role === 'superadmin') return;
+  if (design.classId) {
+    const memberRows = await classRepository.findMembersForClass(db, design.classId, user.id);
+    if (memberRows.length > 0) return;
+  }
+  throw new Error('UNAUTHORIZED');
+}
+
 async function getDesign(db, id, user) {
   const design = await designRepository.findDesignById(db, id);
   if (!design) throw new Error('DESIGN_NOT_FOUND');
-  if (Number(design.ownerId) !== Number(user.id) && user.role !== 'superadmin') {
-    if (design.classId) {
-      const memberRows = await classRepository.findMembersForClass(db, design.classId, user.id);
-      if (memberRows.length === 0) throw new Error('UNAUTHORIZED');
-    } else {
-      throw new Error('UNAUTHORIZED');
-    }
-  }
+  await assertCanView(db, design, user);
   return design;
+}
+
+/** Solo el PDF, con los mismos permisos que getDesign (sin leer contenido ni imagen). */
+async function getDesignPdf(db, id, user) {
+  const design = await designRepository.findDesignAccessById(db, id);
+  if (!design) throw new Error('DESIGN_NOT_FOUND');
+  await assertCanView(db, design, user);
+  return await designRepository.findDesignPdfById(db, id);
 }
 
 // Solo data URLs de imagen/PDF: un "javascript:..." en pdf_data se ejecutaría al descargarlo.
@@ -70,7 +81,7 @@ async function createDesign(db, user, data) {
 }
 
 async function updateDesign(db, id, userId, userRole, data) {
-  const design = await designRepository.findDesignById(db, id);
+  const design = await designRepository.findDesignAccessById(db, id);
   if (!design) throw new Error('DESIGN_NOT_FOUND');
   if (Number(design.ownerId) !== Number(userId) && userRole !== 'superadmin') {
     throw new Error('UNAUTHORIZED');
@@ -86,7 +97,7 @@ async function updateDesign(db, id, userId, userRole, data) {
 }
 
 async function deleteDesign(db, id, userId, userRole) {
-  const design = await designRepository.findDesignById(db, id);
+  const design = await designRepository.findDesignAccessById(db, id);
   if (!design) throw new Error('DESIGN_NOT_FOUND');
   if (Number(design.ownerId) !== Number(userId) && userRole !== 'superadmin') {
     throw new Error('UNAUTHORIZED');
@@ -96,7 +107,9 @@ async function deleteDesign(db, id, userId, userRole) {
 
 async function copyDesign(db, id, user) {
   // Misma regla que para verlo: dueño, miembro de su clase o superadmin.
-  await getDesign(db, id, user);
+  const design = await designRepository.findDesignAccessById(db, id);
+  if (!design) throw new Error('DESIGN_NOT_FOUND');
+  await assertCanView(db, design, user);
   const userId = user.id;
   const count = await designRepository.countDesignsByOwner(db, userId);
   if (count >= MAX_DESIGNS_PER_USER) {
@@ -110,6 +123,7 @@ async function copyDesign(db, id, user) {
 module.exports = {
   listDesigns,
   getDesign,
+  getDesignPdf,
   createDesign,
   updateDesign,
   deleteDesign,

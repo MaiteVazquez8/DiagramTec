@@ -4,55 +4,41 @@
  * - Rutas públicas, protegidas (login) y admin (superadmin)
  * - El editor usa main.main-editor; el resto main.main-figma
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 
 import { BrowserRouter, Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom';
 
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import { ToastProvider, useToast } from './ToastContext.jsx';
 import api from './api.js';
-
-import HomePage from './pages/HomePage.jsx';
-
-import LoginPage from './pages/LoginPage.jsx';
-
-import SignupPage from './pages/SignupPage.jsx';
-
-import AccountPage from './pages/AccountPage.jsx';
-
-import EditProfilePage from './pages/EditProfilePage.jsx';
-
-import ClassesPage from './pages/ClassesPage.jsx';
-
-import ClassDetailPage from './pages/ClassDetailPage.jsx';
-
-import ClassMembersPage from './pages/ClassMembersPage.jsx';
-
-import DesignsPage from './pages/DesignsPage.jsx';
-
-import EditorPage from './pages/EditorPage.jsx';
-
-import SuperAdminPage from './pages/SuperAdminPage.jsx';
-
-import SuperAdminStudentsPage from './pages/SuperAdminStudentsPage.jsx';
-
-import SuperAdminTeachersPage from './pages/SuperAdminTeachersPage.jsx';
-
-import SuperAdminClassesPage from './pages/SuperAdminClassesPage.jsx';
-
-import NotFoundPage from './pages/NotFoundPage.jsx';
-import PrivacyPage from './pages/PrivacyPage.jsx';
-
-
-
-import RecoverPasswordPage from './pages/RecoverPasswordPage.jsx';
-import ResetPasswordPage from './pages/ResetPasswordPage.jsx';
 import Footer from './components/Footer.jsx';
-
-
 import Icon from './components/Icon.jsx';
 import ProfileSilhouette from './components/ProfileSilhouette.jsx';
 import { RouteGuardSkeleton } from './components/skeletons/PageSkeletons.jsx';
+
+// La portada se carga de inmediato; el resto de páginas se descargan solo al visitarlas
+// (code splitting). Así el editor, html2canvas y jsPDF no frenan la primera carga.
+import HomePage from './pages/HomePage.jsx';
+
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const SignupPage = lazy(() => import('./pages/SignupPage.jsx'));
+const AccountPage = lazy(() => import('./pages/AccountPage.jsx'));
+const EditProfilePage = lazy(() => import('./pages/EditProfilePage.jsx'));
+const ClassesPage = lazy(() => import('./pages/ClassesPage.jsx'));
+const ClassDetailPage = lazy(() => import('./pages/ClassDetailPage.jsx'));
+const ClassMembersPage = lazy(() => import('./pages/ClassMembersPage.jsx'));
+const DesignsPage = lazy(() => import('./pages/DesignsPage.jsx'));
+const EditorPage = lazy(() => import('./pages/EditorPage.jsx'));
+const SuperAdminPage = lazy(() => import('./pages/SuperAdminPage.jsx'));
+const SuperAdminStudentsPage = lazy(() => import('./pages/SuperAdminStudentsPage.jsx'));
+const SuperAdminTeachersPage = lazy(() => import('./pages/SuperAdminTeachersPage.jsx'));
+const SuperAdminClassesPage = lazy(() => import('./pages/SuperAdminClassesPage.jsx'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage.jsx'));
+const RecoverPasswordPage = lazy(() => import('./pages/RecoverPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage.jsx'));
+
+
 
 
 
@@ -157,7 +143,7 @@ function Header() {
       <div className="figma-header-inner">
         <div className="figma-header-logo">
           <Link to="/" className="brand figma-brand" onClick={closeMenu} aria-label="DiagramTec — Inicio">
-            <img src="/logo.png" alt="DiagramTec" className="brand-logo" />
+            <img src="/logo.webp" alt="DiagramTec" className="brand-logo" width="480" height="240" decoding="async" fetchpriority="high" />
           </Link>
         </div>
 
@@ -244,6 +230,7 @@ function AppShell() {
 
       <main className={mainClass}>
 
+        <Suspense fallback={<RouteGuardSkeleton />}>
         <Routes>
 
           <Route path="/" element={<HomePage />} />
@@ -283,6 +270,7 @@ function AppShell() {
           <Route path="*" element={<NotFoundPage />} />
 
         </Routes>
+        </Suspense>
 
       </main>
 

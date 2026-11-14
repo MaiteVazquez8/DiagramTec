@@ -25,6 +25,24 @@ export default defineConfig({
   plugins: [
     react(),
     {
+      // `vite preview` (build de producción): los archivos de /assets llevan un hash en el
+      // nombre, así que el navegador puede guardarlos un año sin volver a pedirlos.
+      // index.html siempre se revalida para que los cambios se vean al publicar.
+      name: 'static-cache-headers',
+      configurePreviewServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.startsWith('/assets/')) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          } else if (/\.(webp|png|svg|ico)$/.test(req.url || '')) {
+            res.setHeader('Cache-Control', 'public, max-age=604800');
+          } else {
+            res.setHeader('Cache-Control', 'no-cache');
+          }
+          next();
+        });
+      },
+    },
+    {
       name: 'log-lan-url',
       configureServer(server) {
         server.httpServer?.once('listening', () => {

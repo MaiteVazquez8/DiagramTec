@@ -1,10 +1,15 @@
 /** Generación y descarga de PDF a partir del canvas del diagrama. */
-import { jsPDF } from 'jspdf';
 import { getDiagramBounds } from '../math/bounds.js';
 import { EXPORT_DEFAULTS } from '../constants/canvas.js';
 import { canvasToPngDataUrl } from './capture.js';
 
 /** Logo DiagramTec usado como marca de agua (public/diagram.png). */
+/** jsPDF pesa ~350 KB: se descarga solo al generar un PDF. */
+async function loadJsPDF() {
+  const mod = await import('jspdf');
+  return mod.jsPDF;
+}
+
 const WATERMARK_SRC = '/diagram.png';
 const WATERMARK_OPACITY = 0.2;
 const WATERMARK_MAX_WIDTH_RATIO = 0.4;
@@ -76,6 +81,7 @@ async function applyDiagramTecWatermark(pdf) {
  * @returns {Promise<string>}
  */
 export async function buildInlinePdfDataUrl(canvas, width, height) {
+  const jsPDF = await loadJsPDF();
   const pdf = new jsPDF({
     orientation: width > height ? 'landscape' : 'portrait',
     unit: 'px',
@@ -98,6 +104,7 @@ export async function downloadDiagramPdf(canvas, shapes, filename = 'diagrama') 
   const bounds = getDiagramBounds(shapes, { padding: EXPORT_DEFAULTS.pdfPadding });
   const highResImg = canvasToPngDataUrl(canvas);
 
+  const jsPDF = await loadJsPDF();
   const pdf = new jsPDF({
     orientation: bounds.width > bounds.height ? 'landscape' : 'portrait',
     unit: 'px',

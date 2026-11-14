@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="footer-brand-section">
         <div className="footer-brand">
           <Link to="/" className="footer-brand-link" aria-label="DiagramTec — Inicio">
-            <img src="/logo.png" alt="DiagramTec" className="footer-logo" />
+            <img src="/logo.webp" alt="DiagramTec" className="footer-logo" width="480" height="240" loading="lazy" decoding="async" />
           </Link>
           <div className="footer-socials">
             <a href="https://www.facebook.com" title="Facebook" target="_blank" rel="noopener noreferrer" aria-label="Facebook">

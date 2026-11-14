@@ -10,11 +10,11 @@ export default function HomePage() {
   };
 
   const heroActions = [
-    { to: '/editor', label: 'Crear diseño', image: '/tarjs/14.png' },
-    { to: '/editor', label: 'Cómo empezar', image: '/tarjs/15.png' },
-    { to: '/designs', label: 'DiagramTec', image: '/tarjs/16.png' },
-    { to: '/designs', label: 'Ver diseños', image: '/tarjs/17.png' },
-    { to: '/classes', label: 'Unirse a clases', image: '/tarjs/18.png' },
+    { to: '/editor', label: 'Crear diseño', image: '/tarjs/14.webp' },
+    { to: '/editor', label: 'Cómo empezar', image: '/tarjs/15.webp' },
+    { to: '/designs', label: 'DiagramTec', image: '/tarjs/16.webp' },
+    { to: '/designs', label: 'Ver diseños', image: '/tarjs/17.webp' },
+    { to: '/classes', label: 'Unirse a clases', image: '/tarjs/18.webp' },
   ];
 
   return (
@@ -35,7 +35,7 @@ export default function HomePage() {
         {heroActions.map((action) => (
           <article className="figma-mini-card" key={action.label}>
             <div className="figma-mini-card-media" aria-hidden>
-              <img src={action.image} alt="" className="figma-mini-card-img" />
+              <img src={action.image} alt="" className="figma-mini-card-img" width="288" height="360" decoding="async" />
             </div>
             <Link className="primary-button figma-mini-card-button" to={action.to}>+ {action.label}</Link>
           </article>
@@ -90,7 +90,7 @@ export default function HomePage() {
             </p>
           </div>
           <div className="figma-about-logo-wrap">
-            <img src="/logo2.png" alt="Logo DiagramTec" className="figma-about-logo" />
+            <img src="/logo2.webp" alt="Logo DiagramTec" className="figma-about-logo" width="420" height="420" loading="lazy" decoding="async" />
           </div>
         </div>
       </section>
